@@ -1,0 +1,21 @@
+{
+  "name": "ktl-calculator-mcp",
+  "version": "1.0.0",
+  "description": "KTL 정도검사 계산기 MCP 서버 (수수료 조회 · 오차율 계산)",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "ktl-calculator-mcp": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node test/smoke.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "xlsx": "^0.18.5"
+  }
+}
