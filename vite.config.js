@@ -2,7 +2,7 @@
  * Vite 설정 + KTL 정도검사 계산기 API 미들웨어.
  *
  * 프런트엔드(web/)는 vanilla JS로 동작하고, 서버사이드 전용인
- * excelClient.js(data.xlsx를 node:fs로 읽음)와 순수 함수 calculator.js를
+ * excelClient.js(Version11_(2026).xlsx를 node:fs로 읽음)와 순수 함수 calculator.js를
  * Vite dev/preview 서버에 미들웨어로 직접 import 하여 /api 로 노출한다.
  *
  *   GET  /api/items          - 검사 항목 + 수수료 목록

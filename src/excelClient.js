@@ -1,5 +1,10 @@
 /**
- * data.xlsx 파싱 클라이언트.
+ * 엑셀 DB 파싱 클라이언트.
+ *
+ * 데이터 소스(우선순위):
+ *   1. 환경변수 KTL_DATA_FILE (서버 전용, 절대 클라이언트 노출 금지)
+ *   2. Version11_(2026).xlsx  (기본 DB)
+ *   3. data.xlsx              (구버전 폴백)
  *
  * 수수료 정보는 Sheet5에 다음 형태로 들어 있다:
  *   ... | "항목"   | TOC    | TN     | TP     | SS     | PH     | COD    | DO     | ...
@@ -9,21 +14,45 @@
  * 약간 바뀌어도 동작한다.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import XLSX from 'xlsx';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_PATH = join(__dirname, '..', 'data.xlsx');
+const PROJECT_ROOT = join(__dirname, '..');
+
+/** 기본 DB 파일명(우선순위 순). 첫 번째로 존재하는 파일을 사용한다. */
+const DEFAULT_DATA_FILES = ['Version11_(2026).xlsx', 'data.xlsx'];
+
+/** 수수료 정보가 들어 있는 시트 이름. */
 const FEE_SHEET = 'Sheet5';
+
+/** 실제로 읽을 엑셀 DB 경로를 결정한다. */
+function resolveDataPath() {
+  // 1. 환경변수 우선 (배포 환경에서 경로 교체 가능).
+  const fromEnv = process.env.KTL_DATA_FILE;
+  if (fromEnv) {
+    const envPath = isAbsolute(fromEnv) ? fromEnv : join(PROJECT_ROOT, fromEnv);
+    if (existsSync(envPath)) return envPath;
+    throw new Error(`KTL_DATA_FILE이 가리키는 파일을 찾을 수 없습니다: ${fromEnv}`);
+  }
+  // 2. 기본 후보 중 존재하는 첫 파일.
+  for (const name of DEFAULT_DATA_FILES) {
+    const candidate = join(PROJECT_ROOT, name);
+    if (existsSync(candidate)) return candidate;
+  }
+  throw new Error(
+    `엑셀 DB 파일을 찾을 수 없습니다 (${DEFAULT_DATA_FILES.join(', ')}).`,
+  );
+}
 
 let cachedWorkbook;
 
 /** 워크북을 한 번만 읽어 캐시한다. */
 function getWorkbook() {
   if (!cachedWorkbook) {
-    const buf = readFileSync(DATA_PATH);
+    const buf = readFileSync(resolveDataPath());
     cachedWorkbook = XLSX.read(buf, { type: 'buffer' });
   }
   return cachedWorkbook;

@@ -1,7 +1,8 @@
 # KTL 정도검사 계산기 MCP 서버
 
 수질 TMS 정도검사용 수수료 조회 및 오차율 계산을 제공하는 MCP(stdio) 서버.
-`data.xlsx`를 데이터 소스로 사용한다.
+엑셀 DB `Version11_(2026).xlsx`를 데이터 소스로 사용한다.
+(환경변수 `KTL_DATA_FILE`로 경로 교체 가능, 없으면 `data.xlsx`로 폴백)
 
 ## 실행
 
@@ -52,6 +53,6 @@ npm test         # 핵심 로직 스모크 테스트
 ```
 src/
 ├── index.js        # MCP stdio 서버 (도구 4종 등록)
-├── excelClient.js  # data.xlsx 파싱 (xlsx)
+├── excelClient.js  # Version11_(2026).xlsx 파싱 (xlsx)
 └── calculator.js   # 오차율 계산 (순수 함수)
 ```

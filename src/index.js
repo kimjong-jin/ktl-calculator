@@ -5,7 +5,7 @@
  * 도구 4종
  *  1. list_test_items   - 검사 항목 및 수수료 목록
  *  2. get_test_fee      - 특정 항목 수수료 조회
- *  3. get_sheet_data    - data.xlsx 시트 원본 데이터 조회
+ *  3. get_sheet_data    - 엑셀 DB(Version11) 시트 원본 데이터 조회
  *  4. calculate_accuracy - 오차율 계산 및 합격 판정
  */
 
@@ -86,7 +86,7 @@ server.registerTool(
   {
     title: '시트 데이터 조회',
     description:
-      'data.xlsx의 특정 시트 원본 데이터를 2차원 배열로 반환합니다. ' +
+      '엑셀 DB의 특정 시트 원본 데이터를 2차원 배열로 반환합니다. ' +
       'sheetName 생략 시 사용 가능한 시트 이름 목록을 반환합니다.',
     inputSchema: {
       sheetName: z
