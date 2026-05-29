@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KTL 정도검사 계산기</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="app__header">
+        <div class="brand">
+          <span class="brand__mark">KTL</span>
+          <div class="brand__text">
+            <h1>정도검사 계산기</h1>
+            <p>오차율 계산 · 합격 판정 · 수수료 조회</p>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <!-- 입력 패널 -->
+        <section class="card">
+          <h2 class="card__title">측정 입력</h2>
+
+          <label class="field">
+            <span class="field__label">검사 항목</span>
+            <select id="item" class="field__control"></select>
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span class="field__label">측정값</span>
+              <input
+                id="measured"
+                class="field__control"
+                type="number"
+                step="any"
+                inputmode="decimal"
+                placeholder="예: 105"
+              />
+            </label>
+            <label class="field">
+              <span class="field__label">표준값</span>
+              <input
+                id="standard"
+                class="field__control"
+                type="number"
+                step="any"
+                inputmode="decimal"
+                placeholder="예: 100"
+              />
+            </label>
+          </div>
+
+          <p class="hint" id="criterion-hint"></p>
+
+          <div class="actions">
+            <button id="calc-btn" class="btn btn--primary" type="button">
+              오차율 계산
+            </button>
+            <button id="reset-btn" class="btn btn--ghost" type="button">
+              초기화
+            </button>
+          </div>
+
+          <p class="error" id="error-msg" hidden></p>
+        </section>
+
+        <!-- 결과 패널 -->
+        <section class="card">
+          <h2 class="card__title">판정 결과</h2>
+
+          <div id="result" class="result result--empty">
+            <p class="result__placeholder">측정값과 표준값을 입력하고 계산하세요.</p>
+          </div>
+        </section>
+      </main>
+
+      <footer class="app__footer">
+        <span>KTL 정도검사 · 수치 표시 소수점 2자리</span>
+        <span id="conn-status" class="conn">●</span>
+      </footer>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
