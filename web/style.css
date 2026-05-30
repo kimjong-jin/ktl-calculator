@@ -588,13 +588,70 @@ select.field__control {
 .modetab.is-active { background: var(--accent-base); color: #fff; box-shadow: var(--sh-1); }
 .modepanel[hidden] { display: none !important; }
 
-.pv-item-bar {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
-  padding-bottom: 14px; border-bottom: 1px solid var(--border);
-}
-.pv-item-label { font-size: 13px; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
-.pv-item-select { max-width: 280px; }
+/* ── 정도검사 한페이지 레이아웃 ────────────────────────────────── */
+.pv-page { display: flex; flex-direction: column; gap: 14px; }
 
+.pv-header-card, .pv-form-card, .pv-results-card { }
+
+.pv-top-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.pv-item-bar { display: flex; align-items: center; gap: 10px; }
+.pv-item-label { font-size: 13px; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+.pv-item-select { max-width: 240px; }
+
+.pv-section { margin-bottom: 22px; }
+.pv-section:last-child { margin-bottom: 0; }
+.pv-section__title {
+  font-size: 13px; font-weight: 700; color: var(--text-dim); letter-spacing: .04em;
+  text-transform: uppercase; margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
+}
+.pv-hint { font-size: 11px; font-weight: 400; color: var(--text-muted); text-transform: none; }
+
+.pv-row1 { max-width: 200px; }
+
+/* Z/S 측정값 테이블 */
+.pv-zs-table { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.pv-zs-header {
+  display: grid; grid-template-columns: 100px 1fr 1fr; gap: 0;
+  background: var(--surface-2); padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+.pv-zs-row {
+  display: grid; grid-template-columns: 100px 1fr 1fr; gap: 0; align-items: center;
+  padding: 6px 12px; border-bottom: 1px solid var(--border);
+}
+.pv-zs-row:last-child { border-bottom: 0; }
+.pv-zs-row--sep { border-top: 2px solid var(--border); }
+.pv-zs-label { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+.pv-zs-row .field { margin: 4px 6px 4px 0; }
+.pv-zs-row .field__label { display: none; }
+.pv-zs-row .field__control { padding: 6px 8px; font-size: 13px; }
+
+.pv-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pv-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (max-width: 500px) {
+  .pv-grid3 { grid-template-columns: repeat(2, 1fr); }
+  .pv-grid2 { grid-template-columns: 1fr; }
+  .pv-zs-header, .pv-zs-row { grid-template-columns: 80px 1fr 1fr; }
+}
+
+.pv-calc-btn { min-width: 180px; padding: 14px 32px; font-size: 16px; font-weight: 700; }
+
+/* 결과 */
+.pv-results-card { }
+.pv-res-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 16px; }
+@media (max-width: 600px) { .pv-res-grid { grid-template-columns: 1fr; } }
+.pv-res-block {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px;
+}
+.pv-res-block__title { font-size: 12px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
+
+.pv-final-banner {
+  padding: 16px; border-radius: var(--r-md); text-align: center; font-size: 18px; font-weight: 700; border: 2px solid;
+}
+.pv-final-banner--ok { background: var(--pass-bg); color: var(--pass); border-color: var(--pass); }
+.pv-final-banner--bad { background: var(--fail-bg); color: var(--fail); border-color: var(--fail); }
+
+/* 구버전 호환 (pv-subtabs 등 — 혹시 남아있을 경우) */
 .pv-subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; }
 .pv-subtab {
   padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px;
