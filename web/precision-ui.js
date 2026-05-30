@@ -1,7 +1,9 @@
 /**
  * 수질TMS 정도검사 UI
- * - 탭 추가/삭제: TOC TOC-2 TN-1... + 추가 버튼
- * - 탭마다 독립 데이터 실시간 저장/계산
+ * - 빈 시작 상태, + 추가로 항목 탭 생성
+ * - 탭마다 독립 저장/실시간계산
+ * - 현장적용: Ci1(수분석Ai1·Ai2) + Ci2(수분석Ai3·Ai4)
+ * - 응답시간(T90) 포함
  */
 import {
   PRECISION_CRITERIA,
@@ -22,10 +24,19 @@ const ITEMS = [
   { code: 'CL',  label: 'CL — 잔류염소' },
 ];
 
-const FIELDS = ['range','z1','z2','z3','z4','z5','s1','s2','s3','s4','s5','m1','m2','m3','fa1','fa2','fs1','fs2','fdis'];
+const FIELDS = [
+  'range',
+  'z1','z2','z3','z4','z5',
+  's1','s2','s3','s4','s5',
+  'm1','m2','m3',
+  'ci1','ai1','ai2',
+  'ci2','ai3','ai4',
+  'fdis',
+  'resp','resp_limit',
+];
 
-// ── 탭 상태 ───────────────────────────────────────────────────────────────
-let tabs = [];        // [{id, code, label, pass}]
+// ── 탭 상태 ───────────────────────────────────────────────────────
+let tabs = [];
 let activeId = null;
 let calcTimer = null;
 
@@ -34,52 +45,41 @@ function saveMeta() {
   try { localStorage.setItem('ktl-tab-active', activeId||''); } catch {}
 }
 function loadMeta() {
-  try {
-    const raw = localStorage.getItem('ktl-tabs');
-    if (raw) tabs = JSON.parse(raw);
-  } catch {}
+  try { const r = localStorage.getItem('ktl-tabs'); if (r) tabs = JSON.parse(r); } catch {}
   try { activeId = localStorage.getItem('ktl-tab-active') || null; } catch {}
 }
 function saveData(id) {
-  const state = {};
-  FIELDS.forEach(f => {
-    const el = document.getElementById(`pv_${f}`);
-    if (el) state[f] = el.value;
-  });
-  try { localStorage.setItem(`ktl-pv-${id}`, JSON.stringify(state)); } catch {}
+  const s = {};
+  FIELDS.forEach(f => { const el = document.getElementById(`pv_${f}`); if (el) s[f] = el.value; });
+  try { localStorage.setItem(`ktl-pv-${id}`, JSON.stringify(s)); } catch {}
 }
 function loadData(id) {
   try { const r = localStorage.getItem(`ktl-pv-${id}`); return r ? JSON.parse(r) : {}; } catch { return {}; }
 }
 
 function makeLabel(code) {
-  const count = tabs.filter(t => t.code === code).length;
-  return count === 0 ? code : `${code}-${count + 1}`;
+  const n = tabs.filter(t => t.code === code).length;
+  return n === 0 ? code : `${code}-${n+1}`;
 }
-
 function addTab(code) {
-  const label = makeLabel(code);
-  const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
-  tabs.push({ id, code, label, pass: null });
+  const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2,5)}`;
+  tabs.push({ id, code, label: makeLabel(code), pass: null });
   saveMeta();
   renderTabs();
   switchTab(id);
 }
-
 function removeTab(id) {
-  if (tabs.length === 1) return; // 마지막 탭 삭제 방지
+  if (tabs.length === 1) { tabs = []; activeId = null; saveMeta(); renderTabs(); renderEmpty(); return; }
   try { localStorage.removeItem(`ktl-pv-${id}`); } catch {}
   const idx = tabs.findIndex(t => t.id === id);
   tabs.splice(idx, 1);
-  if (activeId === id) {
-    activeId = tabs[Math.max(0, idx - 1)].id;
-  }
+  if (activeId === id) activeId = tabs[Math.max(0, idx-1)].id;
   saveMeta();
   renderTabs();
   switchTab(activeId);
 }
 
-// ── 계산 ──────────────────────────────────────────────────────────────────
+// ── 계산 ──────────────────────────────────────────────────────────
 function g(id) { return parseFloat(document.getElementById(`pv_${id}`)?.value) || 0; }
 
 function badge(label, pass) {
@@ -96,14 +96,12 @@ function calculate(tabId) {
   const range = g('range');
   if (!range) return;
 
-  const [z1,z2,z3,z4,z5] = ['z1','z2','z3','z4','z5'].map(g);
-  const [s1,s2,s3,s4,s5] = ['s1','s2','s3','s4','s5'].map(g);
-  const [m1,m2,m3] = ['m1','m2','m3'].map(g);
+  const z = [1,2,3,4,5].map(i => g(`z${i}`));
+  const s = [1,2,3,4,5].map(i => g(`s${i}`));
+  const m = [1,2,3].map(i => g(`m${i}`));
 
-  const rep = repeatability([z1,z2,z3],[s1,s2,s3]);
-  const dr  = drift(range,[z2,z3],[z4,z5],[s2,s3],[s4,s5]);
-  const lin = linearity(range,[m1,m2,m3]);
-
+  // 반복성
+  const rep = repeatability([z[0],z[1],z[2]], [s[0],s[1],s[2]]);
   document.getElementById('pv-res-rep').innerHTML =
     `<div class="pv-lines">
       ${row('저농도 평균', fmt(rep.zero.mean,4))} ${row('저농도 RSD', `${fmt(rep.zero.rsd)}%`)}
@@ -113,6 +111,8 @@ function calculate(tabId) {
       ${badge(`고농도 RSD ≤ ${rep.limit}%`, rep.span.pass)}
     </div>`;
 
+  // 드리프트
+  const dr = drift(range, [z[1],z[2]], [z[3],z[4]], [s[1],s[2]], [s[3],s[4]]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
       ${row('제로 드리프트', `${fmt(dr.zeroDrift)}%`)}
@@ -122,6 +122,8 @@ function calculate(tabId) {
       ${badge(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, dr.spanDrift<=PRECISION_CRITERIA.spanDrift)}
     </div>`;
 
+  // 직선성
+  const lin = linearity(range, m);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
       ${row('기준값', fmt(lin.ref,4))} ${row('평균', fmt(lin.avg,4))} ${row('오차', `${fmt(lin.error)}%`)}
@@ -129,25 +131,52 @@ function calculate(tabId) {
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
 
-  const [fa1,fa2,fs1,fs2] = ['fa1','fa2','fs1','fs2'].map(g);
+  // 현장적용계수
+  const ci1=g('ci1'), ci2=g('ci2');
+  const ai1=g('ai1'), ai2=g('ai2'), ai3=g('ai3'), ai4=g('ai4');
   let fieldPass = null;
   const fieldBlock = document.getElementById('pv-res-field-block');
-  if (fa1||fa2||fs1||fs2) {
-    const fRes = fieldApplication(tab.code,[fa1,fa2],[fs1,fs2],{discharge:g('fdis')});
+  if (ci1||ci2||ai1||ai2||ai3||ai4) {
+    const fRes = fieldApplication(tab.code, [ai1,ai2,ai3,ai4], [ci1,ci2], {discharge:g('fdis')});
     document.getElementById('pv-res-field').innerHTML =
       `<div class="pv-lines">
-        ${row('수분석 평균', fmt(fRes.labMean,3))} ${row('현장 평균', fmt(fRes.siteMean,3))}
-        ${fRes.limit!=null?row('허용오차',`±${fmt(fRes.limit,3)}`):''}
-      </div><div class="pv-badges">${badge(`${tab.code} 현장적용`,fRes.pass)}</div>`;
+        ${row('수분석 평균 (Ai)', fmt(fRes.labMean,3))}
+        ${row('현장측정 평균 (Ci)', fmt(fRes.siteMean,3))}
+        ${fRes.limit!=null ? row('허용오차', `±${fmt(fRes.limit,3)}`) : ''}
+      </div><div class="pv-badges">${badge(`${tab.code} 현장적용계수`, fRes.pass)}</div>`;
     fieldPass = fRes.pass;
     if (fieldBlock) fieldBlock.hidden = false;
   } else {
     if (fieldBlock) fieldBlock.hidden = true;
   }
 
-  const passes = [rep.zero.pass,rep.span.pass,
-    dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift, dr.spanDrift<=PRECISION_CRITERIA.spanDrift, lin.pass];
+  // 응답시간
+  const resp = g('resp'), respLimit = g('resp_limit');
+  let respPass = null;
+  const respBlock = document.getElementById('pv-res-resp-block');
+  if (resp && respLimit) {
+    respPass = resp <= respLimit;
+    document.getElementById('pv-res-resp').innerHTML =
+      `<div class="pv-lines">
+        ${row('측정값 (T90)', `${fmt(resp,0)}초`)}
+        ${row('기준 (≤)', `${fmt(respLimit,0)}초`)}
+      </div><div class="pv-badges">
+        ${badge(`응답시간 ≤ ${fmt(respLimit,0)}초`, respPass)}
+      </div>`;
+    if (respBlock) respBlock.hidden = false;
+  } else {
+    if (respBlock) respBlock.hidden = true;
+  }
+
+  // 통합 판정
+  const passes = [
+    rep.zero.pass, rep.span.pass,
+    dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift,
+    dr.spanDrift<=PRECISION_CRITERIA.spanDrift,
+    lin.pass,
+  ];
   if (fieldPass !== null) passes.push(fieldPass);
+  if (respPass !== null) passes.push(respPass);
   const allPass = passes.every(p=>p===true);
 
   document.getElementById('pv-final').innerHTML =
@@ -157,14 +186,13 @@ function calculate(tabId) {
 
   document.getElementById('pv-results').hidden = false;
 
-  // 탭 패스 뱃지
   tab.pass = allPass ? 'ok' : 'bad';
   saveMeta();
   const btn = document.querySelector(`.pv-item-tab[data-id="${tabId}"]`);
   if (btn) btn.dataset.pass = tab.pass;
 }
 
-// ── 탭 전환 ───────────────────────────────────────────────────────────────
+// ── 탭 전환 ──────────────────────────────────────────────────────
 function switchTab(id) {
   if (activeId && activeId !== id) saveData(activeId);
   activeId = id;
@@ -194,7 +222,7 @@ function switchTab(id) {
   if (g('range')) calculate(id);
 }
 
-// ── 탭 바 렌더 ────────────────────────────────────────────────────────────
+// ── 탭 바 렌더 ────────────────────────────────────────────────────
 function renderTabs() {
   const bar = document.getElementById('pv-tab-list');
   if (!bar) return;
@@ -202,9 +230,7 @@ function renderTabs() {
     <div class="pv-tab-item">
       <button class="pv-item-tab${t.id===activeId?' is-active':''}"
         data-id="${t.id}" data-pass="${t.pass||''}" type="button">${t.label}</button>
-      ${tabs.length > 1
-        ? `<button class="pv-tab-del" data-id="${t.id}" type="button" title="삭제">×</button>`
-        : ''}
+      <button class="pv-tab-del" data-id="${t.id}" type="button" title="삭제">×</button>
     </div>`).join('');
 
   bar.querySelectorAll('.pv-item-tab').forEach(b =>
@@ -213,27 +239,33 @@ function renderTabs() {
     b.addEventListener('click', e => { e.stopPropagation(); removeTab(b.dataset.id); }));
 }
 
-// ── 폼 HTML ───────────────────────────────────────────────────────────────
-function zsInput(id, label) {
-  return `<label class="field"><span class="field__label">${label}</span>
-    <input id="pv_${id}" class="field__control" type="number" step="any" inputmode="decimal" placeholder="0" /></label>`;
+function renderEmpty() {
+  const formArea = document.getElementById('pv-form-area');
+  if (formArea) formArea.innerHTML =
+    `<div class="card pv-empty-state">
+      <p>+ 추가를 눌러 검사 항목을 선택하세요</p>
+      <p class="micro">TOC, TN, TP, SS, pH, DO, COD, TU, CL 중 선택</p>
+    </div>`;
 }
-function numField(id, label) {
+
+// ── 폼 HTML ───────────────────────────────────────────────────────
+function ni(id, label) {
   return `<label class="field"><span class="field__label">${label}</span>
-    <input id="pv_${id}" class="field__control" type="number" step="any" inputmode="decimal" placeholder="0" /></label>`;
+    <input id="pv_${id}" class="field__control" type="number" step="any" inputmode="decimal" placeholder="0"/></label>`;
 }
+function zsInput(id, label) { return ni(id, label); }
 
 function buildForm() {
   return `
 <div class="card pv-form-card">
   <div class="pv-section">
     <h3 class="pv-section__title">측정범위</h3>
-    <div class="pv-row1">${numField('range','측정범위')}</div>
+    <div class="pv-row1">${ni('range','측정범위')}</div>
   </div>
 
   <div class="pv-section">
     <h3 class="pv-section__title">Z / S 측정값
-      <span class="pv-hint">Z1·S1 = 기준 / Z2~Z3·S2~S3 = 드리프트초기(반복성포함) / Z4~Z5·S4~S5 = 드리프트최종</span>
+      <span class="pv-hint">Z1·S1=기준 / Z2~Z3·S2~S3=드리프트초기(반복성) / Z4~Z5·S4~S5=드리프트최종</span>
     </h3>
     <div class="pv-zs-table">
       <div class="pv-zs-header"><span></span><span>Z (제로)</span><span>S (스팬)</span></div>
@@ -247,15 +279,37 @@ function buildForm() {
 
   <div class="pv-section">
     <h3 class="pv-section__title">직선성 <span class="pv-hint">오차 ≤ ${PRECISION_CRITERIA.linearity}%</span></h3>
-    <div class="pv-grid3">${numField('m1','M1')}${numField('m2','M2')}${numField('m3','M3')}</div>
+    <div class="pv-grid3">${ni('m1','M1')}${ni('m2','M2')}${ni('m3','M3')}</div>
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">현장적용계수 <span class="pv-hint">(선택 — 미입력 시 생략)</span></h3>
+    <h3 class="pv-section__title">현장적용계수 <span class="pv-hint">(선택)</span></h3>
+    <div class="pv-field-rounds">
+      <div class="pv-field-round">
+        <div class="pv-field-round__label">측정 1회차</div>
+        <div class="pv-field-round__inputs">
+          ${ni('ci1','현장측정값 Ci₁')}
+          ${ni('ai1','수분석 Ai₁')}
+          ${ni('ai2','수분석 Ai₂')}
+        </div>
+      </div>
+      <div class="pv-field-round">
+        <div class="pv-field-round__label">측정 2회차</div>
+        <div class="pv-field-round__inputs">
+          ${ni('ci2','현장측정값 Ci₂')}
+          ${ni('ai3','수분석 Ai₃')}
+          ${ni('ai4','수분석 Ai₄')}
+        </div>
+      </div>
+      ${ni('fdis','TOC 배출허용기준 mg/L (TOC만, 없으면 0)')}
+    </div>
+  </div>
+
+  <div class="pv-section">
+    <h3 class="pv-section__title">응답시간 (T90) <span class="pv-hint">(선택)</span></h3>
     <div class="pv-grid2">
-      ${numField('fs1','현장측정값 Ci₁')}${numField('fs2','현장측정값 Ci₂')}
-      ${numField('fa1','수분석값 Ai₁')}${numField('fa2','수분석값 Ai₂')}
-      ${numField('fdis','TOC 배출허용기준 mg/L (TOC만, 없으면 0)')}
+      ${ni('resp','측정값 (초)')}
+      ${ni('resp_limit','기준값 (초, 예: DO=120, pH=30)')}
     </div>
   </div>
 </div>
@@ -267,6 +321,7 @@ function buildForm() {
     <div class="pv-res-block"><h4 class="pv-res-block__title">드리프트</h4><div id="pv-res-drift"></div></div>
     <div class="pv-res-block"><h4 class="pv-res-block__title">직선성</h4><div id="pv-res-lin"></div></div>
     <div class="pv-res-block" id="pv-res-field-block" hidden><h4 class="pv-res-block__title">현장적용계수</h4><div id="pv-res-field"></div></div>
+    <div class="pv-res-block" id="pv-res-resp-block" hidden><h4 class="pv-res-block__title">응답시간 (T90)</h4><div id="pv-res-resp"></div></div>
   </div>
   <div id="pv-final"></div>
   <div style="text-align:right;margin-top:12px">
@@ -275,33 +330,47 @@ function buildForm() {
 </div>`;
 }
 
-// ── 성적서 ────────────────────────────────────────────────────────────────
+// ── 성적서 ────────────────────────────────────────────────────────
 function showCert(tabId) {
   const tab = tabs.find(t => t.id === tabId);
   if (!tab || !g('range')) { alert('먼저 측정범위를 입력해 계산하세요.'); return; }
   const date = new Date().toLocaleDateString('ko-KR');
   const range = g('range');
-  const [z1,z2,z3,z4,z5] = ['z1','z2','z3','z4','z5'].map(g);
-  const [s1,s2,s3,s4,s5] = ['s1','s2','s3','s4','s5'].map(g);
-  const [m1,m2,m3] = ['m1','m2','m3'].map(g);
-  const rep = repeatability([z1,z2,z3],[s1,s2,s3]);
-  const dr  = drift(range,[z2,z3],[z4,z5],[s2,s3],[s4,s5]);
-  const lin = linearity(range,[m1,m2,m3]);
+  const z = [1,2,3,4,5].map(i=>g(`z${i}`));
+  const s = [1,2,3,4,5].map(i=>g(`s${i}`));
+  const rep = repeatability([z[0],z[1],z[2]],[s[0],s[1],s[2]]);
+  const dr  = drift(range,[z[1],z[2]],[z[3],z[4]],[s[1],s[2]],[s[3],s[4]]);
+  const lin = linearity(range,[g('m1'),g('m2'),g('m3')]);
   const passes = [rep.zero.pass,rep.span.pass,
     dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift,dr.spanDrift<=PRECISION_CRITERIA.spanDrift,lin.pass];
+
+  // 현장적용
+  let fieldRow = '';
+  const ci1=g('ci1'),ci2=g('ci2'),ai1=g('ai1'),ai2=g('ai2'),ai3=g('ai3'),ai4=g('ai4');
+  if(ci1||ci2||ai1||ai2||ai3||ai4){
+    const fRes = fieldApplication(tab.code,[ai1,ai2,ai3,ai4],[ci1,ci2],{discharge:g('fdis')});
+    fieldRow = tr(`${tab.code} 현장적용계수`, `|Ai평균-Ci평균|=${fmt(Math.abs(fRes.labMean-fRes.siteMean),3)}`, fRes.pass);
+    passes.push(fRes.pass);
+  }
+
+  // 응답시간
+  let respRow = '';
+  const resp=g('resp'),respLimit=g('resp_limit');
+  if(resp&&respLimit){
+    const respPass = resp<=respLimit;
+    respRow = tr(`응답시간(T90) ≤ ${fmt(respLimit,0)}초`, `${fmt(resp,0)}초`, respPass);
+    passes.push(respPass);
+  }
+
   const allPass = passes.every(p=>p===true);
 
-  const tr = (l,v,p) => `<tr>
-    <td style="padding:7px 10px;border:1px solid #ccc">${l}</td>
-    <td style="padding:7px 10px;border:1px solid #ccc">${v}</td>
-    <td style="padding:7px 10px;border:1px solid #ccc;font-weight:600;color:${p?'#1a7f37':'#cf222e'}">${p?'적합':'부적합'}</td></tr>`;
-
   const rows = [
-    tr(`저농도 반복성 (RSD ≤ ${rep.limit}%)`,`${fmt(rep.zero.rsd)}%`,rep.zero.pass),
-    tr(`고농도 반복성 (RSD ≤ ${rep.limit}%)`,`${fmt(rep.span.rsd)}%`,rep.span.pass),
-    tr(`제로드리프트 (≤ ${PRECISION_CRITERIA.zeroDrift}%)`,`${fmt(dr.zeroDrift)}%`,dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift),
-    tr(`스팬드리프트 (≤ ${PRECISION_CRITERIA.spanDrift}%)`,`${fmt(dr.spanDrift)}%`,dr.spanDrift<=PRECISION_CRITERIA.spanDrift),
-    tr(`직선성 (≤ ${PRECISION_CRITERIA.linearity}%)`,`${fmt(lin.error)}%`,lin.pass),
+    tr(`저농도 반복성(RSD ≤ ${rep.limit}%)`,`${fmt(rep.zero.rsd)}%`,rep.zero.pass),
+    tr(`고농도 반복성(RSD ≤ ${rep.limit}%)`,`${fmt(rep.span.rsd)}%`,rep.span.pass),
+    tr(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift),
+    tr(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`,`${fmt(dr.spanDrift)}%`,dr.spanDrift<=PRECISION_CRITERIA.spanDrift),
+    tr(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error)}%`,lin.pass),
+    fieldRow, respRow,
   ].join('');
 
   const ov = document.createElement('div');
@@ -320,7 +389,7 @@ function showCert(tabId) {
       </table>
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px">
         <thead><tr style="background:#f0f0f0">
-          <th style="padding:8px 10px;text-align:left;border:1px solid #ccc">항목</th>
+          <th style="padding:8px 10px;text-align:left;border:1px solid #ccc">검사항목</th>
           <th style="padding:8px 10px;text-align:left;border:1px solid #ccc">수치</th>
           <th style="padding:8px 10px;text-align:left;border:1px solid #ccc;width:70px">판정</th>
         </tr></thead>
@@ -337,18 +406,21 @@ function showCert(tabId) {
   document.body.appendChild(ov);
 }
 
-// ── 초기화 ────────────────────────────────────────────────────────────────
+function tr(l,v,p) {
+  return `<tr>
+    <td style="padding:7px 10px;border:1px solid #ccc">${l}</td>
+    <td style="padding:7px 10px;border:1px solid #ccc">${v}</td>
+    <td style="padding:7px 10px;border:1px solid #ccc;font-weight:600;color:${p?'#1a7f37':'#cf222e'}">${p?'적합':'부적합'}</td></tr>`;
+}
+
+// ── 초기화 ────────────────────────────────────────────────────────
 function init() {
   const panel = document.getElementById('panel-precision');
   if (!panel) return;
 
   loadMeta();
-  if (!tabs.length) {
-    tabs = [{ id: `tab_${Date.now()}`, code: 'TOC', label: 'TOC', pass: null }];
-    saveMeta();
-  }
   if (!activeId || !tabs.find(t => t.id === activeId)) {
-    activeId = tabs[0].id;
+    activeId = tabs.length ? tabs[0].id : null;
   }
 
   panel.innerHTML = `
@@ -357,11 +429,9 @@ function init() {
     <div class="pv-tab-bar">
       <div id="pv-tab-list" class="pv-item-tabs"></div>
       <div class="pv-add-wrap">
-        <button class="btn btn--ghost btn--mini pv-add-btn" id="pv-add-btn" type="button">+ 추가</button>
+        <button class="btn btn--primary btn--mini pv-add-btn" id="pv-add-btn" type="button">+ 추가</button>
         <div id="pv-add-menu" class="pv-add-menu" hidden>
-          ${ITEMS.map(it =>
-            `<button class="pv-add-item" data-code="${it.code}" type="button">${it.label}</button>`
-          ).join('')}
+          ${ITEMS.map(it=>`<button class="pv-add-item" data-code="${it.code}" type="button">${it.label}</button>`).join('')}
         </div>
       </div>
       <button class="btn btn--ghost btn--mini" id="pv-cert-btn" type="button">성적서 출력</button>
@@ -372,27 +442,22 @@ function init() {
 
   renderTabs();
 
-  // + 추가 메뉴
   const addBtn = document.getElementById('pv-add-btn');
   const addMenu = document.getElementById('pv-add-menu');
-  addBtn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    addMenu.hidden = !addMenu.hidden;
-  });
+  addBtn?.addEventListener('click', e => { e.stopPropagation(); addMenu.hidden = !addMenu.hidden; });
   document.addEventListener('click', () => { if (addMenu) addMenu.hidden = true; });
   panel.querySelectorAll('.pv-add-item').forEach(b =>
-    b.addEventListener('click', (e) => { e.stopPropagation(); addMenu.hidden = true; addTab(b.dataset.code); }));
+    b.addEventListener('click', e => { e.stopPropagation(); addMenu.hidden=true; addTab(b.dataset.code); }));
 
-  // 성적서 (상단 버튼)
-  document.getElementById('pv-cert-btn')?.addEventListener('click', () => showCert(activeId));
-
-  // 첫 탭 로드
-  switchTab(activeId);
-
-  // 성적서 (결과 하단 버튼) — 동적 생성되므로 delegation
-  panel.addEventListener('click', e => {
-    if (e.target.id === 'pv-cert-btn-result') showCert(activeId);
+  document.getElementById('pv-cert-btn')?.addEventListener('click', () => {
+    if (activeId) showCert(activeId);
   });
+  panel.addEventListener('click', e => {
+    if (e.target.id === 'pv-cert-btn-result' && activeId) showCert(activeId);
+  });
+
+  if (activeId) switchTab(activeId);
+  else renderEmpty();
 }
 
 if (document.readyState === 'loading') {

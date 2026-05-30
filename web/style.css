@@ -683,6 +683,21 @@ select.field__control {
 }
 .pv-tab-del:hover { background: var(--fail-bg); color: var(--fail); }
 
+/* 현장적용 라운드 레이아웃 */
+.pv-field-rounds { display: flex; flex-direction: column; gap: 12px; }
+.pv-field-round { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.pv-field-round__label {
+  background: var(--surface-2); padding: 7px 12px;
+  font-size: 12px; font-weight: 600; color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+.pv-field-round__inputs { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; padding: 10px 12px; }
+@media (max-width: 500px) { .pv-field-round__inputs { grid-template-columns: 1fr 1fr; } }
+
+/* 빈 상태 */
+.pv-empty-state { text-align: center; padding: 48px 20px; color: var(--text-dim); }
+.pv-empty-state p { margin: 0 0 6px; font-size: 15px; }
+
 /* 구버전 호환 */
 .pv-subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; }
 .pv-subtab {
