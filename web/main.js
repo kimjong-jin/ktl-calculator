@@ -1,222 +1,208 @@
 /**
- * KTL 정도검사 계산기 — 프런트엔드 로직 (vanilla JS).
+ * KTL 정도검사 계산기 — 프런트엔드 진입점 (vanilla JS, ES 모듈).
  *
- * 서버사이드 /api 엔드포인트(vite.config.js의 미들웨어)를 호출하여
- * 오차율 계산과 수수료 조회를 수행한다. 계산 로직 자체는 서버의
- * calculator.js / excelClient.js 가 단일 출처(SSOT)로 담당한다.
+ * 계산/수수료/DB 로직은 서버(calculator.js·excelClient.js)가 단일 출처(SSOT).
+ * 이 파일은 상수·DOM 바인딩·흐름 제어만 담당하고 세부 기능은 모듈로 분리한다.
+ *   api.js(서버 호출) · history.js(localStorage) · exporter.js(CSV/JSON) · render.js(DOM)
  */
 
-/**
- * 화면에 표시할 검사 항목 9종.
- * code 는 서버 calculator.js 의 파라미터 키와 일치시킨다.
- * (TU=탁도, CL=잔류염소 는 합격 기준 미정의 → 판정 '-')
- */
-const ITEMS = [
-  { code: 'TOC', label: 'TOC (총유기탄소)', unit: 'mg/L' },
-  { code: 'TN', label: 'TN (총질소)', unit: 'mg/L' },
-  { code: 'TP', label: 'TP (총인)', unit: 'mg/L' },
-  { code: 'SS', label: 'SS (부유물질)', unit: 'mg/L' },
-  { code: 'PH', label: 'pH (수소이온농도)', unit: '' },
-  { code: 'DO', label: 'DO (용존산소)', unit: 'mg/L' },
-  { code: 'COD', label: 'COD (화학적산소요구량)', unit: 'mg/L' },
-  { code: 'TU', label: '탁도 (Turbidity)', unit: 'NTU' },
-  { code: 'CL', label: '잔류염소 (Residual Cl)', unit: 'mg/L' },
-];
-
-/** 합격 기준 안내 문구 (서버 calculator.js 의 CRITERIA 와 일치). */
-const CRITERIA_HINT = {
-  TOC: '오차율 ±10% 이내 → 적합',
-  TN: '오차율 ±10% 이내 → 적합',
-  TP: '오차율 ±10% 이내 → 적합',
-  SS: '오차율 ±10% 이내 → 적합',
-  COD: '오차율 ±10% 이내 → 적합',
-  PH: '절대 편차 ±0.3 이내 → 적합',
-  DO: '절대 편차 ±0.5 이내 → 적합',
-  TU: '합격 기준 미정의 — 수치만 계산',
-  CL: '합격 기준 미정의 — 수치만 계산',
-};
+import { ITEMS, CRITERIA_HINT, UNJUDGED, itemByCode } from './constants.js';
+import { postCalculate, getFee, getDbStatus } from './api.js';
+import * as history from './history.js';
+import { exportCsv, exportJson } from './exporter.js';
+import {
+  renderResult,
+  renderResultEmpty,
+  renderHistory,
+  renderStatusChip,
+} from './render.js';
 
 const $ = (id) => document.getElementById(id);
-
 const els = {
   item: $('item'),
   measured: $('measured'),
   standard: $('standard'),
-  criterionHint: $('criterion-hint'),
+  hint: $('criterion-hint'),
   calcBtn: $('calc-btn'),
   resetBtn: $('reset-btn'),
   error: $('error-msg'),
   result: $('result'),
-  conn: $('conn-status'),
+  chip: $('status-chip'),
+  themeBtn: $('theme-btn'),
+  histTitle: $('hist-title'),
+  histSummary: $('hist-summary'),
+  histList: $('history'),
+  exportCsv: $('export-csv'),
+  exportJson: $('export-json'),
+  clearHist: $('clear-hist'),
 };
 
-/** 원화 포맷. */
-function formatKRW(value) {
-  return new Intl.NumberFormat('ko-KR').format(value) + '원';
-}
-
-/** 선택된 항목 메타데이터를 반환한다. */
-function currentItem() {
-  return ITEMS.find((i) => i.code === els.item.value) ?? ITEMS[0];
-}
+let entries = [];
 
 /** 항목 셀렉트를 채운다. */
 function populateItems() {
-  els.item.innerHTML = ITEMS.map(
-    (i) => `<option value="${i.code}">${i.label}</option>`,
-  ).join('');
+  els.item.replaceChildren(
+    ...ITEMS.map((i) => {
+      const opt = document.createElement('option');
+      opt.value = i.code;
+      opt.textContent = i.label;
+      return opt;
+    }),
+  );
 }
 
-/** 선택 항목의 기준 안내 + 입력 단위 갱신. */
+/** 선택 항목의 기준 안내 + 단위 갱신. */
 function updateHint() {
-  const item = currentItem();
+  const item = itemByCode(els.item.value);
   const unit = item.unit ? ` (단위: ${item.unit})` : '';
-  els.criterionHint.textContent = `${CRITERIA_HINT[item.code] ?? ''}${unit}`;
+  els.hint.textContent = `${CRITERIA_HINT[item.code] ?? ''}${unit}`;
+  els.hint.classList.toggle('hint--neutral', UNJUDGED.has(item.code));
 }
 
-/** 에러 메시지를 표시/숨김 한다. */
+/** 에러 메시지 표시/숨김. */
 function showError(message) {
-  if (!message) {
-    els.error.hidden = true;
-    els.error.textContent = '';
-    return;
-  }
-  els.error.hidden = false;
-  els.error.textContent = message;
+  els.error.hidden = !message;
+  els.error.textContent = message ?? '';
 }
 
-/** 판정값에 대응하는 CSS 수식어를 반환한다. */
-function judgmentModifier(judgment) {
-  if (judgment === '적합') return 'pass';
-  if (judgment === '부적합') return 'fail';
-  return 'neutral';
+/** 짧은 시각 라벨 (MM-DD HH:mm). */
+function nowLabel() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/** 수수료를 조회한다 (없으면 undefined). */
-async function fetchFee(code) {
-  const res = await fetch(`/api/fee?item=${encodeURIComponent(code)}`);
-  if (!res.ok) return undefined;
-  const data = await res.json();
-  return typeof data.fee === 'number' ? data.fee : undefined;
+/** 이력 카드(목록·카운트·요약·버튼)를 다시 그린다. */
+function refreshHistory() {
+  renderHistory(els.histList, entries, handleDelete);
+  els.histTitle.textContent = `계산 이력 (${entries.length}건)`;
+  const s = history.summary(entries);
+  els.histSummary.textContent = entries.length
+    ? `적합 ${s.pass} · 부적합 ${s.fail} · 비대상 ${s.neutral}`
+    : '';
+  const empty = entries.length === 0;
+  els.exportCsv.disabled = empty;
+  els.exportJson.disabled = empty;
+  els.clearHist.disabled = empty;
 }
 
-/** 계산 결과 카드를 렌더링한다. */
-function renderResult(result, item, fee) {
-  const mod = judgmentModifier(result.judgment);
-  const feeLine =
-    typeof fee === 'number'
-      ? formatKRW(fee)
-      : '<span class="muted">수수료 정보 없음</span>';
-
-  els.result.className = 'result';
-  els.result.innerHTML = `
-    <div class="verdict verdict--${mod}">
-      <span class="verdict__label">${result.judgment}</span>
-      <span class="verdict__item">${item.label}</span>
-    </div>
-    <dl class="metrics">
-      <div class="metric">
-        <dt>측정값</dt><dd>${result.measured}${item.unit ? ' ' + item.unit : ''}</dd>
-      </div>
-      <div class="metric">
-        <dt>표준값</dt><dd>${result.standard}${item.unit ? ' ' + item.unit : ''}</dd>
-      </div>
-      <div class="metric">
-        <dt>오차율</dt><dd class="metric--accent">${result.errorRate} %</dd>
-      </div>
-      <div class="metric">
-        <dt>절대 편차</dt><dd>${result.deviation}</dd>
-      </div>
-      <div class="metric">
-        <dt>합격 기준</dt><dd>${result.criterion}</dd>
-      </div>
-      <div class="metric">
-        <dt>수수료</dt><dd>${feeLine}</dd>
-      </div>
-    </dl>
-  `;
-}
-
-/** 오차율 계산을 수행한다. */
+/** 오차율 계산 실행. */
 async function calculate() {
   showError('');
-
   const measured = els.measured.value.trim();
   const standard = els.standard.value.trim();
-
   if (measured === '' || standard === '') {
     showError('측정값과 표준값을 모두 입력하세요.');
     return;
   }
 
-  const item = currentItem();
+  const item = itemByCode(els.item.value);
   els.calcBtn.disabled = true;
-
   try {
-    const res = await fetch('/api/calculate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        parameter: item.code,
-        measured: Number(measured),
-        standard: Number(standard),
-      }),
+    const result = await postCalculate({
+      parameter: item.code,
+      measured: Number(measured),
+      standard: Number(standard),
     });
-    const data = await res.json();
-
-    if (!res.ok) {
-      showError(data.error ?? '계산에 실패했습니다.');
-      return;
-    }
-
-    const fee = await fetchFee(item.code);
-    renderResult(data, item, fee);
-  } catch {
-    showError('서버에 연결할 수 없습니다.');
+    const fee = await getFee(item.code);
+    renderResult(els.result, result, item, fee);
+    entries = history.add({
+      code: item.code,
+      label: item.label,
+      ts: nowLabel(),
+      measured: result.measured,
+      standard: result.standard,
+      errorRate: result.errorRate,
+      deviation: result.deviation,
+      criterion: result.criterion,
+      judgment: result.judgment,
+      fee: typeof fee === 'number' ? fee : null,
+    });
+    refreshHistory();
+    els.measured.focus();
+  } catch (e) {
+    showError(e instanceof Error ? e.message : '서버에 연결할 수 없습니다.');
   } finally {
     els.calcBtn.disabled = false;
   }
 }
 
-/** 입력/결과를 초기화한다. */
+/** 입력/현재 결과만 초기화 (이력 보존). */
 function reset() {
   els.measured.value = '';
   els.standard.value = '';
   showError('');
-  els.result.className = 'result result--empty';
-  els.result.innerHTML =
-    '<p class="result__placeholder">측정값과 표준값을 입력하고 계산하세요.</p>';
+  renderResultEmpty(els.result);
   els.measured.focus();
 }
 
-/** 서버 연결 상태 표시 (항목 목록 호출로 확인). */
-async function checkConnection() {
+/** 이력 한 건 삭제. */
+function handleDelete(id) {
+  entries = history.removeById(id);
+  refreshHistory();
+}
+
+/** 이력 전체 삭제 (확인 1단계). */
+function handleClear() {
+  if (!entries.length) return;
+  if (!confirm('계산 이력을 모두 삭제할까요?')) return;
+  entries = history.clear();
+  refreshHistory();
+}
+
+/** 테마 적용 + 저장. */
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
   try {
-    const res = await fetch('/api/items');
-    els.conn.classList.toggle('conn--ok', res.ok);
-    els.conn.title = res.ok ? 'API 연결됨' : 'API 응답 오류';
+    localStorage.setItem('ktl-theme', theme);
   } catch {
-    els.conn.classList.remove('conn--ok');
-    els.conn.title = 'API 연결 실패';
+    /* 저장 실패는 무시 (테마는 기능 비핵심) */
   }
 }
 
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+}
+
+/** DB 연동 상태를 조회해 칩을 갱신한다. */
+async function refreshStatus() {
+  renderStatusChip(els.chip, 'checking');
+  const status = await getDbStatus();
+  renderStatusChip(els.chip, status);
+}
+
 function init() {
+  const saved = (() => {
+    try {
+      return localStorage.getItem('ktl-theme');
+    } catch {
+      return null;
+    }
+  })();
+  if (saved) applyTheme(saved);
+
   populateItems();
   updateHint();
+  entries = history.load();
+  refreshHistory();
 
   els.item.addEventListener('change', updateHint);
   els.calcBtn.addEventListener('click', calculate);
   els.resetBtn.addEventListener('click', reset);
+  els.themeBtn.addEventListener('click', toggleTheme);
+  els.exportCsv.addEventListener('click', () => exportCsv(entries));
+  els.exportJson.addEventListener('click', () => exportJson(entries));
+  els.clearHist.addEventListener('click', handleClear);
 
-  // Enter 키로 계산 실행
   [els.measured, els.standard].forEach((input) => {
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') calculate();
+      if (e.key === 'Escape') reset();
     });
   });
 
-  void checkConnection();
+  void refreshStatus();
 }
 
 init();

@@ -10,6 +10,11 @@ import {
   getSheetData,
 } from '../src/excelClient.js';
 import { calculateAccuracy } from '../src/calculator.js';
+import {
+  CLAYDOX_PARAMS,
+  getClaydoxTargets,
+  buildClaydoxPayload,
+} from '../src/claydoxMappings.js';
 
 let passed = 0;
 function check(name, fn) {
@@ -68,6 +73,34 @@ check('표준값 0이면 에러', () => {
 check('기준 미정의 파라미터는 판정 "-"', () => {
   const r = calculateAccuracy({ parameter: 'TU', measured: 10, standard: 9 });
   assert.equal(r.judgment, '-');
+});
+
+console.log('claydoxMappings');
+check('9개 파라미터를 지원한다', () => {
+  assert.equal(CLAYDOX_PARAMS.length, 9);
+  assert.ok(CLAYDOX_PARAMS.includes('TOC'));
+  assert.ok(CLAYDOX_PARAMS.includes('pH'));
+});
+check('target 조회는 대소문자 무관 (PH→pH)', () => {
+  assert.deepEqual(getClaydoxTargets('PH'), getClaydoxTargets('pH'));
+  assert.ok(getClaydoxTargets('toc').length > 0);
+});
+check('없는 파라미터는 에러', () => {
+  assert.throws(() => getClaydoxTargets('XYZ'));
+});
+check('페이로드 구조: phpEXCEL.INPUT_DATA, target 수 일치', () => {
+  const payload = buildClaydoxPayload('TOC', { M1: 1.23 });
+  assert.equal(payload.phpEXCEL.FILE_UID, 'excel');
+  assert.equal(payload.phpEXCEL.INPUT_DATA.length, getClaydoxTargets('TOC').length);
+});
+check('입력값은 문자열로, 미입력 target은 빈 문자열로 채운다', () => {
+  const payload = buildClaydoxPayload('TOC', { M1: 1.23 });
+  const m1 = payload.phpEXCEL.INPUT_DATA.find((d) => d.target === 'M1');
+  assert.equal(m1.value, '1.23');
+  assert.equal(m1.cellName, 'D12');
+  assert.equal(m1.targetType, 'multi_text');
+  const blank = payload.phpEXCEL.INPUT_DATA.find((d) => d.value === '');
+  assert.ok(blank, '미입력 target은 빈 문자열');
 });
 
 console.log(`\n${passed}개 테스트 통과 ✅`);

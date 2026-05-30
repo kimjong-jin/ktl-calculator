@@ -5,16 +5,29 @@
  * excelClient.js(Version11_(2026).xlsx를 node:fs로 읽음)와 순수 함수 calculator.js를
  * Vite dev/preview 서버에 미들웨어로 직접 import 하여 /api 로 노출한다.
  *
- *   GET  /api/items          - 검사 항목 + 수수료 목록
- *   GET  /api/fee?item=TOC   - 특정 항목 수수료 조회
- *   POST /api/calculate      - 오차율 계산 및 합격 판정
+ *   GET  /api/items                  - 검사 항목 + 수수료 목록
+ *   GET  /api/fee?item=TOC           - 특정 항목 수수료 조회
+ *   POST /api/calculate              - 오차율 계산 및 합격 판정
+ *   GET  /api/db/status              - 엑셀 DB 연동 상태(파일명·시트수·항목수·항목)
+ *   GET  /api/claydox/targets?param= - Claydox target→셀 매핑 (생략 시 파라미터 목록)
+ *   POST /api/claydox/payload        - Claydox phpEXCEL 전송 페이로드 생성
  *
  * MCP 서버(src/index.js)와 동일한 로직 모듈을 공유하되 그 파일은 건드리지 않는다.
  */
 
 import { defineConfig } from 'vite';
 import { calculateAccuracy, supportedParameters } from './src/calculator.js';
-import { listTestItems, getTestFee } from './src/excelClient.js';
+import {
+  listTestItems,
+  getTestFee,
+  getSheetNames,
+  getDataFileName,
+} from './src/excelClient.js';
+import {
+  CLAYDOX_PARAMS,
+  getClaydoxTargets,
+  buildClaydoxPayload,
+} from './src/claydoxMappings.js';
 
 /** 요청 본문(JSON)을 읽어 파싱한다. */
 function readJsonBody(req) {
@@ -54,6 +67,24 @@ async function handleApi(req, res, next) {
       return sendJson(res, 200, { items });
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/db/status') {
+      // 엑셀 DB 연동 상태. 파일명(베이스네임)·시트수·항목수만 노출하고
+      // 절대경로/process.env/내부 스택은 절대 노출하지 않는다.
+      try {
+        const items = listTestItems().filter((i) => /[A-Za-z]/.test(i.item));
+        return sendJson(res, 200, {
+          connected: true,
+          fileName: getDataFileName(),
+          sheetCount: getSheetNames().length,
+          itemCount: items.length,
+          items,
+        });
+      } catch (e) {
+        console.error('[ktl-calculator-web] DB 연동 확인 실패:', e instanceof Error ? e.message : e);
+        return sendJson(res, 503, { connected: false });
+      }
+    }
+
     if (req.method === 'GET' && url.pathname === '/api/fee') {
       const item = url.searchParams.get('item') ?? '';
       const fee = getTestFee(item);
@@ -75,6 +106,20 @@ async function handleApi(req, res, next) {
 
     if (req.method === 'GET' && url.pathname === '/api/parameters') {
       return sendJson(res, 200, { parameters: supportedParameters() });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/claydox/targets') {
+      const param = url.searchParams.get('param');
+      if (!param) {
+        return sendJson(res, 200, { parameters: CLAYDOX_PARAMS });
+      }
+      const targets = getClaydoxTargets(param);
+      return sendJson(res, 200, { param, count: targets.length, targets });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/claydox/payload') {
+      const body = await readJsonBody(req);
+      return sendJson(res, 200, buildClaydoxPayload(body.param, body.values ?? {}));
     }
 
     return sendJson(res, 404, { error: '존재하지 않는 API 경로입니다.' });

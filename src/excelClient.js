@@ -16,7 +16,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, isAbsolute, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 import XLSX from 'xlsx';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -71,6 +71,15 @@ function sheetToRows(sheetName) {
 /** 워크북의 모든 시트 이름을 반환한다. */
 export function getSheetNames() {
   return getWorkbook().SheetNames;
+}
+
+/**
+ * 현재 사용 중인 엑셀 DB 파일명(베이스네임)만 반환한다.
+ * 절대경로/디렉터리는 노출하지 않는다 (내부 경로 비노출 원칙).
+ * @returns {string}
+ */
+export function getDataFileName() {
+  return basename(resolveDataPath());
 }
 
 /**

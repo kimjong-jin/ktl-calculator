@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -16,70 +16,74 @@
             <p>오차율 계산 · 합격 판정 · 수수료 조회</p>
           </div>
         </div>
+        <div class="header__tools">
+          <span id="status-chip" class="status-chip status-chip--checking" aria-live="polite">
+            <span class="status-chip__dot"></span>
+            <span class="status-chip__label">연동 확인 중</span>
+            <span class="status-chip__meta"></span>
+          </span>
+          <button id="theme-btn" class="icon-btn icon-btn--lg" type="button" title="라이트/다크 전환" aria-label="테마 전환">◐</button>
+        </div>
       </header>
 
       <main class="layout">
-        <!-- 입력 패널 -->
-        <section class="card">
-          <h2 class="card__title">측정 입력</h2>
+          <!-- 입력 -->
+          <section class="card card--input">
+            <h2 class="card__title">측정 입력</h2>
 
-          <label class="field">
-            <span class="field__label">검사 항목</span>
-            <select id="item" class="field__control"></select>
-          </label>
-
-          <div class="field-row">
             <label class="field">
-              <span class="field__label">측정값</span>
-              <input
-                id="measured"
-                class="field__control"
-                type="number"
-                step="any"
-                inputmode="decimal"
-                placeholder="예: 105"
-              />
+              <span class="field__label">검사 항목</span>
+              <select id="item" class="field__control"></select>
             </label>
-            <label class="field">
-              <span class="field__label">표준값</span>
-              <input
-                id="standard"
-                class="field__control"
-                type="number"
-                step="any"
-                inputmode="decimal"
-                placeholder="예: 100"
-              />
-            </label>
-          </div>
 
-          <p class="hint" id="criterion-hint"></p>
+            <div class="field-row">
+              <label class="field">
+                <span class="field__label">측정값</span>
+                <input id="measured" class="field__control" type="number" step="any" inputmode="decimal" placeholder="예: 105" />
+              </label>
+              <label class="field">
+                <span class="field__label">표준값</span>
+                <input id="standard" class="field__control" type="number" step="any" inputmode="decimal" placeholder="예: 100" />
+              </label>
+            </div>
 
-          <div class="actions">
-            <button id="calc-btn" class="btn btn--primary" type="button">
-              오차율 계산
-            </button>
-            <button id="reset-btn" class="btn btn--ghost" type="button">
-              초기화
-            </button>
-          </div>
+            <p class="hint" id="criterion-hint"></p>
 
-          <p class="error" id="error-msg" hidden></p>
-        </section>
+            <div class="actions">
+              <button id="calc-btn" class="btn btn--primary" type="button">오차율 계산</button>
+              <button id="reset-btn" class="btn btn--ghost" type="button" title="입력과 현재 결과만 초기화 (이력은 보존, 단축키 Esc)">초기화</button>
+            </div>
 
-        <!-- 결과 패널 -->
-        <section class="card">
-          <h2 class="card__title">판정 결과</h2>
+            <p class="error" id="error-msg" hidden></p>
+          </section>
 
-          <div id="result" class="result result--empty">
-            <p class="result__placeholder">측정값과 표준값을 입력하고 계산하세요.</p>
-          </div>
-        </section>
+          <!-- 이력 -->
+          <section class="card card--history">
+            <div class="card__bar">
+              <h2 class="card__title" id="hist-title">계산 이력 (0건)</h2>
+              <div class="hist__actions">
+                <button id="export-csv" class="btn btn--mini" type="button" disabled>CSV</button>
+                <button id="export-json" class="btn btn--mini" type="button" disabled>JSON</button>
+                <button id="clear-hist" class="btn btn--mini btn--danger" type="button" disabled title="누적된 이력 전체 삭제">이력 비우기</button>
+              </div>
+            </div>
+            <p class="hist__summary" id="hist-summary"></p>
+            <ul class="hist" id="history"></ul>
+            <p class="micro">로컬 저장 — 이 브라우저에만 보관됩니다 (최대 200건).</p>
+          </section>
+
+          <!-- 결과 -->
+          <section class="card card--result">
+            <h2 class="card__title">판정 결과</h2>
+            <div id="result" class="result result--empty">
+              <p class="placeholder">측정값과 표준값을 입력하고 계산하세요.</p>
+            </div>
+          </section>
       </main>
 
       <footer class="app__footer">
         <span>KTL 정도검사 · 수치 표시 소수점 2자리</span>
-        <span id="conn-status" class="conn">●</span>
+        <span class="micro">계산·DB는 서버 단일 출처(SSOT)</span>
       </footer>
     </div>
 

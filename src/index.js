@@ -2,11 +2,13 @@
 /**
  * KTL 정도검사 계산기 MCP 서버 (stdio).
  *
- * 도구 4종
- *  1. list_test_items   - 검사 항목 및 수수료 목록
- *  2. get_test_fee      - 특정 항목 수수료 조회
- *  3. get_sheet_data    - 엑셀 DB(Version11) 시트 원본 데이터 조회
- *  4. calculate_accuracy - 오차율 계산 및 합격 판정
+ * 도구 6종
+ *  1. list_test_items       - 검사 항목 및 수수료 목록
+ *  2. get_test_fee          - 특정 항목 수수료 조회
+ *  3. get_sheet_data        - 엑셀 DB(Version11) 시트 원본 데이터 조회
+ *  4. calculate_accuracy    - 오차율 계산 및 합격 판정
+ *  5. list_claydox_targets  - 파라미터별 Claydox target→셀 매핑 조회
+ *  6. build_claydox_payload - Claydox phpEXCEL 전송 페이로드 생성
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -20,6 +22,11 @@ import {
   getTestFee,
 } from './excelClient.js';
 import { calculateAccuracy, supportedParameters } from './calculator.js';
+import {
+  CLAYDOX_PARAMS,
+  getClaydoxTargets,
+  buildClaydoxPayload,
+} from './claydoxMappings.js';
 
 /** 객체를 MCP 텍스트 콘텐츠 결과로 감싼다. */
 function jsonResult(data) {
@@ -127,6 +134,60 @@ server.registerTool(
       return jsonResult(calculateAccuracy({ parameter, measured, standard }));
     } catch (e) {
       return errorResult(e instanceof Error ? e.message : '오차율 계산에 실패했습니다.');
+    }
+  },
+);
+
+server.registerTool(
+  'list_claydox_targets',
+  {
+    title: 'Claydox 매핑 조회',
+    description:
+      '특정 파라미터의 Claydox target(논리명)→엑셀 셀/시트 매핑 목록을 반환합니다. ' +
+      'param 생략 시 지원 파라미터 목록을 반환합니다.',
+    inputSchema: {
+      param: z
+        .string()
+        .optional()
+        .describe(`파라미터 (지원: ${CLAYDOX_PARAMS.join(', ')}). 대소문자 무관. 생략 시 목록 반환.`),
+    },
+  },
+  async ({ param }) => {
+    try {
+      if (!param) {
+        return jsonResult({ parameters: CLAYDOX_PARAMS });
+      }
+      const targets = getClaydoxTargets(param);
+      return jsonResult({ param, count: targets.length, targets });
+    } catch (e) {
+      return errorResult(e instanceof Error ? e.message : 'Claydox 매핑 조회에 실패했습니다.');
+    }
+  },
+);
+
+server.registerTool(
+  'build_claydox_payload',
+  {
+    title: 'Claydox 페이로드 생성',
+    description:
+      'target→값 매핑(values)으로 Claydox phpEXCEL 전송 페이로드를 생성합니다. ' +
+      '입력되지 않은 target은 빈 문자열로 채워집니다. ' +
+      'target 목록은 list_claydox_targets로 확인하세요.',
+    inputSchema: {
+      param: z
+        .string()
+        .describe(`파라미터 (지원: ${CLAYDOX_PARAMS.join(', ')}). 대소문자 무관.`),
+      values: z
+        .record(z.string(), z.union([z.string(), z.number()]))
+        .optional()
+        .describe('target(논리명) → 값 매핑. 예: { "M1": 1.23, "Z1": 0 }'),
+    },
+  },
+  async ({ param, values }) => {
+    try {
+      return jsonResult(buildClaydoxPayload(param, values ?? {}));
+    } catch (e) {
+      return errorResult(e instanceof Error ? e.message : 'Claydox 페이로드 생성에 실패했습니다.');
     }
   },
 );
