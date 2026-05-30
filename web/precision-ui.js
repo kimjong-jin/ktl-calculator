@@ -63,11 +63,9 @@ function getFields(code) {
   // TOC/TN/TP/SS/COD (기본형)
   const base = [
     'range',
-    'z1','z3','z5',   // 반복성
-    'z2','z4',        // 드리프트 제로 초기/최종 (각 대표값)
-    's1','s3','s5',   // 반복성
-    's2','s4',        // 드리프트 스팬
-    'm1','m2','m3',   // 직선성
+    'z1','z2','z3','z4','z5',  // 드리프트+반복성
+    's1','s2','s3','s4','s5',  // 드리프트+반복성
+    'm1','m2','m3',             // 직선성
     'ci1','ai1','ai2','ci2','ai3','ai4','fdis', // 현장적용
     'resp','resp_limit',
   ];
@@ -150,8 +148,8 @@ function calcBasic(tab) {
       ${badge(`고농도 RSD ≤ ${rep.limit}%`, rep.span.pass)}
     </div>`;
 
-  // 드리프트: 초기[Z2], 최종[Z4] / 초기[S2], 최종[S4]
-  const dr = drift(range, [g('z2')], [g('z4')], [g('s2')], [g('s4')]);
+  // 드리프트: 초기[Z1,Z2] → 최종[Z3,Z4] / 초기[S1,S2] → 최종[S3,S4]
+  const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
       ${row('제로드리프트', `${fmt(dr.zeroDrift)}%`)}
@@ -552,25 +550,16 @@ function buildFormBasic(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">반복성
-      <span class="pv-hint">Z1·Z3·Z5 / S1·S3·S5 (RSD ≤ 3%)</span>
+    <h3 class="pv-section__title">Z / S 측정값
+      <span class="pv-hint">반복성: RSD(Z1·Z3·Z5) / RSD(S1·S3·S5) | 드리프트: |평균(Z3·Z4)−평균(Z1·Z2)| / 범위 ≤ 5%</span>
     </h3>
     <div class="pv-zs-table">
       <div class="pv-zs-header"><span></span><span>Z (제로)</span><span>S (스팬)</span></div>
-      <div class="pv-zs-row"><span class="pv-zs-label">기준 (1회)</span>${ni('z1','Z1')}${ni('s1','S1')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label">반복 (2회)</span>${ni('z3','Z3')}${ni('s3','S3')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label">반복 (3회)</span>${ni('z5','Z5')}${ni('s5','S5')}</div>
-    </div>
-  </div>
-
-  <div class="pv-section">
-    <h3 class="pv-section__title">드리프트
-      <span class="pv-hint">초기(Z2·S2) → 최종(Z4·S4), |차|/범위×100 ≤ 5%</span>
-    </h3>
-    <div class="pv-zs-table">
-      <div class="pv-zs-header"><span></span><span>Z (제로)</span><span>S (스팬)</span></div>
-      <div class="pv-zs-row"><span class="pv-zs-label">시험 초기</span>${ni('z2','Z2')}${ni('s2','S2')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label">4시간 후</span>${ni('z4','Z4')}${ni('s4','S4')}</div>
+      <div class="pv-zs-row"><span class="pv-zs-label">드리프트<br><small>초기구간</small></span>${ni('z1','Z1')}${ni('s1','S1')}</div>
+      <div class="pv-zs-row"><span class="pv-zs-label"></span>${ni('z2','Z2')}${ni('s2','S2')}</div>
+      <div class="pv-zs-row pv-zs-row--sep"><span class="pv-zs-label">드리프트<br><small>최종구간</small></span>${ni('z3','Z3')}${ni('s3','S3')}</div>
+      <div class="pv-zs-row"><span class="pv-zs-label"></span>${ni('z4','Z4')}${ni('s4','S4')}</div>
+      <div class="pv-zs-row pv-zs-row--sep"><span class="pv-zs-label">반복성 추가</span>${ni('z5','Z5')}${ni('s5','S5')}</div>
     </div>
   </div>
 
@@ -837,7 +826,7 @@ function showCert(tabId) {
   } else {
     const range = g('range');
     const rep = repeatability([g('z1'),g('z3'),g('z5')],[g('s1'),g('s3'),g('s5')]);
-    const dr = drift(range,[g('z2')],[g('z4')],[g('s2')],[g('s4')]);
+    const dr = drift(range,[g('z1'),g('z2')],[g('z3'),g('z4')],[g('s1'),g('s2')],[g('s3'),g('s4')]);
     const lin = IS_WATER(tab.code)
       ? linearity(range,[g('m1'),g('m1'),g('m1')])
       : linearity(range,[g('m1'),g('m2'),g('m3')]);
