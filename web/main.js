@@ -99,8 +99,8 @@ function setupAuthGate(onSuccess) {
 function showApp() {
   const gate = $('auth-gate');
   const app = $('main-app');
-  if (gate) gate.style.display = 'none';
-  if (app) app.style.display = '';
+  if (gate) gate.hidden = true;   // [hidden] CSS 규칙으로 숨김
+  if (app) app.hidden = false;    // hidden 속성 제거 → .app { display:flex } 적용
 }
 
 async function guardAuth(onReady) {
