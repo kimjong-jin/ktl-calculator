@@ -1,5 +1,8 @@
 /* KTL 정도검사 계산기 — 토큰 기반 다크/라이트 듀얼 테마 */
 
+/* hidden 속성이 display:flex 등 author CSS에 묻히지 않도록 */
+[hidden] { display: none !important; }
+
 :root,
 [data-theme='dark'] {
   --surface-0: #0d1117;
