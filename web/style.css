@@ -662,7 +662,28 @@ select.field__control {
 .pv-final-banner--ok { background: var(--pass-bg); color: var(--pass); border-color: var(--pass); }
 .pv-final-banner--bad { background: var(--fail-bg); color: var(--fail); border-color: var(--fail); }
 
-/* 구버전 호환 (pv-subtabs 등 — 혹시 남아있을 경우) */
+/* 추가 버튼 메뉴 */
+.pv-add-wrap { position: relative; }
+.pv-add-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 100;
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-md);
+  box-shadow: var(--sh-2); min-width: 200px; overflow: hidden;
+}
+.pv-add-item {
+  display: block; width: 100%; padding: 9px 14px; text-align: left;
+  background: none; border: 0; color: var(--text); font-size: 13px; cursor: pointer;
+  transition: background .1s;
+}
+.pv-add-item:hover { background: var(--surface-2); }
+
+.pv-tab-item { display: flex; align-items: center; gap: 2px; }
+.pv-tab-del {
+  padding: 2px 5px; border: 0; background: none; color: var(--text-dim);
+  font-size: 14px; cursor: pointer; border-radius: 4px; line-height: 1;
+}
+.pv-tab-del:hover { background: var(--fail-bg); color: var(--fail); }
+
+/* 구버전 호환 */
 .pv-subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; }
 .pv-subtab {
   padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px;

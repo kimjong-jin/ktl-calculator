@@ -1,8 +1,7 @@
 /**
  * 수질TMS 정도검사 UI
- * - 항목별 탭 (TOC/TN/TP/SS/pH/DO/COD/TU/CL)
- * - 탭마다 독립 입력값 + 결과 실시간 저장 (localStorage)
- * - 입력값 변경 시 자동 계산
+ * - 탭 추가/삭제: TOC TOC-2 TN-1... + 추가 버튼
+ * - 탭마다 독립 데이터 실시간 저장/계산
  */
 import {
   PRECISION_CRITERIA,
@@ -12,37 +11,75 @@ import {
 const fmt = (n, d = 2) => (Number.isFinite(n) ? Number(n).toFixed(d) : '–');
 
 const ITEMS = [
-  { code: 'TOC', label: 'TOC' },
-  { code: 'TN',  label: 'TN' },
-  { code: 'TP',  label: 'TP' },
-  { code: 'SS',  label: 'SS' },
-  { code: 'PH',  label: 'pH' },
-  { code: 'DO',  label: 'DO' },
-  { code: 'COD', label: 'COD' },
-  { code: 'TU',  label: 'TU' },
-  { code: 'CL',  label: 'CL' },
+  { code: 'TOC', label: 'TOC — 총유기탄소' },
+  { code: 'TN',  label: 'TN — 총질소' },
+  { code: 'TP',  label: 'TP — 총인' },
+  { code: 'SS',  label: 'SS — 부유물질' },
+  { code: 'PH',  label: 'pH — 수소이온농도' },
+  { code: 'DO',  label: 'DO — 용존산소' },
+  { code: 'COD', label: 'COD — 화학적산소요구량' },
+  { code: 'TU',  label: 'TU — 탁도' },
+  { code: 'CL',  label: 'CL — 잔류염소' },
 ];
 
 const FIELDS = ['range','z1','z2','z3','z4','z5','s1','s2','s3','s4','s5','m1','m2','m3','fa1','fa2','fs1','fs2','fdis'];
 
-const STORAGE_KEY = code => `ktl-pv-${code}`;
+// ── 탭 상태 ───────────────────────────────────────────────────────────────
+let tabs = [];        // [{id, code, label, pass}]
+let activeId = null;
+let calcTimer = null;
 
-function saveState(code) {
-  const state = {};
-  FIELDS.forEach(id => {
-    const el = document.getElementById(`pv_${id}`);
-    if (el) state[id] = el.value;
-  });
-  try { localStorage.setItem(STORAGE_KEY(code), JSON.stringify(state)); } catch {}
+function saveMeta() {
+  try { localStorage.setItem('ktl-tabs', JSON.stringify(tabs.map(({id,code,label,pass})=>({id,code,label,pass})))); } catch {}
+  try { localStorage.setItem('ktl-tab-active', activeId||''); } catch {}
 }
-
-function loadState(code) {
+function loadMeta() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY(code));
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
+    const raw = localStorage.getItem('ktl-tabs');
+    if (raw) tabs = JSON.parse(raw);
+  } catch {}
+  try { activeId = localStorage.getItem('ktl-tab-active') || null; } catch {}
+}
+function saveData(id) {
+  const state = {};
+  FIELDS.forEach(f => {
+    const el = document.getElementById(`pv_${f}`);
+    if (el) state[f] = el.value;
+  });
+  try { localStorage.setItem(`ktl-pv-${id}`, JSON.stringify(state)); } catch {}
+}
+function loadData(id) {
+  try { const r = localStorage.getItem(`ktl-pv-${id}`); return r ? JSON.parse(r) : {}; } catch { return {}; }
 }
 
+function makeLabel(code) {
+  const count = tabs.filter(t => t.code === code).length;
+  return count === 0 ? code : `${code}-${count + 1}`;
+}
+
+function addTab(code) {
+  const label = makeLabel(code);
+  const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+  tabs.push({ id, code, label, pass: null });
+  saveMeta();
+  renderTabs();
+  switchTab(id);
+}
+
+function removeTab(id) {
+  if (tabs.length === 1) return; // 마지막 탭 삭제 방지
+  try { localStorage.removeItem(`ktl-pv-${id}`); } catch {}
+  const idx = tabs.findIndex(t => t.id === id);
+  tabs.splice(idx, 1);
+  if (activeId === id) {
+    activeId = tabs[Math.max(0, idx - 1)].id;
+  }
+  saveMeta();
+  renderTabs();
+  switchTab(activeId);
+}
+
+// ── 계산 ──────────────────────────────────────────────────────────────────
 function g(id) { return parseFloat(document.getElementById(`pv_${id}`)?.value) || 0; }
 
 function badge(label, pass) {
@@ -51,84 +88,67 @@ function badge(label, pass) {
     ? `<div class="pv-badge pv-badge--ok">✅ ${label} 적합</div>`
     : `<div class="pv-badge pv-badge--bad">❌ ${label} 부적합</div>`;
 }
-function row(k, v) {
-  return `<div class="pv-line"><span>${k}</span><b>${v}</b></div>`;
-}
+function row(k, v) { return `<div class="pv-line"><span>${k}</span><b>${v}</b></div>`; }
 
-function calculate(itemCode) {
+function calculate(tabId) {
+  const tab = tabs.find(t => t.id === tabId);
+  if (!tab) return;
   const range = g('range');
-  if (!range) return; // 측정범위 없으면 계산 안 함
+  if (!range) return;
 
-  const z1=g('z1'),z2=g('z2'),z3=g('z3'),z4=g('z4'),z5=g('z5');
-  const s1=g('s1'),s2=g('s2'),s3=g('s3'),s4=g('s4'),s5=g('s5');
-  const m1=g('m1'),m2=g('m2'),m3=g('m3');
+  const [z1,z2,z3,z4,z5] = ['z1','z2','z3','z4','z5'].map(g);
+  const [s1,s2,s3,s4,s5] = ['s1','s2','s3','s4','s5'].map(g);
+  const [m1,m2,m3] = ['m1','m2','m3'].map(g);
 
-  // 반복성 (RSD)
   const rep = repeatability([z1,z2,z3],[s1,s2,s3]);
+  const dr  = drift(range,[z2,z3],[z4,z5],[s2,s3],[s4,s5]);
+  const lin = linearity(range,[m1,m2,m3]);
+
   document.getElementById('pv-res-rep').innerHTML =
     `<div class="pv-lines">
-      ${row('저농도 평균', fmt(rep.zero.mean,4))}
-      ${row('저농도 RSD', `${fmt(rep.zero.rsd)}%`)}
-      ${row('고농도 평균', fmt(rep.span.mean,4))}
-      ${row('고농도 RSD', `${fmt(rep.span.rsd)}%`)}
-    </div>
-    <div class="pv-badges">
+      ${row('저농도 평균', fmt(rep.zero.mean,4))} ${row('저농도 RSD', `${fmt(rep.zero.rsd)}%`)}
+      ${row('고농도 평균', fmt(rep.span.mean,4))} ${row('고농도 RSD', `${fmt(rep.span.rsd)}%`)}
+    </div><div class="pv-badges">
       ${badge(`저농도 RSD ≤ ${rep.limit}%`, rep.zero.pass)}
       ${badge(`고농도 RSD ≤ ${rep.limit}%`, rep.span.pass)}
     </div>`;
 
-  // 드리프트
-  const dr = drift(range,[z2,z3],[z4,z5],[s2,s3],[s4,s5]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
       ${row('제로 드리프트', `${fmt(dr.zeroDrift)}%`)}
       ${row('스팬 드리프트', `${fmt(dr.spanDrift)}%`)}
-    </div>
-    <div class="pv-badges">
+    </div><div class="pv-badges">
       ${badge(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift)}
       ${badge(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, dr.spanDrift<=PRECISION_CRITERIA.spanDrift)}
     </div>`;
 
-  // 직선성
-  const lin = linearity(range,[m1,m2,m3]);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
-      ${row('기준값', fmt(lin.ref,4))}
-      ${row('평균', fmt(lin.avg,4))}
-      ${row('오차', `${fmt(lin.error)}%`)}
-    </div>
-    <div class="pv-badges">
+      ${row('기준값', fmt(lin.ref,4))} ${row('평균', fmt(lin.avg,4))} ${row('오차', `${fmt(lin.error)}%`)}
+    </div><div class="pv-badges">
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
 
-  // 현장적용계수
-  const fa1=g('fa1'),fa2=g('fa2'),fs1=g('fs1'),fs2=g('fs2');
+  const [fa1,fa2,fs1,fs2] = ['fa1','fa2','fs1','fs2'].map(g);
   let fieldPass = null;
   const fieldBlock = document.getElementById('pv-res-field-block');
   if (fa1||fa2||fs1||fs2) {
-    const fRes = fieldApplication(itemCode,[fa1,fa2],[fs1,fs2],{discharge:g('fdis')});
+    const fRes = fieldApplication(tab.code,[fa1,fa2],[fs1,fs2],{discharge:g('fdis')});
     document.getElementById('pv-res-field').innerHTML =
       `<div class="pv-lines">
-        ${row('수분석 평균', fmt(fRes.labMean,3))}
-        ${row('현장 평균', fmt(fRes.siteMean,3))}
-        ${fRes.limit!=null ? row('허용오차',`±${fmt(fRes.limit,3)}`) : ''}
-      </div>
-      <div class="pv-badges">${badge(`${itemCode} 현장적용계수`,fRes.pass)}</div>`;
+        ${row('수분석 평균', fmt(fRes.labMean,3))} ${row('현장 평균', fmt(fRes.siteMean,3))}
+        ${fRes.limit!=null?row('허용오차',`±${fmt(fRes.limit,3)}`):''}
+      </div><div class="pv-badges">${badge(`${tab.code} 현장적용`,fRes.pass)}</div>`;
     fieldPass = fRes.pass;
-    fieldBlock.hidden = false;
+    if (fieldBlock) fieldBlock.hidden = false;
   } else {
-    fieldBlock.hidden = true;
+    if (fieldBlock) fieldBlock.hidden = true;
   }
 
-  // 최종 판정
-  const passes = [
-    rep.zero.pass, rep.span.pass,
-    dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift,
-    dr.spanDrift<=PRECISION_CRITERIA.spanDrift,
-    lin.pass,
-  ];
+  const passes = [rep.zero.pass,rep.span.pass,
+    dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift, dr.spanDrift<=PRECISION_CRITERIA.spanDrift, lin.pass];
   if (fieldPass !== null) passes.push(fieldPass);
-  const allPass = passes.every(p => p===true);
+  const allPass = passes.every(p=>p===true);
 
   document.getElementById('pv-final').innerHTML =
     `<div class="pv-final-banner pv-final-banner--${allPass?'ok':'bad'}">
@@ -137,101 +157,63 @@ function calculate(itemCode) {
 
   document.getElementById('pv-results').hidden = false;
 
-  // 탭 뱃지 업데이트
-  const tabBtn = document.querySelector(`.pv-item-tab[data-code="${itemCode}"]`);
-  if (tabBtn) {
-    tabBtn.dataset.pass = allPass ? 'ok' : 'bad';
-  }
+  // 탭 패스 뱃지
+  tab.pass = allPass ? 'ok' : 'bad';
+  saveMeta();
+  const btn = document.querySelector(`.pv-item-tab[data-id="${tabId}"]`);
+  if (btn) btn.dataset.pass = tab.pass;
 }
 
-function buildForm() {
-  return `
-<div class="card pv-form-card">
-  <!-- 측정범위 -->
-  <div class="pv-section">
-    <h3 class="pv-section__title">측정범위</h3>
-    <div class="pv-row1">
-      <label class="field"><span class="field__label">측정범위</span>
-        <input id="pv_range" class="field__control" type="number" step="any" inputmode="decimal" placeholder="예: 100" /></label>
-    </div>
-  </div>
+// ── 탭 전환 ───────────────────────────────────────────────────────────────
+function switchTab(id) {
+  if (activeId && activeId !== id) saveData(activeId);
+  activeId = id;
+  saveMeta();
 
-  <!-- Z/S 측정값 -->
-  <div class="pv-section">
-    <h3 class="pv-section__title">Z / S 측정값
-      <span class="pv-hint">Z1·S1 = 기준, Z2~Z3·S2~S3 = 드리프트 초기(=반복성), Z4~Z5·S4~S5 = 드리프트 최종</span>
-    </h3>
-    <div class="pv-zs-table">
-      <div class="pv-zs-header"><span></span><span>Z (제로)</span><span>S (스팬)</span></div>
-      <div class="pv-zs-row">
-        <span class="pv-zs-label">초기 기준</span>
-        ${zsInput('z1','Z1')} ${zsInput('s1','S1')}
-      </div>
-      <div class="pv-zs-row">
-        <span class="pv-zs-label">드리프트<br><small>초기구간</small></span>
-        ${zsInput('z2','Z2')} ${zsInput('s2','S2')}
-      </div>
-      <div class="pv-zs-row">
-        <span class="pv-zs-label"></span>
-        ${zsInput('z3','Z3')} ${zsInput('s3','S3')}
-      </div>
-      <div class="pv-zs-row pv-zs-row--sep">
-        <span class="pv-zs-label">드리프트<br><small>최종구간</small></span>
-        ${zsInput('z4','Z4')} ${zsInput('s4','S4')}
-      </div>
-      <div class="pv-zs-row">
-        <span class="pv-zs-label"></span>
-        ${zsInput('z5','Z5')} ${zsInput('s5','S5')}
-      </div>
-    </div>
-  </div>
+  document.querySelectorAll('.pv-item-tab').forEach(b =>
+    b.classList.toggle('is-active', b.dataset.id === id));
 
-  <!-- 직선성 -->
-  <div class="pv-section">
-    <h3 class="pv-section__title">직선성
-      <span class="pv-hint">기준값 = 0.9 × 측정범위 ÷ 2, 오차 ≤ ${PRECISION_CRITERIA.linearity}%</span>
-    </h3>
-    <div class="pv-grid3">
-      ${numField('m1','M1')} ${numField('m2','M2')} ${numField('m3','M3')}
-    </div>
-  </div>
+  const formArea = document.getElementById('pv-form-area');
+  if (!formArea) return;
+  formArea.innerHTML = buildForm();
 
-  <!-- 현장적용계수 -->
-  <div class="pv-section">
-    <h3 class="pv-section__title">현장적용계수 <span class="pv-hint">(선택)</span></h3>
-    <div class="pv-grid2">
-      ${numField('fa1','수분석 1회')} ${numField('fa2','수분석 2회')}
-      ${numField('fs1','현장측정 1회')} ${numField('fs2','현장측정 2회')}
-      ${numField('fdis','TOC 배출허용기준 (TOC만, 없으면 0)')}
-    </div>
-  </div>
-</div>
+  const saved = loadData(id);
+  FIELDS.forEach(f => {
+    const el = document.getElementById(`pv_${f}`);
+    if (el && saved[f] !== undefined) el.value = saved[f];
+  });
 
-<!-- 결과 -->
-<div id="pv-results" class="card pv-results-card" hidden>
-  <h3 class="pv-section__title" style="margin-bottom:16px">검사 결과</h3>
-  <div class="pv-res-grid">
-    <div class="pv-res-block">
-      <h4 class="pv-res-block__title">반복성 (RSD)</h4>
-      <div id="pv-res-rep"></div>
-    </div>
-    <div class="pv-res-block">
-      <h4 class="pv-res-block__title">드리프트</h4>
-      <div id="pv-res-drift"></div>
-    </div>
-    <div class="pv-res-block">
-      <h4 class="pv-res-block__title">직선성</h4>
-      <div id="pv-res-lin"></div>
-    </div>
-    <div class="pv-res-block" id="pv-res-field-block" hidden>
-      <h4 class="pv-res-block__title">현장적용계수</h4>
-      <div id="pv-res-field"></div>
-    </div>
-  </div>
-  <div id="pv-final"></div>
-</div>`;
+  FIELDS.forEach(f => {
+    document.getElementById(`pv_${f}`)?.addEventListener('input', () => {
+      saveData(id);
+      clearTimeout(calcTimer);
+      calcTimer = setTimeout(() => calculate(id), 300);
+    });
+  });
+
+  if (g('range')) calculate(id);
 }
 
+// ── 탭 바 렌더 ────────────────────────────────────────────────────────────
+function renderTabs() {
+  const bar = document.getElementById('pv-tab-list');
+  if (!bar) return;
+  bar.innerHTML = tabs.map(t => `
+    <div class="pv-tab-item">
+      <button class="pv-item-tab${t.id===activeId?' is-active':''}"
+        data-id="${t.id}" data-pass="${t.pass||''}" type="button">${t.label}</button>
+      ${tabs.length > 1
+        ? `<button class="pv-tab-del" data-id="${t.id}" type="button" title="삭제">×</button>`
+        : ''}
+    </div>`).join('');
+
+  bar.querySelectorAll('.pv-item-tab').forEach(b =>
+    b.addEventListener('click', () => switchTab(b.dataset.id)));
+  bar.querySelectorAll('.pv-tab-del').forEach(b =>
+    b.addEventListener('click', e => { e.stopPropagation(); removeTab(b.dataset.id); }));
+}
+
+// ── 폼 HTML ───────────────────────────────────────────────────────────────
 function zsInput(id, label) {
   return `<label class="field"><span class="field__label">${label}</span>
     <input id="pv_${id}" class="field__control" type="number" step="any" inputmode="decimal" placeholder="0" /></label>`;
@@ -241,113 +223,98 @@ function numField(id, label) {
     <input id="pv_${id}" class="field__control" type="number" step="any" inputmode="decimal" placeholder="0" /></label>`;
 }
 
-let currentCode = ITEMS[0].code;
-let calcTimer = null;
+function buildForm() {
+  return `
+<div class="card pv-form-card">
+  <div class="pv-section">
+    <h3 class="pv-section__title">측정범위</h3>
+    <div class="pv-row1">${numField('range','측정범위')}</div>
+  </div>
 
-function switchTab(code, formEl) {
-  // 현재 탭 저장
-  saveState(currentCode);
-  currentCode = code;
-
-  // 탭 UI 업데이트
-  document.querySelectorAll('.pv-item-tab').forEach(b => b.classList.toggle('is-active', b.dataset.code === code));
-
-  // 폼 + 결과 HTML 다시 그리기
-  formEl.innerHTML = buildForm();
-
-  // 저장된 값 복원
-  const saved = loadState(code);
-  FIELDS.forEach(id => {
-    const el = document.getElementById(`pv_${id}`);
-    if (el && saved[id] !== undefined) el.value = saved[id];
-  });
-
-  // 실시간 자동 계산 연결
-  FIELDS.forEach(id => {
-    document.getElementById(`pv_${id}`)?.addEventListener('input', () => {
-      saveState(code);
-      clearTimeout(calcTimer);
-      calcTimer = setTimeout(() => calculate(code), 300);
-    });
-  });
-
-  // 저장된 값 있으면 즉시 계산
-  if (g('range')) calculate(code);
-}
-
-function init() {
-  const panel = document.getElementById('panel-precision');
-  if (!panel) return;
-
-  panel.innerHTML = `
-<div class="pv-page">
-  <!-- 항목 탭 + 성적서 -->
-  <div class="card pv-tab-card">
-    <div class="pv-tab-bar">
-      <div class="pv-item-tabs" role="tablist">
-        ${ITEMS.map(it => `<button class="pv-item-tab${it.code===ITEMS[0].code?' is-active':''}" type="button" data-code="${it.code}" role="tab">${it.label}</button>`).join('')}
-      </div>
-      <button class="btn btn--ghost btn--mini" id="pv-cert-btn" type="button">성적서 출력</button>
+  <div class="pv-section">
+    <h3 class="pv-section__title">Z / S 측정값
+      <span class="pv-hint">Z1·S1 = 기준 / Z2~Z3·S2~S3 = 드리프트초기(반복성포함) / Z4~Z5·S4~S5 = 드리프트최종</span>
+    </h3>
+    <div class="pv-zs-table">
+      <div class="pv-zs-header"><span></span><span>Z (제로)</span><span>S (스팬)</span></div>
+      <div class="pv-zs-row"><span class="pv-zs-label">초기 기준</span>${zsInput('z1','Z1')}${zsInput('s1','S1')}</div>
+      <div class="pv-zs-row"><span class="pv-zs-label">드리프트<br><small>초기구간</small></span>${zsInput('z2','Z2')}${zsInput('s2','S2')}</div>
+      <div class="pv-zs-row"><span class="pv-zs-label"></span>${zsInput('z3','Z3')}${zsInput('s3','S3')}</div>
+      <div class="pv-zs-row pv-zs-row--sep"><span class="pv-zs-label">드리프트<br><small>최종구간</small></span>${zsInput('z4','Z4')}${zsInput('s4','S4')}</div>
+      <div class="pv-zs-row"><span class="pv-zs-label"></span>${zsInput('z5','Z5')}${zsInput('s5','S5')}</div>
     </div>
   </div>
-  <div id="pv-form-area"></div>
+
+  <div class="pv-section">
+    <h3 class="pv-section__title">직선성 <span class="pv-hint">오차 ≤ ${PRECISION_CRITERIA.linearity}%</span></h3>
+    <div class="pv-grid3">${numField('m1','M1')}${numField('m2','M2')}${numField('m3','M3')}</div>
+  </div>
+
+  <div class="pv-section">
+    <h3 class="pv-section__title">현장적용계수 <span class="pv-hint">(선택 — 미입력 시 생략)</span></h3>
+    <div class="pv-grid2">
+      ${numField('fs1','현장측정값 Ci₁')}${numField('fs2','현장측정값 Ci₂')}
+      ${numField('fa1','수분석값 Ai₁')}${numField('fa2','수분석값 Ai₂')}
+      ${numField('fdis','TOC 배출허용기준 mg/L (TOC만, 없으면 0)')}
+    </div>
+  </div>
+</div>
+
+<div id="pv-results" class="card pv-results-card" hidden>
+  <h3 class="pv-section__title" style="margin-bottom:16px">검사 결과</h3>
+  <div class="pv-res-grid">
+    <div class="pv-res-block"><h4 class="pv-res-block__title">반복성 (RSD)</h4><div id="pv-res-rep"></div></div>
+    <div class="pv-res-block"><h4 class="pv-res-block__title">드리프트</h4><div id="pv-res-drift"></div></div>
+    <div class="pv-res-block"><h4 class="pv-res-block__title">직선성</h4><div id="pv-res-lin"></div></div>
+    <div class="pv-res-block" id="pv-res-field-block" hidden><h4 class="pv-res-block__title">현장적용계수</h4><div id="pv-res-field"></div></div>
+  </div>
+  <div id="pv-final"></div>
+  <div style="text-align:right;margin-top:12px">
+    <button class="btn btn--ghost btn--mini" id="pv-cert-btn-result" type="button">성적서 출력</button>
+  </div>
 </div>`;
-
-  const formArea = document.getElementById('pv-form-area');
-
-  // 탭 클릭
-  document.querySelectorAll('.pv-item-tab').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.code, formArea));
-  });
-
-  // 성적서
-  document.getElementById('pv-cert-btn')?.addEventListener('click', () => {
-    const finalEl = document.getElementById('pv-final');
-    if (!finalEl || finalEl.innerHTML === '') { alert('먼저 측정범위를 입력해 계산하세요.'); return; }
-    showCert(currentCode);
-  });
-
-  // 첫 탭 초기화
-  switchTab(ITEMS[0].code, formArea);
 }
 
-function showCert(itemCode) {
-  const item = ITEMS.find(i => i.code === itemCode);
+// ── 성적서 ────────────────────────────────────────────────────────────────
+function showCert(tabId) {
+  const tab = tabs.find(t => t.id === tabId);
+  if (!tab || !g('range')) { alert('먼저 측정범위를 입력해 계산하세요.'); return; }
   const date = new Date().toLocaleDateString('ko-KR');
   const range = g('range');
-
-  const rep = repeatability([g('z1'),g('z2'),g('z3')],[g('s1'),g('s2'),g('s3')]);
-  const dr  = drift(range,[g('z2'),g('z3')],[g('z4'),g('z5')],[g('s2'),g('s3')],[g('s4'),g('s5')]);
-  const lin = linearity(range,[g('m1'),g('m2'),g('m3')]);
-
-  const passes = [rep.zero.pass, rep.span.pass,
-    dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift, dr.spanDrift<=PRECISION_CRITERIA.spanDrift, lin.pass];
+  const [z1,z2,z3,z4,z5] = ['z1','z2','z3','z4','z5'].map(g);
+  const [s1,s2,s3,s4,s5] = ['s1','s2','s3','s4','s5'].map(g);
+  const [m1,m2,m3] = ['m1','m2','m3'].map(g);
+  const rep = repeatability([z1,z2,z3],[s1,s2,s3]);
+  const dr  = drift(range,[z2,z3],[z4,z5],[s2,s3],[s4,s5]);
+  const lin = linearity(range,[m1,m2,m3]);
+  const passes = [rep.zero.pass,rep.span.pass,
+    dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift,dr.spanDrift<=PRECISION_CRITERIA.spanDrift,lin.pass];
   const allPass = passes.every(p=>p===true);
 
-  const tr = (label, value, pass) =>
-    `<tr><td style="padding:7px 10px;border:1px solid #ccc">${label}</td>
-      <td style="padding:7px 10px;border:1px solid #ccc">${value}</td>
-      <td style="padding:7px 10px;border:1px solid #ccc;font-weight:600;color:${pass?'#1a7f37':'#cf222e'}">${pass?'적합':'부적합'}</td></tr>`;
+  const tr = (l,v,p) => `<tr>
+    <td style="padding:7px 10px;border:1px solid #ccc">${l}</td>
+    <td style="padding:7px 10px;border:1px solid #ccc">${v}</td>
+    <td style="padding:7px 10px;border:1px solid #ccc;font-weight:600;color:${p?'#1a7f37':'#cf222e'}">${p?'적합':'부적합'}</td></tr>`;
 
   const rows = [
-    tr(`저농도 반복성 (RSD ≤ ${rep.limit}%)`, `${fmt(rep.zero.rsd)}%`, rep.zero.pass),
-    tr(`고농도 반복성 (RSD ≤ ${rep.limit}%)`, `${fmt(rep.span.rsd)}%`, rep.span.pass),
-    tr(`제로드리프트 (≤ ${PRECISION_CRITERIA.zeroDrift}%)`, `${fmt(dr.zeroDrift)}%`, dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift),
-    tr(`스팬드리프트 (≤ ${PRECISION_CRITERIA.spanDrift}%)`, `${fmt(dr.spanDrift)}%`, dr.spanDrift<=PRECISION_CRITERIA.spanDrift),
-    tr(`직선성 (≤ ${PRECISION_CRITERIA.linearity}%)`, `${fmt(lin.error)}%`, lin.pass),
+    tr(`저농도 반복성 (RSD ≤ ${rep.limit}%)`,`${fmt(rep.zero.rsd)}%`,rep.zero.pass),
+    tr(`고농도 반복성 (RSD ≤ ${rep.limit}%)`,`${fmt(rep.span.rsd)}%`,rep.span.pass),
+    tr(`제로드리프트 (≤ ${PRECISION_CRITERIA.zeroDrift}%)`,`${fmt(dr.zeroDrift)}%`,dr.zeroDrift<=PRECISION_CRITERIA.zeroDrift),
+    tr(`스팬드리프트 (≤ ${PRECISION_CRITERIA.spanDrift}%)`,`${fmt(dr.spanDrift)}%`,dr.spanDrift<=PRECISION_CRITERIA.spanDrift),
+    tr(`직선성 (≤ ${PRECISION_CRITERIA.linearity}%)`,`${fmt(lin.error)}%`,lin.pass),
   ].join('');
 
-  const overlay = document.createElement('div');
-  overlay.id = 'cert-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px';
-  overlay.innerHTML = `
+  const ov = document.createElement('div');
+  ov.id = 'cert-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
     <div style="background:#fff;color:#000;max-width:660px;width:100%;border-radius:12px;overflow:auto;max-height:90vh;padding:36px;font-family:sans-serif">
       <div style="text-align:center;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #000">
         <h2 style="font-size:20px;font-weight:700;margin:0">수질TMS 정도검사 성적서</h2>
         <p style="margin:4px 0 0;font-size:12px;color:#666">KTL 전문 계측 서비스</p>
       </div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:13px">
-        <tr><td style="padding:4px 0;width:90px;color:#666">검사 항목</td><td style="font-weight:600">${itemCode} (${item?.label||''})</td></tr>
+        <tr><td style="padding:4px 0;width:90px;color:#666">검사 항목</td><td style="font-weight:600">${tab.label}</td></tr>
         <tr><td style="padding:4px 0;color:#666">측정범위</td><td>${range}</td></tr>
         <tr><td style="padding:4px 0;color:#666">검사일</td><td>${date}</td></tr>
       </table>
@@ -363,11 +330,69 @@ function showCert(itemCode) {
         최종 판정: ${allPass?'✅ 전 항목 적합':'❌ 부적합 항목 있음'}
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
-        <button onclick="window.print()" style="padding:8px 18px;background:#0969da;color:#fff;border:0;border-radius:6px;cursor:pointer">인쇄 / PDF</button>
+        <button onclick="window.print()" style="padding:8px 18px;background:#0969da;color:#fff;border:0;border-radius:6px;cursor:pointer">인쇄/PDF</button>
         <button onclick="document.getElementById('cert-overlay').remove()" style="padding:8px 18px;background:#f0f0f0;border:0;border-radius:6px;cursor:pointer">닫기</button>
       </div>
     </div>`;
-  document.body.appendChild(overlay);
+  document.body.appendChild(ov);
+}
+
+// ── 초기화 ────────────────────────────────────────────────────────────────
+function init() {
+  const panel = document.getElementById('panel-precision');
+  if (!panel) return;
+
+  loadMeta();
+  if (!tabs.length) {
+    tabs = [{ id: `tab_${Date.now()}`, code: 'TOC', label: 'TOC', pass: null }];
+    saveMeta();
+  }
+  if (!activeId || !tabs.find(t => t.id === activeId)) {
+    activeId = tabs[0].id;
+  }
+
+  panel.innerHTML = `
+<div class="pv-page">
+  <div class="card pv-tab-card">
+    <div class="pv-tab-bar">
+      <div id="pv-tab-list" class="pv-item-tabs"></div>
+      <div class="pv-add-wrap">
+        <button class="btn btn--ghost btn--mini pv-add-btn" id="pv-add-btn" type="button">+ 추가</button>
+        <div id="pv-add-menu" class="pv-add-menu" hidden>
+          ${ITEMS.map(it =>
+            `<button class="pv-add-item" data-code="${it.code}" type="button">${it.label}</button>`
+          ).join('')}
+        </div>
+      </div>
+      <button class="btn btn--ghost btn--mini" id="pv-cert-btn" type="button">성적서 출력</button>
+    </div>
+  </div>
+  <div id="pv-form-area"></div>
+</div>`;
+
+  renderTabs();
+
+  // + 추가 메뉴
+  const addBtn = document.getElementById('pv-add-btn');
+  const addMenu = document.getElementById('pv-add-menu');
+  addBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    addMenu.hidden = !addMenu.hidden;
+  });
+  document.addEventListener('click', () => { if (addMenu) addMenu.hidden = true; });
+  panel.querySelectorAll('.pv-add-item').forEach(b =>
+    b.addEventListener('click', (e) => { e.stopPropagation(); addMenu.hidden = true; addTab(b.dataset.code); }));
+
+  // 성적서 (상단 버튼)
+  document.getElementById('pv-cert-btn')?.addEventListener('click', () => showCert(activeId));
+
+  // 첫 탭 로드
+  switchTab(activeId);
+
+  // 성적서 (결과 하단 버튼) — 동적 생성되므로 delegation
+  panel.addEventListener('click', e => {
+    if (e.target.id === 'pv-cert-btn-result') showCert(activeId);
+  });
 }
 
 if (document.readyState === 'loading') {
