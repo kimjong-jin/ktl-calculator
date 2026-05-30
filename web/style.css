@@ -591,9 +591,20 @@ select.field__control {
 /* ── 정도검사 한페이지 레이아웃 ────────────────────────────────── */
 .pv-page { display: flex; flex-direction: column; gap: 14px; }
 
-.pv-header-card, .pv-form-card, .pv-results-card { }
+.pv-tab-card { padding: 14px 16px; }
+.pv-tab-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pv-item-tabs { display: flex; flex-wrap: wrap; gap: 5px; }
+.pv-item-tab {
+  padding: 7px 14px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface-2); color: var(--text-dim); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background .15s, color .15s, border-color .15s; min-height: 36px;
+  position: relative;
+}
+.pv-item-tab.is-active { background: var(--accent-base); color: #fff; border-color: var(--accent-base); }
+.pv-item-tab:not(.is-active):hover { background: var(--surface-1); color: var(--text); }
+.pv-item-tab[data-pass="ok"]::after  { content:''; position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:var(--pass); }
+.pv-item-tab[data-pass="bad"]::after { content:''; position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:var(--fail); }
 
-.pv-top-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 .pv-item-bar { display: flex; align-items: center; gap: 10px; }
 .pv-item-label { font-size: 13px; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
 .pv-item-select { max-width: 240px; }

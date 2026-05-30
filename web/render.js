@@ -146,16 +146,11 @@ export function renderStatusChip(chipEl, status) {
   const ok = status && status.connected;
   const state = status === 'checking' ? 'checking' : ok ? 'ok' : 'down';
   const label =
-    state === 'checking' ? '연동 확인 중' : ok ? 'DB 연동됨' : '연동 끊김';
-  const meta =
-    ok && status.fileName
-      ? `${status.fileName} · 시트 ${status.sheetCount}개 · 항목 ${status.itemCount}종`
-      : '';
+    state === 'checking' ? '확인 중' : ok ? '정상' : '오류';
 
   chipEl.className = `status-chip status-chip--${state}`;
   chipEl.replaceChildren(
     el('span', { class: 'status-chip__dot' }),
     el('span', { class: 'status-chip__label', text: label }),
-    meta ? el('span', { class: 'status-chip__meta', text: meta }) : el('span'),
   );
 }
