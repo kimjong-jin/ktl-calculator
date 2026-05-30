@@ -696,3 +696,46 @@ select.field__control {
 }
 .chat-input:focus { outline: none; border-color: var(--accent-base); }
 .chat-send-btn { flex-shrink: 0; align-self: flex-end; }
+
+/* ── 관리자 패널 ────────────────────────────────────────────────────────── */
+.svc-tab--admin {
+  background: rgba(248,81,73,0.06); border-color: rgba(248,81,73,0.25); color: var(--fail);
+}
+.svc-tab--admin.is-active { background: var(--fail); color: #fff; border-color: var(--fail); }
+
+.admin-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700;
+  background: rgba(248,81,73,0.15); color: var(--fail); border: 1px solid rgba(248,81,73,0.3);
+  letter-spacing: .06em;
+}
+.admin-panel { overflow: visible; }
+.admin-loading { color: var(--text-dim); font-size: 14px; padding: 24px 0; text-align: center; }
+
+.admin-section { margin-bottom: 24px; }
+.admin-section__title {
+  font-size: 13px; font-weight: 600; color: var(--text-dim); letter-spacing: .04em;
+  text-transform: uppercase; margin: 0 0 12px;
+}
+.admin-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.admin-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (max-width: 600px) {
+  .admin-grid3 { grid-template-columns: 1fr 1fr; }
+  .admin-grid2 { grid-template-columns: 1fr; }
+}
+.admin-card {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: 14px 16px;
+}
+.admin-card__label { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
+.admin-card__sub { font-size: 12px; color: var(--text-dim); margin-top: 5px; }
+.admin-err { color: var(--fail); }
+
+.admin-chip {
+  display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid;
+}
+.admin-chip--ok   { background: var(--pass-bg); color: var(--pass); border-color: var(--pass); }
+.admin-chip--fail { background: var(--fail-bg); color: var(--fail); border-color: var(--fail); }
+
+.admin-val { font-size: 15px; font-weight: 700; color: var(--text); display: inline-block; }
+.admin-val--dim { font-size: 13px; font-weight: 400; color: var(--text-dim); }
+.admin-val--sm  { font-size: 13px; }

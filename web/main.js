@@ -21,6 +21,7 @@ import {
   renderClaydoxJson,
 } from './render.js';
 import { initChat } from './chat.js';
+import { initAdmin } from './admin.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -42,6 +43,15 @@ function tokenValid(token) {
     const decoded = JSON.parse(atob(padded));
     return typeof decoded.exp === 'number' && Date.now() / 1000 < decoded.exp;
   } catch { return false; }
+}
+
+function tokenRole(token) {
+  if (!token || !token.includes('.')) return 'user';
+  try {
+    const [payload] = token.split('.');
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return decoded.role || 'user';
+  } catch { return 'user'; }
 }
 
 function showAuthError(msg) {
@@ -71,7 +81,7 @@ function setupAuthGate(onSuccess) {
       // AUTH 미설정 환경(개발)에서는 그냥 진행
       if (res.status === 500 && import.meta.env.DEV) {
         console.warn('[auth] DEV: AUTH_SECRET 미설정, 인증 우회');
-        onSuccess();
+        onSuccess('user');
         return;
       }
       const data = await res.json();
@@ -80,7 +90,7 @@ function setupAuthGate(onSuccess) {
         return;
       }
       storeToken(data.token);
-      onSuccess();
+      onSuccess(data.role || 'user');
     } catch {
       showAuthError('서버에 연결할 수 없습니다.');
     } finally {
@@ -100,21 +110,29 @@ function showApp() {
   if (app) app.hidden = false;
 }
 
-/** 인증 확인 → 완료 시 onReady() 호출. */
+/** 인증 확인 → 완료 시 onReady(role) 호출. */
 function guardAuth(onReady) {
-  if (tokenValid(getStoredToken())) {
+  const stored = getStoredToken();
+  if (tokenValid(stored)) {
     showApp();
-    onReady();
+    onReady(tokenRole(stored));
     return;
   }
-  setupAuthGate(() => { showApp(); onReady(); });
+  setupAuthGate((role) => { showApp(); onReady(role); });
 }
 
 // ── 서비스 탭 ────────────────────────────────────────────────────────────────
 
 let chatInited = false;
+let adminInited = false;
 
-function initSvcTabs() {
+function initSvcTabs(role) {
+  // 관리자 탭 표시
+  if (role === 'admin') {
+    const adminTab = $('admin-tab');
+    if (adminTab) adminTab.hidden = false;
+  }
+
   const tabs = document.querySelectorAll('.svc-tab');
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -123,9 +141,16 @@ function initSvcTabs() {
       const svc = tab.dataset.svc;
       $('svc-calc').hidden = svc !== 'calc';
       $('svc-chat').hidden = svc !== 'chat';
+      $('svc-admin').hidden = svc !== 'admin';
       if (svc === 'chat' && !chatInited) {
         initChat();
         chatInited = true;
+      }
+      if (svc === 'admin' && !adminInited) {
+        const token = getStoredToken() || '';
+        document.body.dataset.adminToken = token;
+        initAdmin(token);
+        adminInited = true;
       }
     });
   });
@@ -349,7 +374,7 @@ function init() {
   entries = history.load();
   refreshHistory();
 
-  initSvcTabs();
+  initSvcTabs(window.__userRole || 'user');
 
   els.item.addEventListener('change', updateHint);
   els.item.addEventListener('change', updateClaydox);
@@ -376,4 +401,7 @@ function init() {
   void initClaydox();
 }
 
-guardAuth(init);
+guardAuth((role) => {
+  window.__userRole = role;
+  init();
+});

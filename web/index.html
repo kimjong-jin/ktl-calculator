@@ -50,6 +50,7 @@
       <nav class="svc-tabs" role="tablist">
         <button class="svc-tab is-active" type="button" data-svc="calc" role="tab">정도검사 계산기</button>
         <button class="svc-tab" type="button" data-svc="chat" role="tab">AI 법령 해석</button>
+        <button class="svc-tab svc-tab--admin" type="button" data-svc="admin" role="tab" id="admin-tab" hidden>관리자</button>
       </nav>
 
       <!-- 계산기 서비스 -->
@@ -132,6 +133,17 @@
 
         <!-- 정도검사 상세 (반복성/드리프트/직선성/현장적용/통합) — precision-ui.js 가 채움 -->
         <section id="panel-precision" class="modepanel" hidden></section>
+      </div>
+
+      <!-- 관리자 패널 -->
+      <div id="svc-admin" hidden>
+        <div class="card admin-panel">
+          <div class="card__bar">
+            <h2 class="card__title">관리자 패널</h2>
+            <span class="admin-badge">ADMIN</span>
+          </div>
+          <div id="admin-wrap"></div>
+        </div>
       </div>
 
       <!-- AI 법령 해석 서비스 -->

@@ -29,5 +29,5 @@ export default async function handler(req, res) {
   const body = await readJson(req);
   const result = verifyAccess(String(body.password ?? ''));
   if (!result.ok) return res.status(result.code || 401).json({ error: result.error });
-  return res.status(200).json({ token: result.token, exp: result.exp });
+  return res.status(200).json({ token: result.token, exp: result.exp, role: result.role });
 }
