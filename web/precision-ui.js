@@ -181,13 +181,30 @@ function resultHtml(out) {
   return `<div class="pv-lines">${lines}</div><div class="pv-badges">${badges}</div>`;
 }
 
+const ITEMS = [
+  { code: 'TOC', label: 'TOC — 총유기탄소' },
+  { code: 'TN',  label: 'TN — 총질소' },
+  { code: 'TP',  label: 'TP — 총인' },
+  { code: 'SS',  label: 'SS — 부유물질' },
+  { code: 'PH',  label: 'pH — 수소이온농도' },
+  { code: 'DO',  label: 'DO — 용존산소' },
+  { code: 'COD', label: 'COD — 화학적산소요구량' },
+  { code: 'TU',  label: 'TU — 탁도' },
+  { code: 'CL',  label: 'CL — 잔류염소' },
+];
+
 function init() {
   const panel = document.getElementById('panel-precision');
   if (!panel) return;
 
   panel.innerHTML = `
     <section class="card">
-      <h2 class="card__title">정도검사 상세</h2>
+      <div class="pv-item-bar">
+        <label class="pv-item-label">검사 항목</label>
+        <select id="pv-item-select" class="field__control pv-item-select">
+          ${ITEMS.map(it => `<option value="${it.code}">${it.label}</option>`).join('')}
+        </select>
+      </div>
       <div class="pv-subtabs" role="tablist">
         ${CALCS.map((c, i) => `<button class="pv-subtab${i === 0 ? ' is-active' : ''}" type="button" data-tab="${c.key}">${c.title}</button>`).join('')}
       </div>
@@ -214,25 +231,6 @@ function init() {
   }));
 }
 
-/* ── 모드 탭 (오차율 ↔ 정도검사) ──────────────────────────────── */
-function initModeTabs() {
-  const tabs = document.querySelectorAll('.modetab');
-  const panels = {
-    accuracy: document.getElementById('panel-accuracy'),
-    precision: document.getElementById('panel-precision'),
-  };
-  // 현재 active 탭 기준으로 초기 패널 상태 설정
-  const activeTab = document.querySelector('.modetab.is-active');
-  if (activeTab) {
-    const activeMode = activeTab.dataset.mode;
-    Object.entries(panels).forEach(([mode, el]) => { if (el) el.hidden = mode !== activeMode; });
-  }
-  tabs.forEach((t) => t.addEventListener('click', () => {
-    tabs.forEach((x) => x.classList.toggle('is-active', x === t));
-    Object.entries(panels).forEach(([mode, el]) => { if (el) el.hidden = mode !== t.dataset.mode; });
-  }));
-}
-
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => { init(); initModeTabs(); });
-} else { init(); initModeTabs(); }
+  document.addEventListener('DOMContentLoaded', init);
+} else { init(); }

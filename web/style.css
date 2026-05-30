@@ -588,6 +588,13 @@ select.field__control {
 .modetab.is-active { background: var(--accent-base); color: #fff; box-shadow: var(--sh-1); }
 .modepanel[hidden] { display: none !important; }
 
+.pv-item-bar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--border);
+}
+.pv-item-label { font-size: 13px; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+.pv-item-select { max-width: 280px; }
+
 .pv-subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; }
 .pv-subtab {
   padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px;
