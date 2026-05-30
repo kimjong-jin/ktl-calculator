@@ -3,17 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KTL 정도검사 계산기</title>
+    <title>KTL 전문 계측 서비스</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <div class="app">
+
+    <!-- 인증 게이트 — JS 로드 전 기본 표시 -->
+    <div id="auth-gate" class="auth-gate">
+      <div class="auth-card">
+        <div class="auth-logo">KTL</div>
+        <h1 class="auth-title">전문 계측 서비스</h1>
+        <p class="auth-sub">고객 전용 서비스입니다.<br>접속 비밀번호를 입력하세요.</p>
+        <input
+          id="auth-pass"
+          class="field__control"
+          type="password"
+          placeholder="비밀번호"
+          autocomplete="current-password"
+        />
+        <button id="auth-btn" class="btn btn--primary auth-btn" type="button">접속하기</button>
+        <p id="auth-err" class="error auth-err" hidden></p>
+      </div>
+    </div>
+
+    <!-- 메인 앱 — 인증 후 표시 -->
+    <div class="app" id="main-app" hidden>
       <header class="app__header">
         <div class="brand">
           <span class="brand__mark">KTL</span>
           <div class="brand__text">
-            <h1>정도검사 계산기</h1>
-            <p>오차율 계산 · 합격 판정 · 수수료 조회</p>
+            <h1>전문 계측 서비스</h1>
+            <p>정도검사 · AI 법령 해석</p>
           </div>
         </div>
         <div class="header__tools">
@@ -26,12 +46,20 @@
         </div>
       </header>
 
-      <nav class="modetabs" role="tablist">
-        <button class="modetab is-active" type="button" data-mode="accuracy" role="tab">오차율</button>
-        <button class="modetab" type="button" data-mode="precision" role="tab">정도검사</button>
+      <!-- 서비스 탭 -->
+      <nav class="svc-tabs" role="tablist">
+        <button class="svc-tab is-active" type="button" data-svc="calc" role="tab">정도검사 계산기</button>
+        <button class="svc-tab" type="button" data-svc="chat" role="tab">AI 법령 해석</button>
       </nav>
 
-      <main id="panel-accuracy" class="layout modepanel">
+      <!-- 계산기 서비스 -->
+      <div id="svc-calc">
+        <nav class="modetabs" role="tablist">
+          <button class="modetab is-active" type="button" data-mode="accuracy" role="tab">오차율</button>
+          <button class="modetab" type="button" data-mode="precision" role="tab">정도검사</button>
+        </nav>
+
+        <main id="panel-accuracy" class="layout modepanel">
           <!-- 입력 -->
           <section class="card card--input">
             <h2 class="card__title">측정 입력</h2>
@@ -100,13 +128,34 @@
             <pre id="cdx-output" class="cdx-output" hidden></pre>
             <p class="micro">엑셀(Version11) target→셀 매핑을 그대로 전송 — phpEXCEL JSON 페이로드.</p>
           </section>
-      </main>
+        </main>
 
-      <!-- 정도검사 상세 (반복성/드리프트/직선성/현장적용/통합) — precision-ui.js 가 채움 -->
-      <section id="panel-precision" class="modepanel" hidden></section>
+        <!-- 정도검사 상세 (반복성/드리프트/직선성/현장적용/통합) — precision-ui.js 가 채움 -->
+        <section id="panel-precision" class="modepanel" hidden></section>
+      </div>
+
+      <!-- AI 법령 해석 서비스 -->
+      <div id="svc-chat" hidden>
+        <div class="chat-wrap card">
+          <div class="card__bar chat-header">
+            <h2 class="card__title">AI 법령 해석</h2>
+            <p class="chat-desc">계측·정도검사 관련 법령을 AI가 국가법령정보를 참고하여 해석합니다.</p>
+          </div>
+          <div class="chat-msgs" id="chat-msgs"></div>
+          <div class="chat-bar">
+            <textarea
+              id="chat-input"
+              class="chat-input"
+              rows="2"
+              placeholder="예: 유량계 정도검사 주기는? / 대기환경측정기기 형식승인 기준은?"
+            ></textarea>
+            <button id="chat-send" class="btn btn--primary chat-send-btn" type="button">전송</button>
+          </div>
+        </div>
+      </div>
 
       <footer class="app__footer">
-        <span>KTL 정도검사 · 수치 표시 소수점 2자리</span>
+        <span>KTL 전문 계측 서비스 · 고객 전용</span>
         <span class="micro">계산·DB는 서버 단일 출처(SSOT)</span>
       </footer>
     </div>

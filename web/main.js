@@ -1,9 +1,10 @@
 /**
- * KTL 정도검사 계산기 — 프런트엔드 진입점 (vanilla JS, ES 모듈).
+ * KTL 전문 계측 서비스 — 프런트엔드 진입점 (vanilla JS, ES 모듈).
  *
  * 계산/수수료/DB 로직은 서버(calculator.js·excelClient.js)가 단일 출처(SSOT).
  * 이 파일은 상수·DOM 바인딩·흐름 제어만 담당하고 세부 기능은 모듈로 분리한다.
  *   api.js(서버 호출) · history.js(localStorage) · exporter.js(CSV/JSON) · render.js(DOM)
+ *   chat.js(AI 법령 해석 챗봇)
  */
 
 import { ITEMS, CRITERIA_HINT, UNJUDGED, itemByCode } from './constants.js';
@@ -19,8 +20,119 @@ import {
   renderClaydoxForm,
   renderClaydoxJson,
 } from './render.js';
+import { initChat } from './chat.js';
 
 const $ = (id) => document.getElementById(id);
+
+// ── 인증 ────────────────────────────────────────────────────────────────────
+
+function getStoredToken() {
+  try { return localStorage.getItem('ktl-auth'); } catch { return null; }
+}
+
+function storeToken(token) {
+  try { localStorage.setItem('ktl-auth', token); } catch { /* 무시 */ }
+}
+
+function tokenValid(token) {
+  if (!token || !token.includes('.')) return false;
+  try {
+    const [payload] = token.split('.');
+    const padded = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(padded));
+    return typeof decoded.exp === 'number' && Date.now() / 1000 < decoded.exp;
+  } catch { return false; }
+}
+
+function showAuthError(msg) {
+  const el = $('auth-err');
+  if (!el) return;
+  el.hidden = !msg;
+  el.textContent = msg ?? '';
+}
+
+function setupAuthGate(onSuccess) {
+  const passEl = $('auth-pass');
+  const btn = $('auth-btn');
+  if (!passEl || !btn) return;
+
+  passEl.focus();
+
+  async function attempt() {
+    btn.disabled = true;
+    btn.textContent = '확인 중…';
+    showAuthError('');
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passEl.value }),
+      });
+      // AUTH 미설정 환경(개발)에서는 그냥 진행
+      if (res.status === 500 && import.meta.env.DEV) {
+        console.warn('[auth] DEV: AUTH_SECRET 미설정, 인증 우회');
+        onSuccess();
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        showAuthError(data.error || '비밀번호가 올바르지 않습니다.');
+        return;
+      }
+      storeToken(data.token);
+      onSuccess();
+    } catch {
+      showAuthError('서버에 연결할 수 없습니다.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '접속하기';
+    }
+  }
+
+  btn.addEventListener('click', attempt);
+  passEl.addEventListener('keydown', e => { if (e.key === 'Enter') attempt(); });
+}
+
+function showApp() {
+  const gate = $('auth-gate');
+  const app = $('main-app');
+  if (gate) gate.hidden = true;
+  if (app) app.hidden = false;
+}
+
+/** 인증 확인 → 완료 시 onReady() 호출. */
+function guardAuth(onReady) {
+  if (tokenValid(getStoredToken())) {
+    showApp();
+    onReady();
+    return;
+  }
+  setupAuthGate(() => { showApp(); onReady(); });
+}
+
+// ── 서비스 탭 ────────────────────────────────────────────────────────────────
+
+let chatInited = false;
+
+function initSvcTabs() {
+  const tabs = document.querySelectorAll('.svc-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('is-active'));
+      tab.classList.add('is-active');
+      const svc = tab.dataset.svc;
+      $('svc-calc').hidden = svc !== 'calc';
+      $('svc-chat').hidden = svc !== 'chat';
+      if (svc === 'chat' && !chatInited) {
+        initChat();
+        chatInited = true;
+      }
+    });
+  });
+}
+
+// ── 계산기 ────────────────────────────────────────────────────────────────────
+
 const els = {
   item: $('item'),
   measured: $('measured'),
@@ -47,12 +159,9 @@ const els = {
 };
 
 let entries = [];
-/** Claydox 매핑 JSON (한 번 로드 후 캐시). 로드 실패 시 undefined. */
 let claydoxMappings;
-/** 가장 최근 생성된 Claydox 페이로드 (복사·저장용). */
 let lastPayload;
 
-/** 항목 셀렉트를 채운다. */
 function populateItems() {
   els.item.replaceChildren(
     ...ITEMS.map((i) => {
@@ -64,7 +173,6 @@ function populateItems() {
   );
 }
 
-/** 선택 항목의 기준 안내 + 단위 갱신. */
 function updateHint() {
   const item = itemByCode(els.item.value);
   const unit = item.unit ? ` (단위: ${item.unit})` : '';
@@ -72,20 +180,17 @@ function updateHint() {
   els.hint.classList.toggle('hint--neutral', UNJUDGED.has(item.code));
 }
 
-/** 에러 메시지 표시/숨김. */
 function showError(message) {
   els.error.hidden = !message;
   els.error.textContent = message ?? '';
 }
 
-/** 짧은 시각 라벨 (MM-DD HH:mm). */
 function nowLabel() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, '0');
   return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/** 이력 카드(목록·카운트·요약·버튼)를 다시 그린다. */
 function refreshHistory() {
   renderHistory(els.histList, entries, handleDelete);
   els.histTitle.textContent = `계산 이력 (${entries.length}건)`;
@@ -99,7 +204,6 @@ function refreshHistory() {
   els.clearHist.disabled = empty;
 }
 
-/** 오차율 계산 실행. */
 async function calculate() {
   showError('');
   const measured = els.measured.value.trim();
@@ -140,7 +244,6 @@ async function calculate() {
   }
 }
 
-/** 입력/현재 결과만 초기화 (이력 보존). */
 function reset() {
   els.measured.value = '';
   els.standard.value = '';
@@ -149,13 +252,11 @@ function reset() {
   els.measured.focus();
 }
 
-/** 이력 한 건 삭제. */
 function handleDelete(id) {
   entries = history.removeById(id);
   refreshHistory();
 }
 
-/** 이력 전체 삭제 (확인 1단계). */
 function handleClear() {
   if (!entries.length) return;
   if (!confirm('계산 이력을 모두 삭제할까요?')) return;
@@ -163,14 +264,9 @@ function handleClear() {
   refreshHistory();
 }
 
-/** 테마 적용 + 저장. */
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  try {
-    localStorage.setItem('ktl-theme', theme);
-  } catch {
-    /* 저장 실패는 무시 (테마는 기능 비핵심) */
-  }
+  try { localStorage.setItem('ktl-theme', theme); } catch { /* 무시 */ }
 }
 
 function toggleTheme() {
@@ -178,7 +274,6 @@ function toggleTheme() {
   applyTheme(next);
 }
 
-/** Claydox 출력(JSON)과 복사·저장 버튼을 빈 상태로 되돌린다. */
 function resetClaydoxOutput() {
   lastPayload = undefined;
   els.cdxOutput.hidden = true;
@@ -187,7 +282,6 @@ function resetClaydoxOutput() {
   els.cdxDownload.disabled = true;
 }
 
-/** 선택 항목에 맞춰 Claydox 입력 폼을 다시 그린다 (매핑 미로드 시 무시). */
 function updateClaydox() {
   if (!claydoxMappings) return;
   const item = itemByCode(els.item.value);
@@ -197,7 +291,6 @@ function updateClaydox() {
   resetClaydoxOutput();
 }
 
-/** 입력칸 값을 모아 Claydox phpEXCEL 페이로드를 생성·표시한다. */
 function buildClaydox() {
   if (!claydoxMappings) return;
   const item = itemByCode(els.item.value);
@@ -217,21 +310,17 @@ function buildClaydox() {
   }
 }
 
-/** 생성된 페이로드 JSON 을 클립보드로 복사한다. */
 async function copyClaydox() {
   if (!lastPayload) return;
   try {
     await navigator.clipboard.writeText(JSON.stringify(lastPayload, null, 2));
     els.cdxCopy.textContent = '복사됨';
-    setTimeout(() => {
-      els.cdxCopy.textContent = '복사';
-    }, 1_500);
+    setTimeout(() => { els.cdxCopy.textContent = '복사'; }, 1_500);
   } catch (e) {
     console.error('[claydox] 클립보드 복사 실패:', e instanceof Error ? e.message : e);
   }
 }
 
-/** 매핑 JSON 을 로드해 Claydox 카드를 초기화한다. 실패 시 카드를 비활성화한다. */
 async function initClaydox() {
   try {
     claydoxMappings = await loadClaydoxMappings();
@@ -243,27 +332,24 @@ async function initClaydox() {
   }
 }
 
-/** DB 연동 상태를 조회해 칩을 갱신한다. */
 async function refreshStatus() {
   renderStatusChip(els.chip, 'checking');
   const status = await getDbStatus();
   renderStatusChip(els.chip, status);
 }
 
+// ── 진입점 ────────────────────────────────────────────────────────────────────
+
 function init() {
-  const saved = (() => {
-    try {
-      return localStorage.getItem('ktl-theme');
-    } catch {
-      return null;
-    }
-  })();
+  const saved = (() => { try { return localStorage.getItem('ktl-theme'); } catch { return null; } })();
   if (saved) applyTheme(saved);
 
   populateItems();
   updateHint();
   entries = history.load();
   refreshHistory();
+
+  initSvcTabs();
 
   els.item.addEventListener('change', updateHint);
   els.item.addEventListener('change', updateClaydox);
@@ -290,4 +376,4 @@ function init() {
   void initClaydox();
 }
 
-init();
+guardAuth(init);

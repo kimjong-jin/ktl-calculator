@@ -28,6 +28,7 @@ import {
   getClaydoxTargets,
   buildClaydoxPayload,
 } from './src/claydoxMappings.js';
+import { verifyAccess, verifyToken } from './src/authService.js';
 
 /** 요청 본문(JSON)을 읽어 파싱한다. */
 function readJsonBody(req) {
@@ -61,6 +62,20 @@ async function handleApi(req, res, next) {
   if (!url.pathname.startsWith('/api/')) return next();
 
   try {
+    // 인증 엔드포인트
+    if (url.pathname === '/api/auth') {
+      if (req.method === 'GET') {
+        const token = url.searchParams.get('token') ?? '';
+        return sendJson(res, 200, verifyToken(String(token)));
+      }
+      if (req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const result = verifyAccess(String(body.password ?? ''));
+        if (!result.ok) return sendJson(res, result.code || 401, { error: result.error });
+        return sendJson(res, 200, { token: result.token, exp: result.exp });
+      }
+    }
+
     if (req.method === 'GET' && url.pathname === '/api/items') {
       // excelClient의 파싱 부산물(숫자 라벨)은 걸러 실제 항목만 노출한다.
       const items = listTestItems().filter((i) => /[A-Za-z]/.test(i.item));
