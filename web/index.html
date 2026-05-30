@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko" data-theme="dark">
+<html lang="ko" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -33,7 +33,7 @@
           <span class="brand__mark">KTL</span>
           <div class="brand__text">
             <h1>전문 계측 서비스</h1>
-            <p>정도검사 · AI 법령 해석</p>
+            <p>반복성 · 드리프트 · 직선성 · 현장적용 · AI 법령해석</p>
           </div>
         </div>
         <div class="header__tools">
@@ -56,11 +56,11 @@
       <!-- 계산기 서비스 -->
       <div id="svc-calc">
         <nav class="modetabs" role="tablist">
-          <button class="modetab is-active" type="button" data-mode="accuracy" role="tab">오차율</button>
-          <button class="modetab" type="button" data-mode="precision" role="tab">정도검사</button>
+          <button class="modetab is-active" type="button" data-mode="precision" role="tab">정도검사 상세</button>
+          <button class="modetab" type="button" data-mode="accuracy" role="tab">오차율 단순계산</button>
         </nav>
 
-        <main id="panel-accuracy" class="layout modepanel">
+        <main id="panel-accuracy" class="layout modepanel" hidden>
           <!-- 입력 -->
           <section class="card card--input">
             <h2 class="card__title">측정 입력</h2>
@@ -132,7 +132,7 @@
         </main>
 
         <!-- 정도검사 상세 (반복성/드리프트/직선성/현장적용/통합) — precision-ui.js 가 채움 -->
-        <section id="panel-precision" class="modepanel" hidden></section>
+        <section id="panel-precision" class="modepanel"></section>
       </div>
 
       <!-- 관리자 패널 -->

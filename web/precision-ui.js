@@ -221,6 +221,12 @@ function initModeTabs() {
     accuracy: document.getElementById('panel-accuracy'),
     precision: document.getElementById('panel-precision'),
   };
+  // 현재 active 탭 기준으로 초기 패널 상태 설정
+  const activeTab = document.querySelector('.modetab.is-active');
+  if (activeTab) {
+    const activeMode = activeTab.dataset.mode;
+    Object.entries(panels).forEach(([mode, el]) => { if (el) el.hidden = mode !== activeMode; });
+  }
   tabs.forEach((t) => t.addEventListener('click', () => {
     tabs.forEach((x) => x.classList.toggle('is-active', x === t));
     Object.entries(panels).forEach(([mode, el]) => { if (el) el.hidden = mode !== t.dataset.mode; });
