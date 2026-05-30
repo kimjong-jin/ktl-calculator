@@ -1,0 +1,186 @@
+Cl Claydox 
+
+
+{
+  "phpEXCEL": {
+    "FILE_UID": "excel",
+    "INPUT_DATA": [
+      {
+        "target": "측정범위C",
+        "cellName": "H5",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z1C",
+        "cellName": "F7",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z2C",
+        "cellName": "F8",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S1C",
+        "cellName": "F9",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S2C",
+        "cellName": "F10",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z3C",
+        "cellName": "F12",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z4C",
+        "cellName": "F13",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S3C",
+        "cellName": "F14",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S4C",
+        "cellName": "F15",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z5C",
+        "cellName": "F16",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "응답시간C",
+        "cellName": "F17",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "자동화 응답시간C",
+        "cellName": "H17",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S5C",
+        "cellName": "F18",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "M1C",
+        "cellName": "F19",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      }
+    ],
+    "COMMON": [
+      {
+        "target": "반결C",
+        "cellName": "H24",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "반비C",
+        "cellName": "F24",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "제결C",
+        "cellName": "H27",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "제비C",
+        "cellName": "F27",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "스결C",
+        "cellName": "H30",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "스비C",
+        "cellName": "F30",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직결C",
+        "cellName": "H33",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직비C",
+        "cellName": "F33",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "응결C",
+        "cellName": "H36",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "응비C",
+        "cellName": "F36",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z6C",
+        "cellName": "F22",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z7C",
+        "cellName": "F23",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S6C",
+        "cellName": "H22",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S7C",
+        "cellName": "H23",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "M기준값C",
+        "cellName": "F31",
+        "sheetName": "Sheet4",
+        "targetType": "multi_text"
+      }
+    ]
+  }
+}

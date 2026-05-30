@@ -69,3 +69,12 @@ export function exportCsv(history) {
 export function exportJson(history) {
   download(`ktl-calc-history-${stamp()}.json`, toJSON(history), 'application/json');
 }
+
+/** Claydox phpEXCEL 전송 페이로드를 JSON 파일로 내보낸다. */
+export function exportClaydoxPayload(payload, code) {
+  download(
+    `claydox-${code}-${stamp()}.json`,
+    JSON.stringify(payload, null, 2),
+    'application/json',
+  );
+}

@@ -1753,6 +1753,81 @@ export const CLAYDOX_MAPPINGS = {
       "target": "M1C",
       "cell": "F19",
       "sheet": "Sheet4"
+    },
+    {
+      "target": "반결C",
+      "cell": "H24",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "반비C",
+      "cell": "F24",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "제결C",
+      "cell": "H27",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "제비C",
+      "cell": "F27",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "스결C",
+      "cell": "H30",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "스비C",
+      "cell": "F30",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "직결C",
+      "cell": "H33",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "직비C",
+      "cell": "F33",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "응결C",
+      "cell": "H36",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "응비C",
+      "cell": "F36",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "Z6C",
+      "cell": "F22",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "Z7C",
+      "cell": "F23",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "S6C",
+      "cell": "H22",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "S7C",
+      "cell": "H23",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "M기준값C",
+      "cell": "F31",
+      "sheet": "Sheet4"
     }
   ],
   "TU": [
@@ -1824,6 +1899,81 @@ export const CLAYDOX_MAPPINGS = {
     {
       "target": "M1",
       "cell": "B19",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "반결",
+      "cell": "D24",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "반비",
+      "cell": "B24",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "제결",
+      "cell": "D27",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "제비",
+      "cell": "B27",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "스결",
+      "cell": "D30",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "스비",
+      "cell": "B30",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "직결",
+      "cell": "D33",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "직비",
+      "cell": "B33",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "응결",
+      "cell": "D36",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "응비",
+      "cell": "B36",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "Z6",
+      "cell": "B22",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "Z7",
+      "cell": "B23",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "S6",
+      "cell": "D22",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "S7",
+      "cell": "D23",
+      "sheet": "Sheet4"
+    },
+    {
+      "target": "M기준값",
+      "cell": "B31",
       "sheet": "Sheet4"
     }
   ]

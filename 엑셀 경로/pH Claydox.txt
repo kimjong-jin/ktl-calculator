@@ -1,0 +1,294 @@
+pH Claydox
+
+
+{
+  "phpEXCEL": {
+    "FILE_UID": "excel",
+    "INPUT_DATA": [
+      {
+        "target": "측1",
+        "cellName": "U32",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "측2",
+        "cellName": "U34",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis1",
+        "cellName": "W32",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis2",
+        "cellName": "W33",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis3",
+        "cellName": "W34",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis4",
+        "cellName": "W35",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "반복성 7_1",
+        "cellName": "B3",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "반복성 4_1",
+        "cellName": "B4",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "반복성 7_2",
+        "cellName": "B5",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "반복성 4_2",
+        "cellName": "B6",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "반복성 7_3",
+        "cellName": "B7",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "반복성 4_3",
+        "cellName": "B8",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 4_1",
+        "cellName": "B9",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 4_2",
+        "cellName": "B10",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 4_3",
+        "cellName": "B11",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 7_1",
+        "cellName": "B12",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 7_2",
+        "cellName": "B13",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 7_3",
+        "cellName": "B14",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 4_4",
+        "cellName": "B15",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 4_5",
+        "cellName": "B16",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 4_6",
+        "cellName": "B17",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 7_4",
+        "cellName": "B18",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 7_5",
+        "cellName": "B19",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "드리프트 7_6",
+        "cellName": "B20",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직선성 4_1",
+        "cellName": "B21",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직선성 4_2",
+        "cellName": "B22",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직선성 4_3",
+        "cellName": "B23",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직선성 7_1",
+        "cellName": "B24",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직선성 7_2",
+        "cellName": "B25",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직선성 7_3",
+        "cellName": "B26",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직선성 10_1",
+        "cellName": "B27",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직선성 10_2",
+        "cellName": "B28",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직선성 10_3",
+        "cellName": "B29",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "4 온도보상 10",
+        "cellName": "B30",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "4 온도보상 15",
+        "cellName": "B31",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "4 온도보상 20",
+        "cellName": "B32",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "4 온도보상 25",
+        "cellName": "B33",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "4 온도보상 30",
+        "cellName": "B34",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "측1",
+        "cellName": "I6",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "측2",
+        "cellName": "I8",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis1",
+        "cellName": "J6",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis2",
+        "cellName": "J7",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis3",
+        "cellName": "J8",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis4",
+        "cellName": "J9",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "진행순서",
+        "cellName": "W2",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      }
+    ],
+    "COMMON": [
+      {
+        "target": "수결",
+        "cellName": "V68",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "수비",
+        "cellName": "T68",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      }
+    ]
+  }
+}

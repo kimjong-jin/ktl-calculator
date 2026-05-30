@@ -1,0 +1,365 @@
+TN Claydox
+
+{
+  "phpEXCEL": {
+    "FILE_UID": "excel",
+    "INPUT_DATA": [
+      {
+        "target": "형식",
+        "cellName": "G9",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "M1",
+        "cellName": "H12",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "M2",
+        "cellName": "H13",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "M3",
+        "cellName": "H14",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z1",
+        "cellName": "H15",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z2",
+        "cellName": "H16",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S1",
+        "cellName": "H17",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S2",
+        "cellName": "H18",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z3",
+        "cellName": "H20",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z4",
+        "cellName": "H21",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S3",
+        "cellName": "H22",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S4",
+        "cellName": "H23",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z5",
+        "cellName": "H25",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S5",
+        "cellName": "H26",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z6",
+        "cellName": "H27",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S6",
+        "cellName": "H28",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z7",
+        "cellName": "H29",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S7",
+        "cellName": "H30",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "측정범위",
+        "cellName": "J8",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "측1",
+        "cellName": "F5",
+        "sheetName": "Sheet2",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "측2",
+        "cellName": "F7",
+        "sheetName": "Sheet2",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis1",
+        "cellName": "G5",
+        "sheetName": "Sheet2",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis2",
+        "cellName": "G6",
+        "sheetName": "Sheet2",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis3",
+        "cellName": "G7",
+        "sheetName": "Sheet2",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis4",
+        "cellName": "G8",
+        "sheetName": "Sheet2",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "M1",
+        "cellName": "B40",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "M2",
+        "cellName": "B41",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "M3",
+        "cellName": "B42",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z1",
+        "cellName": "B43",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z2",
+        "cellName": "B44",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S1",
+        "cellName": "B45",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S2",
+        "cellName": "B46",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z3",
+        "cellName": "B47",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z4",
+        "cellName": "B48",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S3",
+        "cellName": "B49",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S4",
+        "cellName": "B50",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z5",
+        "cellName": "B51",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S5",
+        "cellName": "B52",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z6",
+        "cellName": "B53",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S6",
+        "cellName": "B54",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Z7",
+        "cellName": "B55",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "S7",
+        "cellName": "B56",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "측1",
+        "cellName": "I6",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "측2",
+        "cellName": "I8",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis1",
+        "cellName": "J6",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis2",
+        "cellName": "J7",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis3",
+        "cellName": "J8",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "Analysis4",
+        "cellName": "J9",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "진행순서",
+        "cellName": "W39",
+        "sheetName": "Sheet3",
+        "targetType": "multi_text"
+      }
+    ],
+    "COMMON": [
+      {
+        "target": "직결",
+        "cellName": "J50",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "직비",
+        "cellName": "H50",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "제결",
+        "cellName": "J43",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "제비",
+        "cellName": "H43",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "스결",
+        "cellName": "J46",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "스비",
+        "cellName": "H46",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "반결",
+        "cellName": "J40",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "반비",
+        "cellName": "H40",
+        "sheetName": "Sheet1",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "수결",
+        "cellName": "H20",
+        "sheetName": "Sheet2",
+        "targetType": "multi_text"
+      },
+      {
+        "target": "수비",
+        "cellName": "F20",
+        "sheetName": "Sheet2",
+        "targetType": "multi_text"
+      }
+    ]
+  }
+}

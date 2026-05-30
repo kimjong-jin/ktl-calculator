@@ -107,6 +107,40 @@ export function renderHistory(listEl, history, onDelete) {
   listEl.replaceChildren(...history.map((e) => historyRow(e, onDelete)));
 }
 
+/**
+ * Claydox 입력 폼을 그린다 — 항목별 고유 target 마다 입력칸 1개.
+ * 동적 값은 textContent/placeholder 로만 넣어 XSS 를 차단한다.
+ * @param {HTMLElement} container  입력칸이 들어갈 그리드
+ * @param {HTMLElement} metaEl     안내 문구 노드
+ * @param {{label:string, code:string}} item
+ * @param {Array<{target:string, cell:string, sheet:string}>} inputs  inputTargets() 결과
+ */
+export function renderClaydoxForm(container, metaEl, item, inputs) {
+  metaEl.textContent = inputs.length
+    ? `${item.label} · 입력 항목 ${inputs.length}개 → 엑셀 ${inputs[0].sheet} 셀에 매핑`
+    : `${item.label} 은(는) Claydox 전송 매핑이 없습니다.`;
+
+  container.replaceChildren(
+    ...inputs.map((t) => {
+      const input = el('input', { class: 'field__control field__control--mini' });
+      input.type = 'text';
+      input.dataset.target = t.target;
+      input.setAttribute('inputmode', 'decimal');
+      input.placeholder = `셀 ${t.cell}`;
+      return el('label', { class: 'field field--mini', title: `${t.sheet} · ${t.cell}` }, [
+        el('span', { class: 'field__label', text: t.target }),
+        input,
+      ]);
+    }),
+  );
+}
+
+/** 생성된 Claydox 페이로드(JSON)를 출력 영역에 표시한다. */
+export function renderClaydoxJson(outputEl, payload) {
+  outputEl.hidden = false;
+  outputEl.textContent = JSON.stringify(payload, null, 2);
+}
+
 /** DB 연동 상태 칩을 그린다. state: 'ok' | 'down' | 'checking'. */
 export function renderStatusChip(chipEl, status) {
   const ok = status && status.connected;

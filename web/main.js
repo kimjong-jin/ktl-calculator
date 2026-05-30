@@ -9,12 +9,15 @@
 import { ITEMS, CRITERIA_HINT, UNJUDGED, itemByCode } from './constants.js';
 import { postCalculate, getFee, getDbStatus } from './api.js';
 import * as history from './history.js';
-import { exportCsv, exportJson } from './exporter.js';
+import { exportCsv, exportJson, exportClaydoxPayload } from './exporter.js';
+import { loadClaydoxMappings, inputTargets, buildPayload } from './claydox.js';
 import {
   renderResult,
   renderResultEmpty,
   renderHistory,
   renderStatusChip,
+  renderClaydoxForm,
+  renderClaydoxJson,
 } from './render.js';
 
 const $ = (id) => document.getElementById(id);
@@ -35,9 +38,19 @@ const els = {
   exportCsv: $('export-csv'),
   exportJson: $('export-json'),
   clearHist: $('clear-hist'),
+  cdxMeta: $('cdx-meta'),
+  cdxFields: $('cdx-fields'),
+  cdxOutput: $('cdx-output'),
+  cdxBuild: $('cdx-build'),
+  cdxCopy: $('cdx-copy'),
+  cdxDownload: $('cdx-download'),
 };
 
 let entries = [];
+/** Claydox 매핑 JSON (한 번 로드 후 캐시). 로드 실패 시 undefined. */
+let claydoxMappings;
+/** 가장 최근 생성된 Claydox 페이로드 (복사·저장용). */
+let lastPayload;
 
 /** 항목 셀렉트를 채운다. */
 function populateItems() {
@@ -165,6 +178,71 @@ function toggleTheme() {
   applyTheme(next);
 }
 
+/** Claydox 출력(JSON)과 복사·저장 버튼을 빈 상태로 되돌린다. */
+function resetClaydoxOutput() {
+  lastPayload = undefined;
+  els.cdxOutput.hidden = true;
+  els.cdxOutput.textContent = '';
+  els.cdxCopy.disabled = true;
+  els.cdxDownload.disabled = true;
+}
+
+/** 선택 항목에 맞춰 Claydox 입력 폼을 다시 그린다 (매핑 미로드 시 무시). */
+function updateClaydox() {
+  if (!claydoxMappings) return;
+  const item = itemByCode(els.item.value);
+  const inputs = inputTargets(claydoxMappings, item.code);
+  renderClaydoxForm(els.cdxFields, els.cdxMeta, item, inputs);
+  els.cdxBuild.disabled = inputs.length === 0;
+  resetClaydoxOutput();
+}
+
+/** 입력칸 값을 모아 Claydox phpEXCEL 페이로드를 생성·표시한다. */
+function buildClaydox() {
+  if (!claydoxMappings) return;
+  const item = itemByCode(els.item.value);
+  const values = {};
+  els.cdxFields.querySelectorAll('input[data-target]').forEach((input) => {
+    const v = input.value.trim();
+    if (v !== '') values[input.dataset.target] = v;
+  });
+  try {
+    lastPayload = buildPayload(claydoxMappings, item.code, values);
+    renderClaydoxJson(els.cdxOutput, lastPayload);
+    els.cdxCopy.disabled = false;
+    els.cdxDownload.disabled = false;
+  } catch (e) {
+    console.error('[claydox] 페이로드 생성 실패:', e instanceof Error ? e.message : e);
+    els.cdxMeta.textContent = 'Claydox 페이로드 생성에 실패했습니다.';
+  }
+}
+
+/** 생성된 페이로드 JSON 을 클립보드로 복사한다. */
+async function copyClaydox() {
+  if (!lastPayload) return;
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(lastPayload, null, 2));
+    els.cdxCopy.textContent = '복사됨';
+    setTimeout(() => {
+      els.cdxCopy.textContent = '복사';
+    }, 1_500);
+  } catch (e) {
+    console.error('[claydox] 클립보드 복사 실패:', e instanceof Error ? e.message : e);
+  }
+}
+
+/** 매핑 JSON 을 로드해 Claydox 카드를 초기화한다. 실패 시 카드를 비활성화한다. */
+async function initClaydox() {
+  try {
+    claydoxMappings = await loadClaydoxMappings();
+    updateClaydox();
+  } catch (e) {
+    console.error('[claydox] 매핑 로드 실패:', e instanceof Error ? e.message : e);
+    els.cdxMeta.textContent = 'Claydox 매핑을 불러오지 못했습니다.';
+    els.cdxBuild.disabled = true;
+  }
+}
+
 /** DB 연동 상태를 조회해 칩을 갱신한다. */
 async function refreshStatus() {
   renderStatusChip(els.chip, 'checking');
@@ -188,6 +266,12 @@ function init() {
   refreshHistory();
 
   els.item.addEventListener('change', updateHint);
+  els.item.addEventListener('change', updateClaydox);
+  els.cdxBuild.addEventListener('click', buildClaydox);
+  els.cdxCopy.addEventListener('click', copyClaydox);
+  els.cdxDownload.addEventListener('click', () => {
+    if (lastPayload) exportClaydoxPayload(lastPayload, itemByCode(els.item.value).code);
+  });
   els.calcBtn.addEventListener('click', calculate);
   els.resetBtn.addEventListener('click', reset);
   els.themeBtn.addEventListener('click', toggleTheme);
@@ -203,6 +287,7 @@ function init() {
   });
 
   void refreshStatus();
+  void initClaydox();
 }
 
 init();

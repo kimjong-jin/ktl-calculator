@@ -1,0 +1,1990 @@
+{
+  "source": "Version11_(2026).xlsx",
+  "note": "자동 생성 — src/claydoxMappings.js 가 단일 출처. 직접 편집 금지 (npm run gen:claydox 로 재생성).",
+  "params": [
+    "TOC",
+    "TN",
+    "TP",
+    "COD",
+    "SS",
+    "pH",
+    "DO",
+    "Cl",
+    "TU"
+  ],
+  "mappings": {
+    "TOC": [
+      {
+        "target": "M1",
+        "cell": "D12",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M2",
+        "cell": "D13",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M3",
+        "cell": "D14",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z1",
+        "cell": "D15",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z2",
+        "cell": "D16",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S1",
+        "cell": "D17",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S2",
+        "cell": "D18",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z3",
+        "cell": "D20",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z4",
+        "cell": "D21",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S3",
+        "cell": "D22",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S4",
+        "cell": "D23",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "응답시간",
+        "cell": "D24",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z5",
+        "cell": "D25",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S5",
+        "cell": "D26",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z6",
+        "cell": "D27",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S6",
+        "cell": "D28",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z7",
+        "cell": "D29",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S7",
+        "cell": "D30",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "측정범위",
+        "cell": "F8",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "배출기준",
+        "cell": "B9",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "측1",
+        "cell": "B5",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "측2",
+        "cell": "B7",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis1",
+        "cell": "C5",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis2",
+        "cell": "C6",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis3",
+        "cell": "C7",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis4",
+        "cell": "C8",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "M1",
+        "cell": "B40",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "M2",
+        "cell": "B41",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "M3",
+        "cell": "B42",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z1",
+        "cell": "B43",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z2",
+        "cell": "B44",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S1",
+        "cell": "B45",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S2",
+        "cell": "B46",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z3",
+        "cell": "B47",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z4",
+        "cell": "B48",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S3",
+        "cell": "B49",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S4",
+        "cell": "B50",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z5",
+        "cell": "B51",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S5",
+        "cell": "B52",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z6",
+        "cell": "B53",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S6",
+        "cell": "B54",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z7",
+        "cell": "B55",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S7",
+        "cell": "B56",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측1",
+        "cell": "I6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측2",
+        "cell": "I8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis1",
+        "cell": "J6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis2",
+        "cell": "J7",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis3",
+        "cell": "J8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis4",
+        "cell": "J9",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "진행순서",
+        "cell": "W39",
+        "sheet": "Sheet3"
+      }
+    ],
+    "TN": [
+      {
+        "target": "형식",
+        "cell": "G9",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M1",
+        "cell": "H12",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M2",
+        "cell": "H13",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M3",
+        "cell": "H14",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z1",
+        "cell": "H15",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z2",
+        "cell": "H16",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S1",
+        "cell": "H17",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S2",
+        "cell": "H18",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z3",
+        "cell": "H20",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z4",
+        "cell": "H21",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S3",
+        "cell": "H22",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S4",
+        "cell": "H23",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z5",
+        "cell": "H25",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S5",
+        "cell": "H26",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z6",
+        "cell": "H27",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S6",
+        "cell": "H28",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z7",
+        "cell": "H29",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S7",
+        "cell": "H30",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "측정범위",
+        "cell": "J8",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "측1",
+        "cell": "F5",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "측2",
+        "cell": "F7",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis1",
+        "cell": "G5",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis2",
+        "cell": "G6",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis3",
+        "cell": "G7",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis4",
+        "cell": "G8",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "M1",
+        "cell": "B40",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "M2",
+        "cell": "B41",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "M3",
+        "cell": "B42",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z1",
+        "cell": "B43",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z2",
+        "cell": "B44",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S1",
+        "cell": "B45",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S2",
+        "cell": "B46",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z3",
+        "cell": "B47",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z4",
+        "cell": "B48",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S3",
+        "cell": "B49",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S4",
+        "cell": "B50",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z5",
+        "cell": "B51",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S5",
+        "cell": "B52",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z6",
+        "cell": "B53",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S6",
+        "cell": "B54",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z7",
+        "cell": "B55",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S7",
+        "cell": "B56",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측1",
+        "cell": "I6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측2",
+        "cell": "I8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis1",
+        "cell": "J6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis2",
+        "cell": "J7",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis3",
+        "cell": "J8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis4",
+        "cell": "J9",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "진행순서",
+        "cell": "W39",
+        "sheet": "Sheet3"
+      }
+    ],
+    "TP": [
+      {
+        "target": "형식",
+        "cell": "K9",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M1P",
+        "cell": "L12",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M2P",
+        "cell": "L13",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M3P",
+        "cell": "L14",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z1P",
+        "cell": "L15",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z2P",
+        "cell": "L16",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S1P",
+        "cell": "L17",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S2P",
+        "cell": "L18",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z3P",
+        "cell": "L20",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z4P",
+        "cell": "L21",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S3P",
+        "cell": "L22",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S4P",
+        "cell": "L23",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z5P",
+        "cell": "L25",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S5P",
+        "cell": "L26",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z6P",
+        "cell": "L27",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S6P",
+        "cell": "L28",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z7P",
+        "cell": "L29",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S7P",
+        "cell": "L30",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "측정범위P",
+        "cell": "N8",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "측1P",
+        "cell": "J5",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "측2P",
+        "cell": "J7",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis1P",
+        "cell": "K5",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis2P",
+        "cell": "K6",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis3P",
+        "cell": "K7",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis4P",
+        "cell": "K8",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "M1P",
+        "cell": "B40",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "M2P",
+        "cell": "B41",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "M3P",
+        "cell": "B42",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z1P",
+        "cell": "B43",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z2P",
+        "cell": "B44",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S1P",
+        "cell": "B45",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S2P",
+        "cell": "B46",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z3P",
+        "cell": "B47",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z4P",
+        "cell": "B48",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S3P",
+        "cell": "B49",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S4P",
+        "cell": "B50",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z5P",
+        "cell": "B51",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S5P",
+        "cell": "B52",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z6P",
+        "cell": "B53",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S6P",
+        "cell": "B54",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z7P",
+        "cell": "B55",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S7P",
+        "cell": "B56",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측1P",
+        "cell": "I6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측2P",
+        "cell": "I8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis1P",
+        "cell": "J6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis2P",
+        "cell": "J7",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis3P",
+        "cell": "J8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis4P",
+        "cell": "J9",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "진행순서P",
+        "cell": "W39",
+        "sheet": "Sheet3"
+      }
+    ],
+    "COD": [
+      {
+        "target": "M1",
+        "cell": "AF12",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M2",
+        "cell": "AF13",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M3",
+        "cell": "AF14",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z1",
+        "cell": "AF15",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z2",
+        "cell": "AF16",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S1",
+        "cell": "AF17",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S2",
+        "cell": "AF18",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z3",
+        "cell": "AF20",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z4",
+        "cell": "AF21",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S3",
+        "cell": "AF22",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S4",
+        "cell": "AF23",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z5",
+        "cell": "AF25",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S5",
+        "cell": "AF26",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z6",
+        "cell": "AF27",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S6",
+        "cell": "AF28",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z7",
+        "cell": "AF29",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S7",
+        "cell": "AF30",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "측정범위",
+        "cell": "AH8",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "측1",
+        "cell": "R5",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "측2",
+        "cell": "R7",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis1",
+        "cell": "S5",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis2",
+        "cell": "S6",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis3",
+        "cell": "S7",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis4",
+        "cell": "S8",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "M1",
+        "cell": "B40",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "M2",
+        "cell": "B41",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "M3",
+        "cell": "B42",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z1",
+        "cell": "B43",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z2",
+        "cell": "B44",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S1",
+        "cell": "B45",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S2",
+        "cell": "B46",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z3",
+        "cell": "B47",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z4",
+        "cell": "B48",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S3",
+        "cell": "B49",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S4",
+        "cell": "B50",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z5",
+        "cell": "B51",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S5",
+        "cell": "B52",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z6",
+        "cell": "B53",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S6",
+        "cell": "B54",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z7",
+        "cell": "B55",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S7",
+        "cell": "B56",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측1",
+        "cell": "I6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측2",
+        "cell": "I8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis1",
+        "cell": "J6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis2",
+        "cell": "J7",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis3",
+        "cell": "J8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis4",
+        "cell": "J9",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "진행순서",
+        "cell": "W39",
+        "sheet": "Sheet3"
+      }
+    ],
+    "SS": [
+      {
+        "target": "M1",
+        "cell": "P12",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M2",
+        "cell": "P13",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "M3",
+        "cell": "P14",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z1",
+        "cell": "P15",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z2",
+        "cell": "P16",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S1",
+        "cell": "P17",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S2",
+        "cell": "P18",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z3",
+        "cell": "P20",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z4",
+        "cell": "P21",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S3",
+        "cell": "P22",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S4",
+        "cell": "P23",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z5",
+        "cell": "P25",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S5",
+        "cell": "P26",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z6",
+        "cell": "P27",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S6",
+        "cell": "P28",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Z7",
+        "cell": "P29",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "S7",
+        "cell": "P30",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "측정범위",
+        "cell": "R8",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "측1",
+        "cell": "N5",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "측2",
+        "cell": "N7",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis1",
+        "cell": "O5",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis2",
+        "cell": "O6",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis3",
+        "cell": "O7",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "Analysis4",
+        "cell": "O8",
+        "sheet": "Sheet2"
+      },
+      {
+        "target": "M1",
+        "cell": "B40",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "M2",
+        "cell": "B41",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "M3",
+        "cell": "B42",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z1",
+        "cell": "B43",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z2",
+        "cell": "B44",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S1",
+        "cell": "B45",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S2",
+        "cell": "B46",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z3",
+        "cell": "B47",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z4",
+        "cell": "B48",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S3",
+        "cell": "B49",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S4",
+        "cell": "B50",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z5",
+        "cell": "B51",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S5",
+        "cell": "B52",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z6",
+        "cell": "B53",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S6",
+        "cell": "B54",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Z7",
+        "cell": "B55",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "S7",
+        "cell": "B56",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측1",
+        "cell": "I6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측2",
+        "cell": "I8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis1",
+        "cell": "J6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis2",
+        "cell": "J7",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis3",
+        "cell": "J8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis4",
+        "cell": "J9",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "진행순서",
+        "cell": "W39",
+        "sheet": "Sheet3"
+      }
+    ],
+    "pH": [
+      {
+        "target": "측1",
+        "cell": "U32",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "측2",
+        "cell": "U34",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Analysis1",
+        "cell": "W32",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Analysis2",
+        "cell": "W33",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Analysis3",
+        "cell": "W34",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "Analysis4",
+        "cell": "W35",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "반복성 7_1",
+        "cell": "B3",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "반복성 4_1",
+        "cell": "B4",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "반복성 7_2",
+        "cell": "B5",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "반복성 4_2",
+        "cell": "B6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "반복성 7_3",
+        "cell": "B7",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "반복성 4_3",
+        "cell": "B8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 4_1",
+        "cell": "B9",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 4_2",
+        "cell": "B10",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 4_3",
+        "cell": "B11",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 7_1",
+        "cell": "B12",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 7_2",
+        "cell": "B13",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 7_3",
+        "cell": "B14",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 4_4",
+        "cell": "B15",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 4_5",
+        "cell": "B16",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 4_6",
+        "cell": "B17",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 7_4",
+        "cell": "B18",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 7_5",
+        "cell": "B19",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 7_6",
+        "cell": "B20",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "직선성 4_1",
+        "cell": "B21",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "직선성 4_2",
+        "cell": "B22",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "직선성 4_3",
+        "cell": "B23",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "직선성 7_1",
+        "cell": "B24",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "직선성 7_2",
+        "cell": "B25",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "직선성 7_3",
+        "cell": "B26",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "직선성 10_1",
+        "cell": "B27",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "직선성 10_2",
+        "cell": "B28",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "직선성 10_3",
+        "cell": "B29",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "4 온도보상 10",
+        "cell": "B30",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "4 온도보상 15",
+        "cell": "B31",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "4 온도보상 20",
+        "cell": "B32",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "4 온도보상 25",
+        "cell": "B33",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "4 온도보상 30",
+        "cell": "B34",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측1",
+        "cell": "I6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "측2",
+        "cell": "I8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis1",
+        "cell": "J6",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis2",
+        "cell": "J7",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis3",
+        "cell": "J8",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "Analysis4",
+        "cell": "J9",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "진행순서",
+        "cell": "W2",
+        "sheet": "Sheet3"
+      }
+    ],
+    "DO": [
+      {
+        "target": "반복성 S1",
+        "cell": "AA12",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "반복성 S2",
+        "cell": "AA14",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "반복성 S3",
+        "cell": "AA16",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 Z1",
+        "cell": "AA18",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 Z2",
+        "cell": "AA19",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 Z3",
+        "cell": "AA20",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 S1",
+        "cell": "AA21",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 S2",
+        "cell": "AA22",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 S3",
+        "cell": "AA23",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 Z4",
+        "cell": "AD18",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 Z5",
+        "cell": "AD19",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 Z6",
+        "cell": "AD20",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 S4",
+        "cell": "AD21",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 S5",
+        "cell": "AD22",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "드리프트 S6",
+        "cell": "AD23",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "응답시간",
+        "cell": "AC29",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "온도보상 20_1",
+        "cell": "AC30",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "온도보상 20_2",
+        "cell": "AC31",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "온도보상 20_3",
+        "cell": "AC32",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "온도보상 30_1",
+        "cell": "AC33",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "온도보상 30_2",
+        "cell": "AC34",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "온도보상 30_3",
+        "cell": "AC35",
+        "sheet": "Sheet1"
+      },
+      {
+        "target": "반복성 S1",
+        "cell": "B61",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "반복성 S2",
+        "cell": "B62",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "반복성 S3",
+        "cell": "B63",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 Z1",
+        "cell": "B64",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 Z2",
+        "cell": "B65",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 Z3",
+        "cell": "B66",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 S1",
+        "cell": "B67",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 S2",
+        "cell": "B68",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 S3",
+        "cell": "B69",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 Z4",
+        "cell": "B70",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 Z5",
+        "cell": "B71",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 Z6",
+        "cell": "B72",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 S4",
+        "cell": "B73",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 S5",
+        "cell": "B74",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "드리프트 S6",
+        "cell": "B75",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "온도보상 20_1",
+        "cell": "B76",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "온도보상 20_2",
+        "cell": "B77",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "온도보상 20_3",
+        "cell": "B78",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "온도보상 30_1",
+        "cell": "B79",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "온도보상 30_2",
+        "cell": "B80",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "온도보상 30_3",
+        "cell": "B81",
+        "sheet": "Sheet3"
+      },
+      {
+        "target": "진행순서",
+        "cell": "W60",
+        "sheet": "Sheet3"
+      }
+    ],
+    "Cl": [
+      {
+        "target": "측정범위C",
+        "cell": "H5",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z1C",
+        "cell": "F7",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z2C",
+        "cell": "F8",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S1C",
+        "cell": "F9",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S2C",
+        "cell": "F10",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z3C",
+        "cell": "F12",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z4C",
+        "cell": "F13",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S3C",
+        "cell": "F14",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S4C",
+        "cell": "F15",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z5C",
+        "cell": "F16",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "응답시간C",
+        "cell": "F17",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "자동화 응답시간C",
+        "cell": "H17",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S5C",
+        "cell": "F18",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "M1C",
+        "cell": "F19",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "반결C",
+        "cell": "H24",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "반비C",
+        "cell": "F24",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "제결C",
+        "cell": "H27",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "제비C",
+        "cell": "F27",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "스결C",
+        "cell": "H30",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "스비C",
+        "cell": "F30",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "직결C",
+        "cell": "H33",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "직비C",
+        "cell": "F33",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "응결C",
+        "cell": "H36",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "응비C",
+        "cell": "F36",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z6C",
+        "cell": "F22",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z7C",
+        "cell": "F23",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S6C",
+        "cell": "H22",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S7C",
+        "cell": "H23",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "M기준값C",
+        "cell": "F31",
+        "sheet": "Sheet4"
+      }
+    ],
+    "TU": [
+      {
+        "target": "측정범위",
+        "cell": "D5",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z1",
+        "cell": "B7",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z2",
+        "cell": "B8",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S1",
+        "cell": "B9",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S2",
+        "cell": "B10",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z3",
+        "cell": "B12",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z4",
+        "cell": "B13",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S3",
+        "cell": "B14",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S4",
+        "cell": "B15",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z5",
+        "cell": "B16",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "응답시간",
+        "cell": "B17",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "자동화 응답시간",
+        "cell": "D17",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S5",
+        "cell": "B18",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "M1",
+        "cell": "B19",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "반결",
+        "cell": "D24",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "반비",
+        "cell": "B24",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "제결",
+        "cell": "D27",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "제비",
+        "cell": "B27",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "스결",
+        "cell": "D30",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "스비",
+        "cell": "B30",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "직결",
+        "cell": "D33",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "직비",
+        "cell": "B33",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "응결",
+        "cell": "D36",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "응비",
+        "cell": "B36",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z6",
+        "cell": "B22",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "Z7",
+        "cell": "B23",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S6",
+        "cell": "D22",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "S7",
+        "cell": "D23",
+        "sheet": "Sheet4"
+      },
+      {
+        "target": "M기준값",
+        "cell": "B31",
+        "sheet": "Sheet4"
+      }
+    ]
+  }
+}

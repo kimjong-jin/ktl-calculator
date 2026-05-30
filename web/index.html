@@ -26,7 +26,12 @@
         </div>
       </header>
 
-      <main class="layout">
+      <nav class="modetabs" role="tablist">
+        <button class="modetab is-active" type="button" data-mode="accuracy" role="tab">오차율</button>
+        <button class="modetab" type="button" data-mode="precision" role="tab">정도검사</button>
+      </nav>
+
+      <main id="panel-accuracy" class="layout modepanel">
           <!-- 입력 -->
           <section class="card card--input">
             <h2 class="card__title">측정 입력</h2>
@@ -79,7 +84,26 @@
               <p class="placeholder">측정값과 표준값을 입력하고 계산하세요.</p>
             </div>
           </section>
+
+          <!-- Claydox 전송 데이터 -->
+          <section class="card card--claydox">
+            <div class="card__bar">
+              <h2 class="card__title">Claydox 전송 데이터</h2>
+              <div class="hist__actions">
+                <button id="cdx-build" class="btn btn--mini" type="button">JSON 생성</button>
+                <button id="cdx-copy" class="btn btn--mini" type="button" disabled>복사</button>
+                <button id="cdx-download" class="btn btn--mini" type="button" disabled>JSON 저장</button>
+              </div>
+            </div>
+            <p class="micro" id="cdx-meta">선택한 검사 항목의 Claydox 매핑을 불러옵니다.</p>
+            <div id="cdx-fields" class="cdx-grid"></div>
+            <pre id="cdx-output" class="cdx-output" hidden></pre>
+            <p class="micro">엑셀(Version11) target→셀 매핑을 그대로 전송 — phpEXCEL JSON 페이로드.</p>
+          </section>
       </main>
+
+      <!-- 정도검사 상세 (반복성/드리프트/직선성/현장적용/통합) — precision-ui.js 가 채움 -->
+      <section id="panel-precision" class="modepanel" hidden></section>
 
       <footer class="app__footer">
         <span>KTL 정도검사 · 수치 표시 소수점 2자리</span>
@@ -88,5 +112,6 @@
     </div>
 
     <script type="module" src="./main.js"></script>
+    <script type="module" src="./precision-ui.js"></script>
   </body>
 </html>
