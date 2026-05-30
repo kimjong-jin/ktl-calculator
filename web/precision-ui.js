@@ -193,6 +193,65 @@ const ITEMS = [
   { code: 'CL',  label: 'CL — 잔류염소' },
 ];
 
+// 각 탭별 계산 결과 저장
+const calcResults = {};
+
+function certModal(itemLabel) {
+  const date = new Date().toLocaleDateString('ko-KR');
+  const keys = ['repeatability','drift','linearity','fieldApplication','total'];
+  const titles = { repeatability:'반복성', drift:'드리프트', linearity:'직선성', fieldApplication:'현장적용성', total:'통합' };
+
+  const rows = keys.map(k => {
+    const r = calcResults[k];
+    if (!r) return `<tr><td>${titles[k]}</td><td colspan="2" style="color:#999">미계산</td></tr>`;
+    const verdicts = r.verdicts.map(v =>
+      `<span style="color:${v.pass===null?'#666':v.pass?'#1a7f37':'#cf222e'}">${v.pass===null?'⚪':v.pass?'✅':'❌'} ${v.label}</span>`
+    ).join('<br>');
+    const lines = r.lines.map(l => `${l.k}: ${l.v}`).join(' / ');
+    return `<tr><td>${titles[k]}</td><td style="font-size:12px">${lines}</td><td>${verdicts}</td></tr>`;
+  }).join('');
+
+  const allDone = keys.every(k => calcResults[k]);
+  const allPass = allDone && keys.every(k => calcResults[k].verdicts.every(v => v.pass !== false));
+  const finalVerd = !allDone ? '⚠️ 일부 미계산'
+    : allPass ? '✅ 전 항목 적합' : '❌ 부적합 항목 있음';
+
+  const html = `
+    <div id="cert-overlay" style="position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px">
+      <div id="cert-box" style="background:#fff;color:#000;max-width:720px;width:100%;border-radius:12px;overflow:auto;max-height:90vh;padding:40px;font-family:sans-serif">
+        <div style="text-align:center;margin-bottom:24px;border-bottom:2px solid #000;padding-bottom:16px">
+          <h2 style="font-size:22px;font-weight:700;margin:0">수질TMS 정도검사 성적서</h2>
+          <p style="margin:6px 0 0;font-size:13px;color:#555">Korea Testing Laboratory (KTL)</p>
+        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:14px">
+          <tr><td style="padding:6px 0;width:120px;color:#666">검사 항목</td><td style="font-weight:600">${itemLabel}</td></tr>
+          <tr><td style="padding:6px 0;color:#666">검사일</td><td>${date}</td></tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
+          <thead>
+            <tr style="background:#f0f0f0">
+              <th style="padding:8px;text-align:left;border:1px solid #ccc;width:100px">검사항목</th>
+              <th style="padding:8px;text-align:left;border:1px solid #ccc">수치 결과</th>
+              <th style="padding:8px;text-align:left;border:1px solid #ccc">판정</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="border:2px solid ${allPass?'#1a7f37':'#cf222e'};border-radius:8px;padding:12px 16px;text-align:center;font-size:16px;font-weight:700;color:${allPass?'#1a7f37':'#cf222e'}">
+          최종 판정: ${finalVerd}
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+          <button onclick="window.print()" style="padding:8px 18px;background:#0969da;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:14px">인쇄 / PDF 저장</button>
+          <button onclick="document.getElementById('cert-overlay').remove()" style="padding:8px 18px;background:#f0f0f0;color:#000;border:0;border-radius:6px;cursor:pointer;font-size:14px">닫기</button>
+        </div>
+      </div>
+    </div>`;
+
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div.firstElementChild);
+}
+
 function init() {
   const panel = document.getElementById('panel-precision');
   if (!panel) return;
@@ -204,6 +263,7 @@ function init() {
         <select id="pv-item-select" class="field__control pv-item-select">
           ${ITEMS.map(it => `<option value="${it.code}">${it.label}</option>`).join('')}
         </select>
+        <button class="btn btn--ghost btn--mini" id="pv-cert-btn" type="button" style="margin-left:auto">성적서 출력</button>
       </div>
       <div class="pv-subtabs" role="tablist">
         ${CALCS.map((c, i) => `<button class="pv-subtab${i === 0 ? ' is-active' : ''}" type="button" data-tab="${c.key}">${c.title}</button>`).join('')}
@@ -223,12 +283,20 @@ function init() {
   panel.querySelectorAll('.pv-subtab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
   showTab(CALCS[0].key);
 
-  // 계산 실행
+  // 계산 실행 + 결과 저장
   panel.querySelectorAll('[data-run]').forEach((btn) => btn.addEventListener('click', () => {
     const c = CALCS.find((x) => x.key === btn.dataset.run);
     const out = c.run(g, gs);
+    calcResults[c.key] = out;
     document.getElementById(`pvres-${c.key}`).innerHTML = resultHtml(out);
   }));
+
+  // 성적서 출력
+  document.getElementById('pv-cert-btn')?.addEventListener('click', () => {
+    const sel = document.getElementById('pv-item-select');
+    const item = ITEMS.find(it => it.code === sel?.value) || ITEMS[0];
+    certModal(item.label);
+  });
 }
 
 if (document.readyState === 'loading') {
