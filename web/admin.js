@@ -3,21 +3,21 @@
  * initAdmin(token) — 관리자 토큰으로 /api/admin 조회 후 패널 렌더링.
  */
 
+let adminToken = '';
+
 export async function initAdmin(token) {
+  adminToken = token;
   const wrap = document.getElementById('admin-wrap');
   if (!wrap) return;
-
   wrap.innerHTML = '<p class="admin-loading">관리자 데이터 로드 중…</p>';
+  await loadAndRender(wrap);
+}
 
+async function loadAndRender(wrap) {
   try {
-    const res = await fetch('/api/admin', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch('/api/admin', { headers: { Authorization: `Bearer ${adminToken}` } });
     const data = await res.json();
-    if (!res.ok) {
-      wrap.innerHTML = `<p class="error">${data.error || '관리자 데이터 로드 실패'}</p>`;
-      return;
-    }
+    if (!res.ok) { wrap.innerHTML = `<p class="error">${data.error || '로드 실패'}</p>`; return; }
     render(wrap, data);
   } catch {
     wrap.innerHTML = '<p class="error">서버에 연결할 수 없습니다.</p>';
@@ -25,18 +25,42 @@ export async function initAdmin(token) {
 }
 
 function chip(ok, labelOk, labelFail) {
-  const cls = ok ? 'admin-chip--ok' : 'admin-chip--fail';
-  return `<span class="admin-chip ${cls}">${ok ? labelOk : labelFail}</span>`;
+  return `<span class="admin-chip ${ok ? 'admin-chip--ok' : 'admin-chip--fail'}">${ok ? labelOk : labelFail}</span>`;
 }
 
 function render(wrap, d) {
   const { db, gemini, access, server, ts } = d;
 
-  const expiry = access.globalExpiry
+  const expiryHtml = access.globalExpiry
     ? `<span class="admin-val">${access.globalExpiry}</span>`
     : `<span class="admin-val admin-val--dim">미설정 (로그인 기준 ${access.days}일)</span>`;
 
   wrap.innerHTML = `
+    <!-- 고객 초대 코드 발급 -->
+    <div class="admin-section">
+      <h3 class="admin-section__title">고객 접속 코드 발급</h3>
+      <div class="admin-issue-bar">
+        <label class="admin-days-label">유효기간
+          <input id="issue-days" class="field__control admin-days-input" type="number" value="${access.days}" min="1" max="365" />
+          <span class="admin-val--dim">일</span>
+        </label>
+        <button class="btn btn--primary" id="issue-btn">새 접속 코드 발급</button>
+      </div>
+      <div id="issue-result" class="issue-result" hidden>
+        <div class="issue-result__label">고객에게 전달할 접속 링크 (클릭 한 번으로 자동 로그인)</div>
+        <div class="issue-url-row">
+          <input id="issue-url" class="field__control issue-url-input" type="text" readonly />
+          <button class="btn btn--mini" id="copy-url-btn">복사</button>
+        </div>
+        <div class="issue-result__label" style="margin-top:10px">코드만 전달할 경우 (입력란에 붙여넣기)</div>
+        <div class="issue-url-row">
+          <input id="issue-code" class="field__control issue-url-input" type="text" readonly />
+          <button class="btn btn--mini" id="copy-code-btn">복사</button>
+        </div>
+        <p class="admin-card__sub" id="issue-exp"></p>
+      </div>
+    </div>
+
     <!-- 서비스 상태 -->
     <div class="admin-section">
       <h3 class="admin-section__title">서비스 상태</h3>
@@ -55,10 +79,8 @@ function render(wrap, d) {
         </div>
         <div class="admin-card">
           <div class="admin-card__label">인증 설정</div>
-          ${chip(access.userPwSet && access.adminPwSet, '완전', '일부 미설정')}
-          <div class="admin-card__sub">
-            고객비번 ${access.userPwSet ? '✓' : '✗'} &nbsp;·&nbsp; 관리자비번 ${access.adminPwSet ? '✓' : '✗'}
-          </div>
+          ${chip(access.adminPwSet, '완전', '관리자 비번 없음')}
+          <div class="admin-card__sub">관리자 ${access.adminPwSet ? '✓' : '✗'} &nbsp;·&nbsp; 레거시 공용 ${access.userPwSet ? '✓' : '✗'}</div>
         </div>
       </div>
     </div>
@@ -68,13 +90,13 @@ function render(wrap, d) {
       <h3 class="admin-section__title">접속 정책</h3>
       <div class="admin-grid2">
         <div class="admin-card">
-          <div class="admin-card__label">고객 유효기간</div>
+          <div class="admin-card__label">기본 유효기간</div>
           <span class="admin-val">${access.days}일</span>
           <div class="admin-card__sub">ACCESS_DAYS 환경변수</div>
         </div>
         <div class="admin-card">
           <div class="admin-card__label">전역 만료일</div>
-          ${expiry}
+          ${expiryHtml}
           <div class="admin-card__sub">ACCESS_START 환경변수</div>
         </div>
       </div>
@@ -101,15 +123,62 @@ function render(wrap, d) {
     </div>
   `;
 
+  // 새로고침
   document.getElementById('admin-refresh')?.addEventListener('click', () => {
-    // token is captured via closure
-    wrap.innerHTML = '<p class="admin-loading">관리자 데이터 로드 중…</p>';
-    // re-fetch
-    fetch('/api/admin', { headers: { Authorization: `Bearer ${document.body.dataset.adminToken || ''}` } })
-      .then(r => r.json())
-      .then(data => render(wrap, data))
-      .catch(() => { wrap.innerHTML = '<p class="error">새로고침 실패</p>'; });
+    wrap.innerHTML = '<p class="admin-loading">새로고침 중…</p>';
+    loadAndRender(wrap);
   });
-  // store token for refresh
-  document.body.dataset.adminToken = document.body.dataset.adminToken || '';
+
+  // 토큰 발급
+  document.getElementById('issue-btn')?.addEventListener('click', issueToken);
+
+  // 복사 버튼
+  makeCopyBtn('copy-url-btn', 'issue-url');
+  makeCopyBtn('copy-code-btn', 'issue-code');
+}
+
+async function issueToken() {
+  const btn = document.getElementById('issue-btn');
+  const days = parseInt(document.getElementById('issue-days')?.value || '10', 10);
+  const result = document.getElementById('issue-result');
+
+  btn.disabled = true;
+  btn.textContent = '생성 중…';
+
+  try {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ action: 'generate_token', days }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || '토큰 생성 실패'); return; }
+
+    const origin = location.origin;
+    const url = `${origin}/?t=${data.inviteToken}`;
+    document.getElementById('issue-url').value = url;
+    document.getElementById('issue-code').value = data.inviteToken;
+    document.getElementById('issue-exp').textContent =
+      `만료: ${new Date(data.exp * 1000).toLocaleDateString('ko-KR')} (${days}일)`;
+    result.hidden = false;
+  } catch {
+    alert('서버에 연결할 수 없습니다.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '새 접속 코드 발급';
+  }
+}
+
+function makeCopyBtn(btnId, inputId) {
+  document.getElementById(btnId)?.addEventListener('click', async () => {
+    const val = document.getElementById(inputId)?.value;
+    if (!val) return;
+    try {
+      await navigator.clipboard.writeText(val);
+      const btn = document.getElementById(btnId);
+      const orig = btn.textContent;
+      btn.textContent = '복사됨';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    } catch { /* 무시 */ }
+  });
 }

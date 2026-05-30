@@ -27,6 +27,27 @@ const $ = (id) => document.getElementById(id);
 
 // ── 인증 ────────────────────────────────────────────────────────────────────
 
+/** URL ?t= 파라미터로 초대 토큰 자동 로그인 처리. */
+async function tryInviteLogin(onSuccess) {
+  const t = new URLSearchParams(location.search).get('t');
+  if (!t) return false;
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: t }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      storeToken(data.token);
+      window.history.replaceState(null, '', location.pathname); // URL에서 ?t= 제거
+      onSuccess(data.role || 'user');
+      return true;
+    }
+  } catch { /* 실패 시 일반 게이트로 진행 */ }
+  return false;
+}
+
 function getStoredToken() {
   try { return localStorage.getItem('ktl-auth'); } catch { return null; }
 }
@@ -111,13 +132,20 @@ function showApp() {
 }
 
 /** 인증 확인 → 완료 시 onReady(role) 호출. */
-function guardAuth(onReady) {
+async function guardAuth(onReady) {
+  // 1. URL ?t= 초대 링크 자동 로그인
+  const inviteDone = await tryInviteLogin((role) => { showApp(); onReady(role); });
+  if (inviteDone) return;
+
+  // 2. 저장된 세션 토큰 유효성 확인
   const stored = getStoredToken();
   if (tokenValid(stored)) {
     showApp();
     onReady(tokenRole(stored));
     return;
   }
+
+  // 3. 비번 게이트 표시
   setupAuthGate((role) => { showApp(); onReady(role); });
 }
 

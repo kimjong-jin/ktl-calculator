@@ -1,14 +1,13 @@
 /**
- * /api/admin — 관리자 전용 서비스 상태 API.
- * GET /api/admin  Authorization: Bearer <admin-token>
- * → { db, gemini, access, server, ts }
+ * /api/admin — 관리자 전용 API.
+ *
+ *   GET  /api/admin          → 서비스 상태 조회
+ *   POST /api/admin          { action:'generate_token', days? } → 고객 초대 토큰 생성
+ *
+ * Authorization: Bearer <admin-token> 필수.
  */
-import { verifyToken } from '../src/authService.js';
-import {
-  listTestItems,
-  getSheetNames,
-  getDataFileName,
-} from '../src/excelClient.js';
+import { verifyToken, generateInviteToken } from '../src/authService.js';
+import { listTestItems, getSheetNames, getDataFileName } from '../src/excelClient.js';
 
 function requireAdmin(req) {
   const auth = (req.headers && req.headers['authorization']) || '';
@@ -17,37 +16,46 @@ function requireAdmin(req) {
   return result.valid && result.role === 'admin';
 }
 
+async function readBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  return new Promise((resolve) => {
+    let raw = '';
+    req.on('data', c => { raw += c; if (raw.length > 1e5) req.destroy(); });
+    req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { resolve({}); } });
+  });
+}
+
 export default async function handler(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'GET') return res.status(405).json({ error: 'GET만 허용됩니다.' });
 
-  if (!requireAdmin(req)) {
-    return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
+  if (!requireAdmin(req)) return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
+
+  // ── 고객 초대 토큰 생성 ──────────────────────────────────────
+  if (req.method === 'POST') {
+    const body = await readBody(req);
+    if (body?.action !== 'generate_token') return res.status(400).json({ error: '알 수 없는 action' });
+
+    try {
+      const result = generateInviteToken(body?.days);
+      return res.status(200).json(result);
+    } catch (e) {
+      return res.status(500).json({ error: e instanceof Error ? e.message : '토큰 생성 실패' });
+    }
   }
 
-  // DB 상태
+  // ── 서비스 상태 조회 ─────────────────────────────────────────
+  if (req.method !== 'GET') return res.status(405).json({ error: 'GET/POST만 허용됩니다.' });
+
   let db = { connected: false };
   try {
     const items = listTestItems().filter(i => /[A-Za-z]/.test(i.item));
-    db = {
-      connected: true,
-      fileName: getDataFileName(),
-      sheetCount: getSheetNames().length,
-      itemCount: items.length,
-    };
+    db = { connected: true, fileName: getDataFileName(), sheetCount: getSheetNames().length, itemCount: items.length };
   } catch (e) {
     db = { connected: false, error: e instanceof Error ? e.message.slice(0, 80) : '오류' };
   }
 
-  // Gemini 상태 (키 존재 여부만, 실제 호출 안 함)
   const geminiKey = process.env.GEMINI_API_KEY;
-  const gemini = {
-    configured: !!geminiKey,
-    status: geminiKey ? 'ok' : 'unconfigured',
-  };
-
-  // 접속 정책
   const days = (() => { const d = parseInt(process.env.ACCESS_DAYS || '10', 10); return Number.isFinite(d) && d > 0 ? d : 10; })();
   const startRaw = process.env.ACCESS_START || null;
   let globalExpiry = null;
@@ -58,17 +66,14 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     db,
-    gemini,
+    gemini: { configured: !!geminiKey, status: geminiKey ? 'ok' : 'unconfigured' },
     access: {
       days,
       globalExpiry,
       userPwSet: !!process.env.ACCESS_PASSWORD,
       adminPwSet: !!process.env.ADMIN_PASSWORD,
     },
-    server: {
-      node: process.version,
-      env: process.env.NODE_ENV || 'production',
-    },
+    server: { node: process.version, env: process.env.NODE_ENV || 'production' },
     ts: new Date().toISOString(),
   });
 }

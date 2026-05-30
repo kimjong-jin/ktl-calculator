@@ -739,3 +739,15 @@ select.field__control {
 .admin-val { font-size: 15px; font-weight: 700; color: var(--text); display: inline-block; }
 .admin-val--dim { font-size: 13px; font-weight: 400; color: var(--text-dim); }
 .admin-val--sm  { font-size: 13px; }
+
+.admin-issue-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.admin-days-label {
+  display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-dim);
+}
+.admin-days-input { width: 70px; text-align: center; }
+.issue-result { margin-top: 4px; }
+.issue-result__label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+.issue-url-row { display: flex; gap: 8px; align-items: center; }
+.issue-url-input { flex: 1; font-size: 12px; font-family: 'JetBrains Mono', monospace; }
