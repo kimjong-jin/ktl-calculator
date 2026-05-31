@@ -972,3 +972,91 @@ select.field__control {
 }
 .pv-gauge__footer-limit { color: var(--fail); font-weight: 700; }
 
+
+/* ── 입력 가이드 패널 ──────────────────────────────────────── */
+.pv-guide-panel {
+  background: linear-gradient(135deg, rgba(47,129,247,0.05), rgba(63,185,80,0.05));
+  border: 1px solid rgba(47,129,247,0.2);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  margin-top: 8px;
+  animation: rise 0.2s ease-out;
+}
+.pv-guide-title {
+  font-size: 10.5px; font-weight: 800; color: var(--accent-base);
+  text-transform: uppercase; letter-spacing: .08em; margin: 0 0 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.pv-guide-group { margin-bottom: 12px; }
+.pv-guide-group:last-child { margin-bottom: 0; }
+.pv-guide-group__hd {
+  font-size: 11px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+}
+.pv-guide-group__hd--z { color: var(--accent-base); }
+.pv-guide-group__hd--s { color: var(--pass); }
+.pv-guide-group__hd--c { color: var(--text-dim); }
+.pv-guide-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 8px; border-radius: 6px;
+  font-size: 12px; margin-bottom: 3px;
+  background: var(--surface-2);
+}
+.pv-guide-row__label { color: var(--text-dim); }
+.pv-guide-row__range {
+  font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.pv-guide-row__range--ok { color: var(--pass); }
+.pv-guide-row__range--warn { color: var(--warn); }
+
+/* ── 직선성 섹션 디자인 ──────────────────────────────────────── */
+.pv-lin-wrap {
+  border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden;
+}
+.pv-lin-header {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+.pv-lin-header span {
+  padding: 8px 12px; font-size: 11px; font-weight: 700; color: var(--text-dim);
+  text-align: center; text-transform: uppercase; letter-spacing: .06em;
+}
+.pv-lin-header span:not(:last-child) { border-right: 1px solid var(--border); }
+.pv-lin-inputs { display: grid; grid-template-columns: repeat(3,1fr); }
+.pv-lin-cell {
+  display: flex; flex-direction: column; align-items: center; padding: 10px 12px; gap: 4px;
+}
+.pv-lin-cell:not(:last-child) { border-right: 1px solid var(--border); }
+.pv-lin-cell .field__control { text-align: center; font-size: 18px; font-weight: 700; padding: 8px; }
+.pv-lin-cell-label { font-size: 11px; color: var(--text-muted); }
+
+/* ── 현장적용계수 섹션 ──────────────────────────────────────── */
+.pv-field-rounds { display: flex; flex-direction: column; gap: 8px; }
+.pv-field-round { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.pv-field-round__label {
+  background: var(--surface-2); padding: 7px 14px;
+  font-size: 11px; font-weight: 700; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .06em;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+}
+.pv-field-round__badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%; font-size: 10px; font-weight: 800;
+  background: var(--accent-base); color: #fff;
+}
+.pv-field-round__inputs { display: grid; grid-template-columns: repeat(3,1fr); gap: 0; }
+.pv-field-round__inputs .field { margin: 0; border-right: 1px solid var(--border); padding: 8px 10px; }
+.pv-field-round__inputs .field:last-child { border-right: 0; }
+.pv-field-round__inputs .field__label { font-size: 11px; }
+
+/* ── 배출기준 칩 ──────────────────────────────────────────── */
+.pv-discharge-wrap {
+  border: 1px solid rgba(210,153,34,0.35); border-radius: var(--r-md);
+  background: var(--warn-bg); padding: 12px 14px; margin-top: 8px;
+}
+.pv-discharge-wrap .field { margin: 0; }
+.pv-discharge-wrap .field__label {
+  color: var(--warn); font-weight: 700; font-size: 12px;
+  display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+}

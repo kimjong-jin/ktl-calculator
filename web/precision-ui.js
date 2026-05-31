@@ -493,7 +493,78 @@ function updateFinal(tab, passes) {
   if (btn) btn.dataset.pass = tab.pass;
 }
 
+// ── 실시간 입력 가이드 ───────────────────────────────────────
+function updateGuide(code) {
+  const el = document.getElementById('pv-input-guide');
+  if (!el) return;
+  if (!['TOC','TN','TP','SS','COD','TU','CL'].includes(code)) { el.hidden = true; return; }
+
+  const range = g('range');
+  if (!range) { el.hidden = true; return; }
+
+  const driftTol = range * 0.05;
+  const fmtR = (v) => isNaN(v) ? '—' : fmt(v, 3);
+
+  // Z 값
+  const z1=gv('z1'), z2=gv('z2'), z3=gv('z3'), z4=gv('z4'), z5=gv('z5');
+  const s1=gv('s1'), s2=gv('s2'), s3=gv('s3'), s4=gv('s4'), s5=gv('s5');
+
+  const mean = (...vs) => { const f=vs.filter(v=>!isNaN(v)); return f.length?f.reduce((a,b)=>a+b,0)/f.length:NaN; };
+
+  const ziMean = mean(z1, z2);
+  const siMean = mean(s1, s2);
+  const zRepMean = mean(z1, z3, z5);
+  const sRepMean = mean(s1, s3, s5);
+
+  function rangeHtml(base, tol, label, cls='') {
+    if (isNaN(base)) return '';
+    const lo = base - tol, hi = base + tol;
+    return `<div class="pv-guide-row">
+      <span class="pv-guide-row__label">${label}</span>
+      <span class="pv-guide-row__range${cls ? ' '+cls : ''}">${fmtR(lo)} ~ ${fmtR(hi)}</span>
+    </div>`;
+  }
+
+  const rows = [];
+
+  // 드리프트 허용 편차
+  rows.push(`<div class="pv-guide-row">
+    <span class="pv-guide-row__label">드리프트 허용 편차 (범위×5%)</span>
+    <span class="pv-guide-row__range">≤ ${fmtR(driftTol)}</span>
+  </div>`);
+
+  // Z 가이드
+  const zRows = [
+    rangeHtml(ziMean, driftTol, 'Z 최종구간 평균(Z3,Z4) 목표', 'pv-guide-row__range--ok'),
+    !isNaN(zRepMean) ? rangeHtml(zRepMean, zRepMean*0.03, 'Z 반복성 목표(±3%)') : '',
+  ].filter(Boolean);
+  if (zRows.length) {
+    rows.push(`<div class="pv-guide-group">
+      <div class="pv-guide-group__hd pv-guide-group__hd--z">🔵 Z (제로) 목표범위</div>
+      ${zRows.join('')}
+    </div>`);
+  }
+
+  // S 가이드
+  const sRows = [
+    rangeHtml(siMean, driftTol, 'S 최종구간 평균(S3,S4) 목표', 'pv-guide-row__range--ok'),
+    !isNaN(sRepMean) ? rangeHtml(sRepMean, sRepMean*0.03, 'S 반복성 목표(±3%)') : '',
+  ].filter(Boolean);
+  if (sRows.length) {
+    rows.push(`<div class="pv-guide-group">
+      <div class="pv-guide-group__hd pv-guide-group__hd--s">🟢 S (스팬) 목표범위</div>
+      ${sRows.join('')}
+    </div>`);
+  }
+
+  el.innerHTML = `
+    <div class="pv-guide-title">📌 입력 가이드 &nbsp;|&nbsp; 측정범위 ${fmtR(range)}</div>
+    ${rows.join('')}`;
+  el.hidden = false;
+}
+
 function calculate(tabId) {
+
   const tab = tabs.find(t => t.id === tabId);
   if (!tab) return;
   if (IS_PH(tab.code))    { calcPH(tab);    return; }
@@ -522,10 +593,12 @@ function switchTab(id) {
   fields.forEach(f => {
     document.getElementById(`pv_${f}`)?.addEventListener('input', () => {
       saveData(id);
+      updateGuide(tab.code);
       clearTimeout(calcTimer);
       calcTimer = setTimeout(() => calculate(id), 300);
     });
   });
+  updateGuide(tab.code);
 
   if (IS_DO(tab.code) || hasData(tab.code)) calculate(id);
 }
@@ -613,29 +686,47 @@ function buildFormBasic(code) {
     </div>
   </div>
 
+  <div id="pv-input-guide" class="pv-guide-panel" hidden></div>
+
   <div class="pv-section">
     <h3 class="pv-section__title">직선성 <span class="pv-hint">오차 ≤ 5%</span></h3>
-    <div class="pv-grid3">${ni('m1','M1')}${ni('m2','M2')}${ni('m3','M3')}</div>
+    <div class="pv-lin-wrap">
+      <div class="pv-lin-header">
+        <span>M1</span><span>M2</span><span>M3</span>
+      </div>
+      <div class="pv-lin-inputs">
+        <div class="pv-lin-cell">${ni('m1','M1')}<span class="pv-lin-cell-label">저농도</span></div>
+        <div class="pv-lin-cell">${ni('m2','M2')}<span class="pv-lin-cell-label">중농도</span></div>
+        <div class="pv-lin-cell">${ni('m3','M3')}<span class="pv-lin-cell-label">고농도</span></div>
+      </div>
+    </div>
   </div>
 
   <div class="pv-section">
     <h3 class="pv-section__title">현장적용계수 <span class="pv-hint">(선택)</span></h3>
     <div class="pv-field-rounds">
       <div class="pv-field-round">
-        <div class="pv-field-round__label">측정 1회차</div>
+        <div class="pv-field-round__label"><span class="pv-field-round__badge">1</span>측정 1회차</div>
         <div class="pv-field-round__inputs">
-          ${ni('ci1','현장측정값 Ci₁')}${ni('ai1','수분석 Ai₁')}${ni('ai2','수분석 Ai₂')}
+          ${ni('ci1','현장값 Ci₁')}${ni('ai1','수분석 Ai₁')}${ni('ai2','수분석 Ai₂')}
         </div>
       </div>
       <div class="pv-field-round">
-        <div class="pv-field-round__label">측정 2회차</div>
+        <div class="pv-field-round__label"><span class="pv-field-round__badge">2</span>측정 2회차</div>
         <div class="pv-field-round__inputs">
-          ${ni('ci2','현장측정값 Ci₂')}${ni('ai3','수분석 Ai₃')}${ni('ai4','수분석 Ai₄')}
+          ${ni('ci2','현장값 Ci₂')}${ni('ai3','수분석 Ai₃')}${ni('ai4','수분석 Ai₄')}
         </div>
       </div>
-      ${code==='TOC' ? ni('fdis','TOC 배출허용기준 mg/L (없으면 0)') : ''}
     </div>
   </div>
+
+  ${code==='TOC' ? `
+  <div class="pv-section">
+    <div class="pv-discharge-wrap">
+      <div class="pv-discharge-wrap .field__label">⚠️ TOC 배출허용기준 (mg/L)</div>
+      ${ni('fdis','배출기준값 mg/L — 없으면 0 입력')}
+    </div>
+  </div>` : ''}
 
   ${code==='COD' ? `
   <div class="pv-section">
