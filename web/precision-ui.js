@@ -77,6 +77,7 @@ function getFields(code) {
 let tabs = [];
 let activeId = null;
 let calcTimer = null;
+let stored = {}; // switchTab에서 loadData(id)로 갱신 — ni(), zsCell()에서 사용
 
 function saveMeta() {
   try { localStorage.setItem('ktl-tabs', JSON.stringify(tabs.map(({id,code,label,pass})=>({id,code,label,pass})))); } catch {}
@@ -593,11 +594,22 @@ function buildFormBasic(code) {
   </div>
 
   <div class="pv-section">
-      <div class="pv-zs-row"><span class="pv-zs-label">드리프트<br><small>초기구간</small></span>${ni('z1','Z1')}${ni('s1','S1')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label"></span>${ni('z2','Z2')}${ni('s2','S2')}</div>
-      <div class="pv-zs-row pv-zs-row--sep"><span class="pv-zs-label">드리프트<br><small>최종구간</small></span>${ni('z3','Z3')}${ni('s3','S3')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label"></span>${ni('z4','Z4')}${ni('s4','S4')}</div>
-      <div class="pv-zs-row pv-zs-row--sep"><span class="pv-zs-label">반복성 추가</span>${ni('z5','Z5')}${ni('s5','S5')}</div>
+    <div class="pv-zs-wrap">
+      <div class="pv-zs-table">
+        <div class="pv-zs-header">
+          <div class="pv-zs-col-z">Z (제로)</div>
+          <div class="pv-zs-col-s">S (스팬)</div>
+        </div>
+        <div class="pv-zs-section-label">드리프트 초기구간</div>
+        <div class="pv-zs-row">${zsCell('z1','1','z')}${zsCell('s1','1','s')}</div>
+        <div class="pv-zs-row">${zsCell('z2','2','z')}${zsCell('s2','2','s')}</div>
+        <div class="pv-zs-section-label pv-zs-section-label--sep">드리프트 최종구간 (4시간 후)</div>
+        <div class="pv-zs-row">${zsCell('z3','3','z')}${zsCell('s3','3','s')}</div>
+        <div class="pv-zs-row">${zsCell('z4','4','z')}${zsCell('s4','4','s')}</div>
+        <div class="pv-zs-section-label pv-zs-section-label--sep">반복성 추가 측정</div>
+        <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
+      </div>
+      <p class="pv-zs-note">반복성: RSD(Z1·Z3·Z5) &amp; RSD(S1·S3·S5) ≤ 3% &nbsp;|&nbsp; 드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</p>
     </div>
   </div>
 
@@ -633,10 +645,9 @@ function buildFormBasic(code) {
 
   ${code==='TOC' ? `
   <div class="pv-section">
-    <h3 class="pv-section__title">응답시간 (T90)</h3>
-    <div class="pv-grid2">
-      ${ni('resp','측정값 (초)')}${ni('resp_limit','기준값 (초)')}
-    </div>
+    <h3 class="pv-section__title">응답시간 (T90) <span class="pv-hint">기준: 900초(15분) 이하</span></h3>
+    <div style="max-width:200px">${ni('resp','측정값 (초)')}</div>
+    <p class="pv-zs-note" style="margin-top:6px">기준값 고정 ≤ 900초(15분). 측정값만 입력하세요.</p>
   </div>` : ''}
 </div>
 
@@ -791,12 +802,12 @@ function buildFormWater(code) {
     </h3>
     <div class="pv-resp-water">
       <label class="pv-resp-toggle">
-        <input type="checkbox" id="${pfx}resp_skip" />
+        <input type="checkbox" id="pv_resp_skip" />
         <span>시약식 — 응답시간 시험 해당 없음</span>
       </label>
-      <div id="${pfx}resp_fields" style="margin-top:8px">
+      <div id="pv_resp_fields" style="margin-top:8px">
         <div style="max-width:200px">${ni('resp','측정값 (mm)')}</div>
-        <p class="pv-zs-note" style="margin-top:4px" id="${pfx}resp_criterion">기준: S1 입력 후 자동계산 (S1 × 0.5)</p>
+        <p class="pv-zs-note" style="margin-top:4px" id="pv_resp_criterion">기준: S1 입력 후 자동계산 (S1 × 0.5)</p>
       </div>
     </div>
   </div>
