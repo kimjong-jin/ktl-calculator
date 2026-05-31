@@ -45,7 +45,6 @@
       <!-- 서비스 탭 -->
       <nav class="svc-tabs" role="tablist">
         <button class="svc-tab is-active" type="button" data-svc="calc" role="tab">정도검사 계산기</button>
-        <button class="svc-tab" type="button" data-svc="chat" role="tab">AI 법령 해석</button>
         <button class="svc-tab svc-tab--admin" type="button" data-svc="admin" role="tab" id="admin-tab" hidden>관리자</button>
       </nav>
 
@@ -65,38 +64,47 @@
         </div>
       </div>
 
-      <!-- AI 법령 해석 -->
-      <div id="svc-chat" hidden>
-        <div class="chat-wrap card">
-          <div class="card__bar chat-header">
-            <div class="chat-header__main">
-              <h2 class="card__title">AI 법령 해석</h2>
-              <p class="chat-desc">수질TMS·먹는물 관련 법령을 AI가 국가법령정보와 전문 지식을 바탕으로 해석합니다.</p>
-            </div>
-            <div class="chat-header__badges">
-              <span id="law-status-chip" class="law-status-chip law-status-chip--checking" title="국가법령정보 API 연동 상태">
-                <span class="law-status-chip__dot"></span>
-                <span class="law-status-chip__label">연동 확인 중</span>
-              </span>
-              <span id="skill-active-badge" class="skill-active-badge" hidden title="관리자 전문 지식 스킬 적용됨">
-                ✦ 전문 스킬 적용
-              </span>
-            </div>
-          </div>
-          <div class="chat-msgs" id="chat-msgs"></div>
-          <div class="chat-bar">
-            <textarea id="chat-input" class="chat-input" rows="2"
-              placeholder="예: 수질TMS 반복성 검사 기준은? / 물환경보전법 정도검사 주기?"></textarea>
-            <button id="chat-send" class="btn btn--primary chat-send-btn" type="button">전송</button>
-          </div>
-        </div>
-      </div>
-
       <footer class="app__footer">
         <span>KTL 고객 서비스 · 수질 먹는물 정도검사</span>
         <span class="micro">계산·DB는 서버 단일 출처(SSOT)</span>
       </footer>
     </div>
+
+    <!-- AI 법령 해석 플로팅 버튼 -->
+    <button id="chat-fab" class="chat-fab" hidden title="AI 법령 해석">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span class="chat-fab__label">AI 법령</span>
+    </button>
+
+    <!-- AI 법령 해석 채팅 패널 -->
+    <div id="chat-panel" class="chat-panel" hidden>
+      <div class="chat-panel__inner">
+        <div class="chat-panel__header">
+          <div class="chat-panel__title-group">
+            <span class="chat-panel__title">AI 법령 해석</span>
+            <div class="chat-panel__badges">
+              <span id="law-status-chip" class="law-status-chip law-status-chip--checking" title="국가법령정보 API 연동 상태">
+                <span class="law-status-chip__dot"></span>
+                <span class="law-status-chip__label">연동 확인 중</span>
+              </span>
+              <span id="skill-active-badge" class="skill-active-badge" hidden>✦ 전문 스킬</span>
+            </div>
+          </div>
+          <button id="chat-close" class="chat-panel__close" type="button" title="닫기">✕</button>
+        </div>
+        <p class="chat-panel__desc">수질TMS·먹는물 법령을 AI가 국가법령정보와 전문 지식으로 해석합니다.</p>
+        <div class="chat-msgs" id="chat-msgs"></div>
+        <div class="chat-bar">
+          <textarea id="chat-input" class="chat-input" rows="2"
+            placeholder="예: 수질TMS 반복성 검사 기준은? / 물환경보전법 정도검사 주기?"></textarea>
+          <button id="chat-send" class="btn btn--primary chat-send-btn" type="button">전송</button>
+        </div>
+      </div>
+    </div>
+    <!-- 채팅 패널 배경 오버레이 -->
+    <div id="chat-overlay" class="chat-overlay" hidden></div>
 
     <script type="module" src="./main.js"></script>
     <script type="module" src="./precision-ui.js"></script>

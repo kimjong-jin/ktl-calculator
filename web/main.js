@@ -119,20 +119,56 @@ async function guardAuth(onReady) {
 
 let chatInited = false, adminInited = false;
 
+function openChat() {
+  const panel   = $('chat-panel');
+  const overlay = $('chat-overlay');
+  if (!panel) return;
+  panel.hidden   = false;
+  overlay.hidden = false;
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => {
+    panel.classList.add('chat-panel--open');
+    overlay.classList.add('chat-overlay--show');
+  });
+  if (!chatInited) { initChat(); chatInited = true; }
+  setTimeout(() => $('chat-input')?.focus(), 300);
+}
+
+function closeChat() {
+  const panel   = $('chat-panel');
+  const overlay = $('chat-overlay');
+  if (!panel) return;
+  panel.classList.remove('chat-panel--open');
+  overlay.classList.remove('chat-overlay--show');
+  document.body.style.overflow = '';
+  setTimeout(() => {
+    panel.hidden   = true;
+    overlay.hidden = true;
+  }, 280);
+}
+
 function initSvcTabs(role) {
+  const fab = $('chat-fab');
+  if (fab) fab.hidden = false;
+
   if (role === 'admin') {
     const adminTab = $('admin-tab');
     if (adminTab) adminTab.hidden = false;
   }
+
+  // 플로팅 채팅 버튼
+  fab?.addEventListener('click', openChat);
+  $('chat-close')?.addEventListener('click', closeChat);
+  $('chat-overlay')?.addEventListener('click', closeChat);
+
+  // 서비스 탭 (calc / admin 만)
   document.querySelectorAll('.svc-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.svc-tab').forEach(t => t.classList.remove('is-active'));
       tab.classList.add('is-active');
       const svc = tab.dataset.svc;
-      $('svc-calc').hidden = svc !== 'calc';
-      $('svc-chat').hidden = svc !== 'chat';
+      $('svc-calc').hidden  = svc !== 'calc';
       $('svc-admin').hidden = svc !== 'admin';
-      if (svc === 'chat' && !chatInited) { initChat(); chatInited = true; }
       if (svc === 'admin' && !adminInited) {
         document.body.dataset.adminToken = getStoredToken() || '';
         initAdmin(getStoredToken() || '');
