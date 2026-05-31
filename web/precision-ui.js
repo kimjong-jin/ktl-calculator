@@ -67,9 +67,9 @@ function getFields(code) {
     's1','s2','s3','s4','s5',  // 드리프트+반복성
     'm1','m2','m3',             // 직선성
     'ci1','ai1','ai2','ci2','ai3','ai4','fdis', // 현장적용
-    'resp','resp_limit',
   ];
-  if (IS_COD(code)) base.push('codmax','codmin'); // 포도당변동성
+  if (code === 'TOC') base.push('resp','resp_limit'); // TOC만 응답시간
+  if (IS_COD(code)) base.push('codmax','codmin');    // COD 포도당변동성
   return base;
 }
 
@@ -593,12 +593,13 @@ function buildFormBasic(code) {
     <div class="pv-grid2">${ni('codmax','최댓값')}${ni('codmin','최솟값')}</div>
   </div>` : ''}
 
+  ${code==='TOC' ? `
   <div class="pv-section">
-    <h3 class="pv-section__title">응답시간 (T90) <span class="pv-hint">(선택)</span></h3>
+    <h3 class="pv-section__title">응답시간 (T90)</h3>
     <div class="pv-grid2">
       ${ni('resp','측정값 (초)')}${ni('resp_limit','기준값 (초)')}
     </div>
-  </div>
+  </div>` : ''}
 </div>
 
 ${buildResultsPanel(code)}`;
@@ -763,7 +764,8 @@ function buildResultsPanel(code) {
     extraBlocks.push(`<div class="pv-res-block" id="pv-res-gluc-block" hidden>
       <h4 class="pv-res-block__title">포도당변동성시험</h4><div id="pv-res-gluc"></div></div>`);
   }
-  if (!IS_PH(code)) {
+  // 응답시간: TOC, DO(buildFormDO에서 처리), TU, CL, pH(buildFormPH에서 처리)
+  if (code === 'TOC' || IS_DO(code) || IS_WATER(code) || IS_PH(code)) {
     extraBlocks.push(`<div class="pv-res-block" id="pv-res-resp-block" hidden>
       <h4 class="pv-res-block__title">응답시간 (T90)</h4><div id="pv-res-resp"></div></div>`);
   }
