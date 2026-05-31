@@ -4,7 +4,7 @@
  */
 
 const MAX_HISTORY = 10;
-const SKILL_KEY = 'ktl-admin-skill';
+const SKILLS_KEY = 'ktl-admin-skills';
 let history = [];
 let sending = false;
 
@@ -106,7 +106,13 @@ function markSkillActive() {
 }
 
 function loadAdminSkill() {
-  try { return localStorage.getItem(SKILL_KEY) || ''; } catch { return ''; }
+  try {
+    const skills = JSON.parse(localStorage.getItem(SKILLS_KEY) || '[]');
+    return skills
+      .filter(s => s.active)
+      .map(s => `[스킬: ${s.title} — 작성: ${s.author}]\n${s.content}`)
+      .join('\n\n---\n\n');
+  } catch { return ''; }
 }
 
 function appendMsg(role, text, isLoading = false) {

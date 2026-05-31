@@ -1,21 +1,27 @@
 /**
  * 관리자 패널 모듈.
  * initAdmin(token) — 관리자 토큰으로 /api/admin 조회 후 패널 렌더링.
- *
- * 발급된 접속 코드는 localStorage('ktl-issued-tokens')에 저장.
- * 형식: [{ id, token, url, days, createdAt, expiresAt }]
  */
 
-const STORE_KEY = 'ktl-issued-tokens';
-const SKILL_KEY = 'ktl-admin-skill';
+const STORE_KEY  = 'ktl-issued-tokens';
+const SKILLS_KEY = 'ktl-admin-skills';   // 스킬 라이브러리 (배열)
 let adminToken = '';
 
-// ── 관리자 AI 스킬 ──────────────────────────────────────────
-function loadSkill() {
-  try { return localStorage.getItem(SKILL_KEY) || ''; } catch { return ''; }
+// ── 스킬 라이브러리 ─────────────────────────────────────────
+function loadSkills() {
+  try { return JSON.parse(localStorage.getItem(SKILLS_KEY) || '[]'); } catch { return []; }
 }
-function saveSkill(text) {
-  try { localStorage.setItem(SKILL_KEY, text); } catch {}
+function saveSkills(list) {
+  try { localStorage.setItem(SKILLS_KEY, JSON.stringify(list)); } catch {}
+}
+function genId() {
+  return 'sk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+function activeSkillText() {
+  return loadSkills()
+    .filter(s => s.active)
+    .map(s => `[스킬: ${s.title} — 작성: ${s.author}]\n${s.content}`)
+    .join('\n\n---\n\n');
 }
 
 // ── localStorage 토큰 목록 ──────────────────────────────────
@@ -27,20 +33,16 @@ function saveTokenList(list) {
 }
 function addToList(entry) {
   const list = loadTokenList();
-  list.unshift(entry); // 최신 순
-  saveTokenList(list.slice(0, 50)); // 최대 50개
+  list.unshift(entry);
+  saveTokenList(list.slice(0, 50));
 }
 function removeFromList(id) {
   saveTokenList(loadTokenList().filter(t => t.id !== id));
 }
-
-function isExpired(expiresAt) {
-  return Date.now() > new Date(expiresAt).getTime();
-}
+function isExpired(expiresAt) { return Date.now() > new Date(expiresAt).getTime(); }
 function daysLeft(expiresAt) {
   const diff = new Date(expiresAt).getTime() - Date.now();
-  if (diff <= 0) return 0;
-  return Math.ceil(diff / 86400000);
+  return diff <= 0 ? 0 : Math.ceil(diff / 86400000);
 }
 
 // ── 초기화 ──────────────────────────────────────────────────
@@ -66,11 +68,8 @@ async function loadAndRender(wrap) {
 function chip(ok, labelOk, labelFail) {
   return `<span class="admin-chip ${ok ? 'admin-chip--ok' : 'admin-chip--fail'}">${ok ? labelOk : labelFail}</span>`;
 }
-
 function statusBadge(expiresAt) {
-  if (isExpired(expiresAt)) {
-    return '<span class="admin-chip admin-chip--fail">만료</span>';
-  }
+  if (isExpired(expiresAt)) return '<span class="admin-chip admin-chip--fail">만료</span>';
   const d = daysLeft(expiresAt);
   if (d <= 2) return `<span class="admin-chip admin-chip--warn">D-${d}</span>`;
   return `<span class="admin-chip admin-chip--ok">유효 D-${d}</span>`;
@@ -79,9 +78,7 @@ function statusBadge(expiresAt) {
 // ── 토큰 목록 HTML ───────────────────────────────────────────
 function renderTokenTable() {
   const list = loadTokenList();
-  if (!list.length) {
-    return '<p class="admin-empty">발급된 접속 코드가 없습니다.</p>';
-  }
+  if (!list.length) return '<p class="admin-empty">발급된 접속 코드가 없습니다.</p>';
   const rows = list.map(t => `
     <tr class="token-row${isExpired(t.expiresAt) ? ' token-row--expired' : ''}">
       <td class="token-col--no">${t.no || '–'}</td>
@@ -99,14 +96,119 @@ function renderTokenTable() {
     </tr>`).join('');
   return `
     <table class="token-table">
-      <thead>
-        <tr>
-          <th>#</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th>
-          <th>접속 코드</th><th>관리</th>
-        </tr>
-      </thead>
+      <thead><tr><th>#</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>접속 코드</th><th>관리</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+}
+
+// ── 스킬 라이브러리 렌더 ────────────────────────────────────
+function renderSkillLibrary(query = '') {
+  const skills = loadSkills();
+  const q = query.toLowerCase().trim();
+  const filtered = q
+    ? skills.filter(s =>
+        s.title.toLowerCase().includes(q) ||
+        s.author.toLowerCase().includes(q) ||
+        s.content.toLowerCase().includes(q))
+    : skills;
+  const activeCount = skills.filter(s => s.active).length;
+
+  if (!filtered.length) {
+    return `<div class="skill-empty">${q ? `"${escH(q)}"에 해당하는 스킬이 없습니다.` : '등록된 스킬이 없습니다. + 새 스킬로 추가하세요.'}</div>`;
+  }
+
+  return filtered.map(s => `
+    <div class="skill-card${s.active ? ' skill-card--active' : ''}" data-skill-id="${s.id}">
+      <div class="skill-card__top">
+        <div class="skill-card__meta">
+          <span class="skill-card__title">${escH(s.title)}</span>
+          <span class="skill-card__author">✍ ${escH(s.author)}</span>
+          <span class="skill-card__date">${new Date(s.createdAt).toLocaleDateString('ko-KR')}</span>
+          ${s.updatedAt !== s.createdAt ? `<span class="skill-card__date">(수정됨)</span>` : ''}
+        </div>
+        <div class="skill-card__actions">
+          <label class="skill-toggle" title="${s.active ? 'AI에 반영 중 — 클릭하면 비활성' : '클릭하면 AI에 반영'}">
+            <input type="checkbox" class="skill-toggle__input" data-toggle="${s.id}" ${s.active ? 'checked' : ''} />
+            <span class="skill-toggle__track"></span>
+            <span class="skill-toggle__label">${s.active ? '활성' : '비활성'}</span>
+          </label>
+          <button class="btn btn--mini" data-edit="${s.id}">편집</button>
+          <button class="btn btn--mini btn--danger" data-del-skill="${s.id}">삭제</button>
+        </div>
+      </div>
+      <div class="skill-card__preview">${escH(s.content.slice(0, 120))}${s.content.length > 120 ? '…' : ''}</div>
+    </div>`).join('');
+}
+
+// ── 스킬 섹션 HTML 생성 ─────────────────────────────────────
+function skillSectionHTML(serverSkill) {
+  const skills = loadSkills();
+  const activeCount = skills.filter(s => s.active).length;
+  return `
+    <div class="admin-section admin-section--skill" id="skill-section">
+      <!-- 헤더 -->
+      <div class="skill-lib-header">
+        <div class="skill-lib-title-group">
+          <h3 class="admin-section__title" style="margin:0">AI 전문 지식 스킬</h3>
+          <p class="skill-section-desc">등록된 스킬이 AI 법령 해석 답변에 자동으로 반영됩니다.</p>
+        </div>
+        <div class="skill-lib-badges">
+          ${chip(!!(serverSkill && serverSkill.envConfigured), '서버 적용됨', '서버 미적용')}
+          <span class="skill-count-badge" id="skill-count-badge">활성 ${activeCount}개 / 총 ${skills.length}개</span>
+        </div>
+      </div>
+
+      <!-- 서버 상태 -->
+      ${serverSkill && serverSkill.envConfigured ? `
+      <div class="skill-env-info">
+        <span class="skill-env-icon">✦</span>
+        <div>서버에 전문 지식 설정됨 (${serverSkill.charCount}자)
+          ${serverSkill.preview ? `<div class="skill-env-preview">"${escH(serverSkill.preview)}…"</div>` : ''}
+        </div>
+      </div>` : `
+      <div class="skill-env-info skill-env-info--warn">
+        <span class="skill-env-icon">⚠</span>
+        <div><strong>서버 미설정</strong> — 활성 스킬을 "서버 내보내기"로 복사 후 Vercel 환경변수 <code>ADMIN_SKILL_CONTEXT</code>에 붙여넣으세요.</div>
+      </div>`}
+
+      <!-- 툴바 -->
+      <div class="skill-toolbar">
+        <div class="skill-search-wrap">
+          <input id="skill-search" class="skill-search" type="search" placeholder="제목·작성자·내용 검색…" autocomplete="off" />
+        </div>
+        <div class="skill-toolbar__actions">
+          <button class="btn btn--primary btn--mini" id="skill-add-btn">+ 새 스킬</button>
+          <button class="btn btn--mini btn--ghost" id="skill-export-btn" title="활성 스킬을 Vercel 환경변수용으로 복사">서버 내보내기</button>
+        </div>
+      </div>
+
+      <!-- 인라인 추가/편집 폼 -->
+      <div id="skill-form-wrap" hidden>
+        <div class="skill-form">
+          <div class="skill-form__row2">
+            <input id="skill-form-title" class="field__control" placeholder="스킬 제목 *" maxlength="60" />
+            <input id="skill-form-author" class="field__control" placeholder="작성자 이름 *" maxlength="30" />
+          </div>
+          <textarea id="skill-form-content" class="skill-textarea" placeholder="전문 지식 내용을 자유롭게 입력하세요.
+예:
+■ 수질TMS 현장 경험 (2020~)
+- pH 전극 교정 주기: 매월 1회 권장
+- 반복성 실패 주요 원인: 배관 에어포켓, 시약 오염
+■ 최신 고시 메모
+- 2025년 물환경보전법 시행규칙 개정 — 정도검사 제출 기한 30일→14일"></textarea>
+          <div class="skill-form__footer">
+            <span class="skill-char-count" id="skill-form-chars">0자</span>
+            <div class="skill-form__btns">
+              <button class="btn btn--primary btn--mini" id="skill-form-save">저장</button>
+              <button class="btn btn--mini btn--ghost" id="skill-form-cancel">취소</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 스킬 목록 -->
+      <div id="skill-list">${renderSkillLibrary()}</div>
+    </div>`;
 }
 
 // ── 메인 렌더 ────────────────────────────────────────────────
@@ -114,57 +216,7 @@ function render(wrap, d) {
   const { db, gemini, skill, access, server, ts } = d;
 
   wrap.innerHTML = `
-    <!-- AI 전문 지식 스킬 -->
-    <div class="admin-section admin-section--skill">
-      <div class="skill-section-header">
-        <div>
-          <h3 class="admin-section__title" style="margin:0">AI 전문 지식 스킬</h3>
-          <p class="skill-section-desc">이 지식이 AI 법령 해석 답변에 자동으로 반영됩니다. 모든 사용자의 답변 품질이 향상됩니다.</p>
-        </div>
-        <div class="skill-status-row">
-          ${chip(!!(skill && skill.envConfigured), '서버 적용됨', '서버 미적용')}
-          <span class="skill-local-badge" id="skill-local-badge">${loadSkill() ? '로컬 스킬 있음' : '로컬 스킬 없음'}</span>
-        </div>
-      </div>
-
-      ${skill && skill.envConfigured ? `
-      <div class="skill-env-info">
-        <span class="skill-env-icon">✦</span>
-        <div>
-          <strong>서버 전문 지식 활성화됨</strong> — ADMIN_SKILL_CONTEXT 환경변수로 설정 (${skill.charCount}자)
-          ${skill.preview ? `<div class="skill-env-preview">"${escAdminHtml(skill.preview)}…"</div>` : ''}
-        </div>
-      </div>` : `
-      <div class="skill-env-info skill-env-info--warn">
-        <span class="skill-env-icon">⚠</span>
-        <div>
-          <strong>서버 전문 지식 미설정</strong> — 아래에서 작성 후 Vercel 환경변수 <code>ADMIN_SKILL_CONTEXT</code>에 적용하면 모든 사용자에게 반영됩니다.
-        </div>
-      </div>`}
-
-      <div class="skill-editor-wrap">
-        <div class="skill-editor-header">
-          <label class="skill-editor-label" for="skill-textarea">전문 지식 내용 <span class="skill-char-count" id="skill-char-count">${loadSkill().length}자</span></label>
-          <div class="skill-editor-actions">
-            <button class="btn btn--mini" id="skill-save-btn">로컬 저장</button>
-            <button class="btn btn--mini btn--ghost" id="skill-copy-btn" title="Vercel 환경변수에 복사하여 붙여넣기">Vercel 환경변수 복사</button>
-            <button class="btn btn--mini btn--danger" id="skill-clear-btn">초기화</button>
-          </div>
-        </div>
-        <textarea id="skill-textarea" class="skill-textarea" placeholder="예시:
-■ 수질TMS 현장 경험 (2018~현재)
-- pH 전극 교정 시 0.1pH 오차 이상이면 즉시 재교정 필요
-- TOC 측정기 NDIR 방식은 고온산화법보다 유지비 낮음
-- 반복성 검사 실패 주요 원인: 배관 내 에어포켓, 시약 오염
-
-■ 최신 고시 업데이트 (2025)
-- 물환경보전법 시행규칙 개정으로 정도검사 주기 변경...">${loadSkill()}</textarea>
-        <p class="skill-hint">
-          <strong>로컬 저장</strong>: 이 브라우저(관리자) 세션에서만 AI에 반영됩니다.<br>
-          <strong>Vercel 환경변수 복사</strong> → Vercel 대시보드 → Settings → Environment Variables → <code>ADMIN_SKILL_CONTEXT</code>에 붙여넣기하면 모든 사용자에게 영구 반영됩니다.
-        </p>
-      </div>
-    </div>
+    ${skillSectionHTML(skill)}
 
     <!-- 고객 접속 코드 발급 -->
     <div class="admin-section">
@@ -183,7 +235,7 @@ function render(wrap, d) {
           <input id="issue-url" class="field__control issue-url-input" type="text" readonly />
           <button class="btn btn--mini" id="copy-url-btn">링크 복사</button>
         </div>
-        <div class="issue-result__label" style="margin-top:10px">코드만 전달할 경우 (입력란에 붙여넣기)</div>
+        <div class="issue-result__label" style="margin-top:10px">코드만 전달할 경우</div>
         <div class="issue-url-row">
           <input id="issue-code" class="field__control issue-url-input" type="text" readonly />
           <button class="btn btn--mini" id="copy-code-btn">코드 복사</button>
@@ -249,6 +301,7 @@ function render(wrap, d) {
   bindEvents(wrap, access);
 }
 
+// ── 이벤트 바인딩 ────────────────────────────────────────────
 function bindEvents(wrap, access) {
   // 새로고침
   document.getElementById('admin-refresh')?.addEventListener('click', () => {
@@ -258,18 +311,12 @@ function bindEvents(wrap, access) {
 
   // 토큰 발급
   document.getElementById('issue-btn')?.addEventListener('click', () => issueToken(access));
-
-  // 복사 버튼
   makeCopyBtn('copy-url-btn', 'issue-url');
   makeCopyBtn('copy-code-btn', 'issue-code');
-
-  // 만료 코드 정리
   document.getElementById('clear-expired-btn')?.addEventListener('click', () => {
     saveTokenList(loadTokenList().filter(t => !isExpired(t.expiresAt)));
     refreshTokenList();
   });
-
-  // 토큰 목록 이벤트 위임
   document.getElementById('token-list-wrap')?.addEventListener('click', async (e) => {
     const copyId = e.target.dataset.copy;
     const delId  = e.target.dataset.del;
@@ -282,62 +329,135 @@ function bindEvents(wrap, access) {
         setTimeout(() => { e.target.textContent = orig; }, 1500);
       }
     }
-    if (delId) {
-      if (confirm('이 접속 코드를 목록에서 삭제할까요?')) {
-        removeFromList(delId);
-        refreshTokenList();
-      }
+    if (delId && confirm('이 접속 코드를 목록에서 삭제할까요?')) {
+      removeFromList(delId); refreshTokenList();
     }
   });
 
-  // AI 스킬 관리
-  const skillTA = document.getElementById('skill-textarea');
-  const charCount = document.getElementById('skill-char-count');
-  const localBadge = document.getElementById('skill-local-badge');
+  // ── 스킬 라이브러리 이벤트 ──────────────────────────────────
+  let editingId = null;
 
-  skillTA?.addEventListener('input', () => {
-    if (charCount) charCount.textContent = `${skillTA.value.length}자`;
+  // 검색
+  document.getElementById('skill-search')?.addEventListener('input', (e) => {
+    refreshSkillList(e.target.value);
   });
 
-  document.getElementById('skill-save-btn')?.addEventListener('click', () => {
-    const val = skillTA?.value || '';
-    saveSkill(val);
-    if (localBadge) localBadge.textContent = val ? '로컬 스킬 있음' : '로컬 스킬 없음';
-    const btn = document.getElementById('skill-save-btn');
-    const orig = btn.textContent;
-    btn.textContent = '저장됨 ✓';
-    btn.classList.add('btn--success');
-    setTimeout(() => { btn.textContent = orig; btn.classList.remove('btn--success'); }, 2000);
+  // + 새 스킬 버튼
+  document.getElementById('skill-add-btn')?.addEventListener('click', () => {
+    editingId = null;
+    openForm(null);
   });
 
-  document.getElementById('skill-copy-btn')?.addEventListener('click', async () => {
-    const val = skillTA?.value || '';
-    if (!val) { alert('내용을 먼저 입력하세요.'); return; }
+  // 폼 취소
+  document.getElementById('skill-form-cancel')?.addEventListener('click', closeForm);
+
+  // 폼 저장
+  document.getElementById('skill-form-save')?.addEventListener('click', () => {
+    const title   = document.getElementById('skill-form-title')?.value.trim();
+    const author  = document.getElementById('skill-form-author')?.value.trim();
+    const content = document.getElementById('skill-form-content')?.value.trim();
+    if (!title || !author) { alert('제목과 작성자 이름을 입력하세요.'); return; }
+    if (!content) { alert('전문 지식 내용을 입력하세요.'); return; }
+
+    const skills = loadSkills();
+    const now = new Date().toISOString();
+    if (editingId) {
+      const idx = skills.findIndex(s => s.id === editingId);
+      if (idx >= 0) skills[idx] = { ...skills[idx], title, author, content, updatedAt: now };
+    } else {
+      skills.unshift({ id: genId(), title, author, content, active: true, createdAt: now, updatedAt: now });
+    }
+    saveSkills(skills);
+    updateCountBadge();
+    closeForm();
+    refreshSkillList(document.getElementById('skill-search')?.value || '');
+  });
+
+  // 폼 글자 수
+  document.getElementById('skill-form-content')?.addEventListener('input', (e) => {
+    const el = document.getElementById('skill-form-chars');
+    if (el) el.textContent = `${e.target.value.length}자`;
+  });
+
+  // 스킬 목록 이벤트 위임
+  document.getElementById('skill-list')?.addEventListener('click', (e) => {
+    const editId    = e.target.dataset.edit;
+    const delSkill  = e.target.dataset.delSkill;
+    if (editId) {
+      editingId = editId;
+      const skills = loadSkills();
+      openForm(skills.find(s => s.id === editId) || null);
+    }
+    if (delSkill && confirm('이 스킬을 삭제할까요?')) {
+      saveSkills(loadSkills().filter(s => s.id !== delSkill));
+      updateCountBadge();
+      refreshSkillList(document.getElementById('skill-search')?.value || '');
+    }
+  });
+
+  // 토글 (활성/비활성)
+  document.getElementById('skill-list')?.addEventListener('change', (e) => {
+    const toggleId = e.target.dataset.toggle;
+    if (!toggleId) return;
+    const skills = loadSkills();
+    const s = skills.find(s => s.id === toggleId);
+    if (s) {
+      s.active = e.target.checked;
+      saveSkills(skills);
+      updateCountBadge();
+      // 토글 라벨만 업데이트
+      const label = e.target.closest('.skill-toggle')?.querySelector('.skill-toggle__label');
+      if (label) label.textContent = s.active ? '활성' : '비활성';
+      e.target.closest('.skill-card')?.classList.toggle('skill-card--active', s.active);
+    }
+  });
+
+  // 서버 내보내기 (활성 스킬 → 클립보드)
+  document.getElementById('skill-export-btn')?.addEventListener('click', async () => {
+    const text = activeSkillText();
+    if (!text) { alert('활성화된 스킬이 없습니다.'); return; }
     try {
-      await navigator.clipboard.writeText(val);
-      const btn = document.getElementById('skill-copy-btn');
+      await navigator.clipboard.writeText(text);
+      const btn = document.getElementById('skill-export-btn');
       const orig = btn.textContent;
       btn.textContent = '복사됨 ✓';
-      setTimeout(() => { btn.textContent = orig; }, 2000);
-    } catch { alert('복사 실패. 직접 선택하여 복사하세요.'); }
-  });
-
-  document.getElementById('skill-clear-btn')?.addEventListener('click', () => {
-    if (!confirm('AI 전문 지식을 모두 초기화할까요?')) return;
-    saveSkill('');
-    if (skillTA) skillTA.value = '';
-    if (charCount) charCount.textContent = '0자';
-    if (localBadge) localBadge.textContent = '로컬 스킬 없음';
+      setTimeout(() => { btn.textContent = orig; }, 2500);
+      alert(`활성 스킬 ${loadSkills().filter(s => s.active).length}개가 클립보드에 복사됐습니다.\nVercel 대시보드 → Settings → Environment Variables → ADMIN_SKILL_CONTEXT에 붙여넣기하세요.`);
+    } catch { alert('복사 실패. 직접 복사하세요.'); }
   });
 }
 
-function escAdminHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function openForm(skill) {
+  const wrap = document.getElementById('skill-form-wrap');
+  if (!wrap) return;
+  document.getElementById('skill-form-title').value   = skill?.title   || '';
+  document.getElementById('skill-form-author').value  = skill?.author  || '';
+  document.getElementById('skill-form-content').value = skill?.content || '';
+  document.getElementById('skill-form-chars').textContent = `${(skill?.content || '').length}자`;
+  document.getElementById('skill-form-save').textContent = skill ? '수정 저장' : '저장';
+  wrap.hidden = false;
+  document.getElementById('skill-form-title').focus();
 }
-
+function closeForm() {
+  const wrap = document.getElementById('skill-form-wrap');
+  if (wrap) wrap.hidden = true;
+}
+function refreshSkillList(query = '') {
+  const el = document.getElementById('skill-list');
+  if (el) el.innerHTML = renderSkillLibrary(query);
+}
+function updateCountBadge() {
+  const skills = loadSkills();
+  const el = document.getElementById('skill-count-badge');
+  if (el) el.textContent = `활성 ${skills.filter(s => s.active).length}개 / 총 ${skills.length}개`;
+}
 function refreshTokenList() {
   const wrap = document.getElementById('token-list-wrap');
   if (wrap) wrap.innerHTML = renderTokenTable();
+}
+
+function escH(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ── 토큰 발급 ────────────────────────────────────────────────
@@ -346,10 +466,7 @@ async function issueToken(access) {
   const days   = parseInt(document.getElementById('issue-days')?.value || String(access?.days || 10), 10);
   const label  = document.getElementById('issue-label')?.value.trim() || '';
   const result = document.getElementById('issue-result');
-
-  btn.disabled = true;
-  btn.textContent = '생성 중…';
-
+  btn.disabled = true; btn.textContent = '생성 중…';
   try {
     const res = await fetch('/api/admin', {
       method: 'POST',
@@ -358,39 +475,22 @@ async function issueToken(access) {
     });
     const data = await res.json();
     if (!res.ok) { alert(data.error || '토큰 생성 실패'); return; }
-
-    const origin  = location.origin;
-    const url     = `${origin}/?t=${data.inviteToken}`;
-    const no      = loadTokenList().length + 1;
-
-    // localStorage 저장
+    const origin = location.origin;
+    const url    = `${origin}/?t=${data.inviteToken}`;
+    const no     = loadTokenList().length + 1;
     addToList({
-      id:        data.inviteToken.slice(-16),  // 코드 끝 16자 = 고유 식별자
-      no,
-      token:     data.inviteToken,
-      url,
-      days,
-      label,
+      id: data.inviteToken.slice(-16), no, token: data.inviteToken, url, days, label,
       createdAt: new Date().toISOString(),
       expiresAt: new Date(data.exp * 1000).toISOString(),
     });
-
-    // UI 업데이트
     document.getElementById('issue-url').value  = url;
     document.getElementById('issue-code').value = data.inviteToken;
     document.getElementById('issue-exp').textContent =
       `만료: ${new Date(data.exp * 1000).toLocaleDateString('ko-KR')} (${days}일)`;
     result.hidden = false;
-
-    // 목록 갱신
     refreshTokenList();
-
-  } catch {
-    alert('서버에 연결할 수 없습니다.');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '+ 새 접속 코드 발급';
-  }
+  } catch { alert('서버에 연결할 수 없습니다.'); }
+  finally { btn.disabled = false; btn.textContent = '+ 새 접속 코드 발급'; }
 }
 
 function makeCopyBtn(btnId, inputId) {
@@ -403,6 +503,6 @@ function makeCopyBtn(btnId, inputId) {
       const orig = btn.textContent;
       btn.textContent = '복사됨 ✓';
       setTimeout(() => { btn.textContent = orig; }, 1500);
-    } catch { /* 무시 */ }
+    } catch {}
   });
 }

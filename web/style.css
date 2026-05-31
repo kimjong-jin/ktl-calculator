@@ -1207,67 +1207,131 @@ select.field__control {
 .chat-bullet { color: var(--accent-base); }
 
 /* ══════════════════════════════════════════════════════════════
-   관리자 AI 전문 지식 스킬 섹션
+   AI 스킬 라이브러리
    ══════════════════════════════════════════════════════════════ */
 .admin-section--skill {
   background: linear-gradient(135deg, rgba(47,129,247,0.03), rgba(63,185,80,0.03));
   border: 1px solid rgba(47,129,247,0.2); border-radius: var(--r-lg);
   padding: 20px; margin-bottom: 24px;
 }
-.skill-section-header {
+
+/* 헤더 */
+.skill-lib-header {
   display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 16px; margin-bottom: 14px; flex-wrap: wrap;
+  gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
 }
-.skill-section-desc {
-  font-size: 12.5px; color: var(--text-dim); margin: 4px 0 0;
+.skill-lib-title-group { flex: 1; }
+.skill-section-desc { font-size: 12.5px; color: var(--text-dim); margin: 3px 0 0; }
+.skill-lib-badges { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.skill-count-badge {
+  font-size: 11px; font-weight: 600; color: var(--accent-base);
+  padding: 3px 10px; background: rgba(47,129,247,0.08);
+  border: 1px solid rgba(47,129,247,0.25); border-radius: 999px;
 }
-.skill-status-row { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.skill-local-badge {
-  font-size: 11px; color: var(--text-dim); padding: 3px 8px;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
-}
+
+/* 서버 상태 배너 */
 .skill-env-info {
-  display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
   background: var(--pass-bg); border: 1px solid var(--pass); border-radius: var(--r-md);
-  margin-bottom: 14px; font-size: 13px; color: var(--pass);
+  margin-bottom: 12px; font-size: 13px; color: var(--pass);
 }
-.skill-env-info--warn {
-  background: var(--warn-bg); border-color: var(--warn); color: var(--warn);
+.skill-env-info--warn { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+.skill-env-icon { font-size: 15px; flex-shrink: 0; }
+.skill-env-preview { font-size: 11px; opacity: 0.75; margin-top: 3px; font-family: ui-monospace, monospace; }
+.skill-env-info code {
+  font-size: 11px; background: rgba(0,0,0,0.1); padding: 1px 4px; border-radius: 3px;
 }
-.skill-env-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-.skill-env-preview {
-  font-size: 11px; opacity: 0.8; margin-top: 4px;
-  font-family: ui-monospace, monospace;
-  color: var(--text-dim);
+
+/* 툴바 */
+.skill-toolbar {
+  display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;
 }
-.skill-editor-wrap { margin-top: 4px; }
-.skill-editor-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 8px; gap: 12px; flex-wrap: wrap;
-}
-.skill-editor-label {
-  font-size: 12px; font-weight: 600; color: var(--text-dim);
-  text-transform: uppercase; letter-spacing: .04em;
-  display: flex; align-items: center; gap: 8px;
-}
-.skill-char-count {
-  font-size: 11px; font-weight: 400; color: var(--text-muted);
-  background: var(--surface-0); padding: 1px 6px; border-radius: 4px;
-}
-.skill-editor-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.skill-textarea {
-  width: 100%; min-height: 160px; max-height: 360px; resize: vertical;
+.skill-search-wrap { flex: 1; min-width: 160px; }
+.skill-search {
+  width: 100%; padding: 7px 12px; font-size: 13px;
   background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--r-md); color: var(--text); font-size: 13px;
-  font-family: inherit; padding: 12px 14px; line-height: 1.7;
+  border-radius: var(--r-sm); color: var(--text);
+  transition: border-color .15s;
+}
+.skill-search:focus { outline: none; border-color: var(--accent-base); }
+.skill-toolbar__actions { display: flex; gap: 6px; }
+
+/* 인라인 추가/편집 폼 */
+.skill-form {
+  background: var(--surface-2); border: 1px solid var(--accent-base);
+  border-radius: var(--r-md); padding: 16px; margin-bottom: 12px;
+  box-shadow: 0 0 0 3px rgba(47,129,247,0.08);
+}
+.skill-form__row2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;
+}
+@media (max-width: 520px) { .skill-form__row2 { grid-template-columns: 1fr; } }
+.skill-form__footer {
+  display: flex; align-items: center; justify-content: space-between; margin-top: 8px;
+}
+.skill-form__btns { display: flex; gap: 6px; }
+.skill-char-count {
+  font-size: 11px; color: var(--text-muted);
+  background: var(--surface-0); padding: 2px 6px; border-radius: 4px;
+}
+
+/* 스킬 카드 */
+.skill-card {
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface-2); margin-bottom: 8px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.skill-card--active {
+  border-color: rgba(47,129,247,0.4);
+  box-shadow: 0 0 0 2px rgba(47,129,247,0.07);
+}
+.skill-card__top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; gap: 12px; flex-wrap: wrap;
+}
+.skill-card__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.skill-card__title { font-size: 14px; font-weight: 700; color: var(--text); }
+.skill-card__author { font-size: 12px; color: var(--accent-base); }
+.skill-card__date { font-size: 11px; color: var(--text-muted); }
+.skill-card__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.skill-card__preview {
+  padding: 0 14px 11px; font-size: 12.5px; color: var(--text-dim);
+  line-height: 1.55; border-top: 1px solid var(--border); padding-top: 9px;
+  white-space: pre-wrap;
+}
+
+/* 토글 스위치 */
+.skill-toggle {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+}
+.skill-toggle__input { display: none; }
+.skill-toggle__track {
+  position: relative; width: 32px; height: 18px; border-radius: 9px;
+  background: var(--border-strong); transition: background .2s; flex-shrink: 0;
+}
+.skill-toggle__track::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 12px; height: 12px; border-radius: 50%; background: #fff;
+  transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.skill-toggle__input:checked + .skill-toggle__track { background: var(--accent-base); }
+.skill-toggle__input:checked + .skill-toggle__track::after { transform: translateX(14px); }
+.skill-toggle__label { font-size: 11px; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+
+/* 빈 상태 */
+.skill-empty {
+  text-align: center; color: var(--text-muted); font-size: 13px;
+  padding: 32px 16px; border: 1px dashed var(--border); border-radius: var(--r-md);
+}
+
+/* 스킬 텍스트에어리어 */
+.skill-textarea {
+  width: 100%; min-height: 140px; max-height: 320px; resize: vertical;
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text); font-size: 13px;
+  font-family: inherit; padding: 10px 12px; line-height: 1.7;
   transition: border-color .15s; display: block;
 }
 .skill-textarea:focus { outline: none; border-color: var(--accent-base); }
-.skill-hint {
-  font-size: 11.5px; color: var(--text-muted); margin: 8px 0 0; line-height: 1.6;
-}
-.skill-hint code {
-  background: var(--surface-0); border: 1px solid var(--border);
-  border-radius: 3px; padding: 1px 4px; font-size: 11px; color: var(--accent-base);
-}
+
 .btn--success { background: var(--pass) !important; border-color: var(--pass) !important; color: #fff !important; }
