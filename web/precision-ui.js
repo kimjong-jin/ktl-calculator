@@ -210,7 +210,17 @@ function calcBasic(tab) {
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
 
-  const passes = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass];
+  // 측정범위 초과 체크: S값, M값이 range를 초과하면 부적합
+  const allMeasured = [g('s1'),g('s2'),g('s3'),g('s4'),g('s5'),g('m1'),g('m2'),g('m3')].filter(v=>v>0);
+  const rangeExceeded = allMeasured.some(v => v > range);
+  const exceedBadge = rangeExceeded
+    ? `<div class="pv-badges" style="margin-top:8px">${badge(`측정값 초과 — 측정범위(${range}) 넘는 값 있음`, false)}</div>`
+    : '';
+  // 결과 패널 상단에 범위 초과 경고 표시
+  const repEl = document.getElementById('pv-res-rep');
+  if (repEl) repEl.innerHTML = (repEl.innerHTML || '') + exceedBadge;
+  const passes = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass, rangeExceeded ? false : null].filter(v => v !== null);
+
 
   // 현장적용계수
   const ci1=g('ci1'),ci2=g('ci2'),ai1=g('ai1'),ai2=g('ai2'),ai3=g('ai3'),ai4=g('ai4');
@@ -232,19 +242,19 @@ function calcBasic(tab) {
   }
   if (fieldPass !== null) passes.push(fieldPass);
 
-  // 응답시간 (TOC 전용)
+  // 응답시간 (TOC 전용) - 기준 ≤ 15분
   if (tab.code === 'TOC') {
     const resp = g('resp');
-    const respLimit = 900;
+    const respLimit = 15; // 분(min) 단위
     let respPass = null;
     const respBlock = document.getElementById('pv-res-resp-block');
     if (resp) {
       respPass = resp <= respLimit;
       document.getElementById('pv-res-resp').innerHTML =
         `<div class="pv-lines">
-          ${row('측정값 (T90)', `${fmt(resp,0)}초`)}
-          ${row('기준', '≤ 900초 (15분)')}
-        </div><div class="pv-badges">${badge(`응답시간 ≤ 900초`, respPass)}</div>`;
+          ${row('측정값 (T90)', `${fmt(resp,1)}분`)}
+          ${row('기준', '≤ 15분')}
+        </div><div class="pv-badges">${badge(`응답시간 ≤ 15분`, respPass)}</div>`;
       if (respBlock) respBlock.hidden = false;
     } else {
       if (respBlock) respBlock.hidden = true;
@@ -475,7 +485,16 @@ function calcWater(tab) {
   } else {
     if (respBlock) respBlock.hidden = true;
   }
-  const passes = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass];
+  // 측정범위 초과 체크: S값, M값이 range를 초과하면 부적합
+  const allMeasured = [g('s1'),g('s2'),g('s3'),g('s4'),g('s5'),g('m1'),g('m2'),g('m3')].filter(v=>v>0);
+  const rangeExceeded = allMeasured.some(v => v > range);
+  if (rangeExceeded) {
+    const note = document.createElement('div');
+    note.className = 'note';
+    note.textContent = '⚠️ 측정범위(' + range + ')를 초과한 값이 있습니다. 측정범위를 확인하세요.';
+    document.getElementById('pv-res-rep')?.before(note);
+  }
+  const passes = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass, rangeExceeded ? false : null].filter(v => v !== null);
   if (respPass !== null) passes.push(respPass);
   updateFinal(tab, passes);
 }
@@ -527,11 +546,7 @@ function updateGuide(code) {
 
   const rows = [];
 
-  // 드리프트 허용 편차
-  rows.push(`<div class="pv-guide-row">
-    <span class="pv-guide-row__label">드리프트 허용 편차 (범위×5%)</span>
-    <span class="pv-guide-row__range">≤ ${fmtR(driftTol)}</span>
-  </div>`);
+  // 드리프트 허용 편차 (제목줄에 표시)
 
   // Z 가이드
   const zRows = [
@@ -558,7 +573,7 @@ function updateGuide(code) {
   }
 
   el.innerHTML = `
-    <div class="pv-guide-title">📌 입력 가이드 &nbsp;|&nbsp; 측정범위 ${fmtR(range)}</div>
+    <div class="pv-guide-title">📌 적합 목표범위 &nbsp; <small style="font-weight:400;text-transform:none;letter-spacing:0">측정범위 ${fmtR(range)} | 드리프트 허용편차 ≤ ${fmtR(driftTol)}</small></div>
     ${rows.join('')}`;
   el.hidden = false;
 }
@@ -736,9 +751,9 @@ function buildFormBasic(code) {
 
   ${code==='TOC' ? `
   <div class="pv-section">
-    <h3 class="pv-section__title">응답시간 (T90) <span class="pv-hint">기준: 900초(15분) 이하</span></h3>
-    <div style="max-width:200px">${ni('resp','측정값 (초)')}</div>
-    <p class="pv-zs-note" style="margin-top:6px">기준값 고정 ≤ 900초(15분). 측정값만 입력하세요.</p>
+    <h3 class="pv-section__title">응답시간 (T90) <span class="pv-hint">기준: 15분 이하</span></h3>
+    <div style="max-width:200px">${ni('resp','측정값 (분)')}</div>
+    <p class="pv-zs-note" style="margin-top:6px">기준값 고정 ≤ 15분. 측정값을 분(min) 단위로 입력하세요.</p>
   </div>` : ''}
 </div>
 
