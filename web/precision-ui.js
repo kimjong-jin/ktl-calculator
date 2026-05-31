@@ -213,12 +213,20 @@ function calcBasic(tab) {
   // 측정범위 초과 체크: S값, M값이 range를 초과하면 부적합
   const allMeasured = [g('s1'),g('s2'),g('s3'),g('s4'),g('s5'),g('m1'),g('m2'),g('m3')].filter(v=>v>0);
   const rangeExceeded = allMeasured.some(v => v > range);
-  const exceedBadge = rangeExceeded
-    ? `<div class="pv-badges" style="margin-top:8px">${badge(`측정값 초과 — 측정범위(${range}) 넘는 값 있음`, false)}</div>`
-    : '';
-  // 결과 패널 상단에 범위 초과 경고 표시
-  const repEl = document.getElementById('pv-res-rep');
-  if (repEl) repEl.innerHTML = (repEl.innerHTML || '') + exceedBadge;
+  // 측정범위 초과 → 전용 블록에 표시
+  const rangeBlock = document.getElementById('pv-res-range-block');
+  const rangeEl = document.getElementById('pv-res-range');
+  if (rangeEl && rangeBlock) {
+    if (rangeExceeded) {
+      const exceeded = allMeasured.filter(v => v > range);
+      rangeEl.innerHTML = `<div class="pv-lines">${row('측정범위', fmt(range,3))} ${row('초과 값', exceeded.map(v=>fmt(v,3)).join(', '))}</div>
+        <div class="pv-badges">${badge(`측정값이 측정범위(${range})를 초과함`, false)}</div>`;
+      rangeBlock.hidden = false;
+    } else {
+      rangeEl.innerHTML = `<div class="pv-badges">${badge(`모든 측정값 ≤ 측정범위(${range})`, true)}</div>`;
+      rangeBlock.hidden = false;
+    }
+  }
   const passes = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass, rangeExceeded ? false : null].filter(v => v !== null);
 
 
@@ -707,12 +715,12 @@ function buildFormBasic(code) {
     <h3 class="pv-section__title">직선성 <span class="pv-hint">오차 ≤ 5%</span></h3>
     <div class="pv-lin-wrap">
       <div class="pv-lin-header">
-        <span>M1</span><span>M2</span><span>M3</span>
+        <span>M1 — 저농도</span><span>M2 — 중농도</span><span>M3 — 고농도</span>
       </div>
       <div class="pv-lin-inputs">
-        <div class="pv-lin-cell">${ni('m1','M1')}<span class="pv-lin-cell-label">저농도</span></div>
-        <div class="pv-lin-cell">${ni('m2','M2')}<span class="pv-lin-cell-label">중농도</span></div>
-        <div class="pv-lin-cell">${ni('m3','M3')}<span class="pv-lin-cell-label">고농도</span></div>
+        <div class="pv-lin-cell">${ni('m1','')}</div>
+        <div class="pv-lin-cell">${ni('m2','')}</div>
+        <div class="pv-lin-cell">${ni('m3','')}</div>
       </div>
     </div>
   </div>
@@ -936,6 +944,11 @@ function buildResultsPanel(code) {
   if (IS_COD(code)) {
     extraBlocks.push(`<div class="pv-res-block" id="pv-res-gluc-block" hidden>
       <h4 class="pv-res-block__title">포도당변동성시험</h4><div id="pv-res-gluc"></div></div>`);
+  }
+  // 기본형(TOC/TN/TP/SS/COD)에는 측정범위 초과 블록 추가
+  if (!IS_PH(code) && !IS_DO(code)) {
+    extraBlocks.push(`<div class="pv-res-block" id="pv-res-range-block" hidden>
+      <h4 class="pv-res-block__title">측정범위 검사</h4><div id="pv-res-range"></div></div>`);
   }
   // 응답시간: TOC, DO(buildFormDO에서 처리), TU, CL, pH(buildFormPH에서 처리)
   if (code === 'TOC' || IS_DO(code) || IS_WATER(code) || IS_PH(code)) {
