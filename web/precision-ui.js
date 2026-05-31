@@ -63,13 +63,15 @@ function getFields(code) {
   // TOC/TN/TP/SS/COD (기본형)
   const base = [
     'range',
-    'z1','z2','z3','z4','z5',  // 드리프트+반복성
-    's1','s2','s3','s4','s5',  // 드리프트+반복성
-    'm1','m2','m3',             // 직선성
+    'z1','z2','z3','z4',       // 드리프트
+    's1','s2','s3','s4',       // 드리프트
+    'z5','z6','z7',            // 반복성 별도 (z5 필수, z6/z7 선택)
+    's5','s6','s7',            // 반복성 별도 (s5 필수, s6/s7 선택)
+    'm1','m2','m3',            // 직선성
     'ci1','ai1','ai2','ci2','ai3','ai4','fdis', // 현장적용
   ];
-  if (code === 'TOC') base.push('resp','resp_limit'); // TOC만 응답시간
-  if (IS_COD(code)) base.push('codmax','codmin');    // COD 포도당변동성
+  if (code === 'TOC') base.push('resp'); // TOC만 응답시간
+  if (IS_COD(code)) base.push('codmax','codmin'); // COD 포도당변동성
   return base;
 }
 
@@ -133,37 +135,42 @@ function badge(label, pass) {
 }
 function row(k, v) { return `<div class="pv-line"><span>${k}</span><b>${v}</b></div>`; }
 
-/**
- * 게이지 바 생성.
- * @param {number} val   측정값 (%)
- * @param {number} limit 기준 (%)
- * @param {string} label 라벨
- * @param {boolean} lowerIsBetter 값이 작을수록 적합 (기본 true)
- */
+// 심플 1줄 게이지
 function gauge(val, limit, label, lowerIsBetter = true) {
   if (!val && val !== 0) return '';
   const pass = lowerIsBetter ? val <= limit : val >= limit;
-  const maxRange = lowerIsBetter ? Math.max(limit * 2.5, val * 1.2, 0.01) : Math.max(limit * 1.5, val * 1.2, 0.01);
-  const limitPct = Math.min((limit / maxRange) * 100, 100);
-  const fillPct  = Math.min((val / maxRange) * 100, 100);
   const cls = pass ? 'ok' : 'bad';
-  return `
-<div class="pv-gauge">
-  <div class="pv-gauge__header">
-    <span class="pv-gauge__val pv-gauge__val--${cls}">${fmt(val, 2)}%</span>
-    <span class="pv-gauge__limit-label">${label} 기준 ${lowerIsBetter ? '≤' : '≥'} ${limit}%</span>
-  </div>
-  <div class="pv-gauge__track">
-    <div class="pv-gauge__zone-bad" style="left:${limitPct}%"></div>
-    <div class="pv-gauge__limit-line" style="left:${limitPct}%"></div>
-    <div class="pv-gauge__fill pv-gauge__fill--${cls}" style="width:${fillPct}%"></div>
-  </div>
-  <div class="pv-gauge__footer">
-    <span>0%</span>
-    <span class="pv-gauge__footer-limit">기준 ${limit}%</span>
-    <span>${fmt(maxRange,1)}%</span>
-  </div>
-</div>`;
+  const pct = Math.min((val / (limit * 2)) * 100, 100);
+  return `<div class="pv-sg">
+    <span class="pv-sg__label">${label}</span>
+    <span class="pv-sg__val pv-sg__val--${cls}">${fmt(val,2)}%</span>
+    <div class="pv-sg__bar"><div class="pv-sg__fill pv-sg__fill--${cls}" style="width:${pct}%"></div></div>
+    <span class="pv-sg__limit">기준 ${limit}%</span>
+    <span class="pv-sg__icon">${pass ? '✅' : '❌'}</span>
+  </div>`;
+}
+
+// 결과 테이블 행 (Z | S 2열)
+function rt2(label, zVal, sVal, zPass, sPass, unit='') {
+  if (zPass !== undefined && sPass !== undefined && zPass !== null && sPass !== null) {
+    // 판정 행
+    return `<tr class="verdict"><td>${label}</td>
+      <td><span class="val--${zPass?'ok':'bad'}">${zPass?'적합':'부적합'}</span></td>
+      <td><span class="val--${sPass?'ok':'bad'}">${sPass?'적합':'부적합'}</span></td></tr>`;
+  }
+  // 수치 행
+  const zStr = (zVal===null||isNaN(zVal)) ? '—' : fmt(zVal,3)+unit;
+  const sStr = (sVal===null||isNaN(sVal)) ? '—' : fmt(sVal,3)+unit;
+  return `<tr><td>${label}</td><td>${zStr}</td><td>${sStr}</td></tr>`;
+}
+
+// 결과 테이블 단일열 행
+function rt1(label, val, pass, unit='') {
+  const valStr = (val===null||isNaN(val)) ? '—' : fmt(val,3)+unit;
+  if (pass !== undefined && pass !== null) {
+    return `<tr><td>${label}</td><td colspan="2"><span class="val--${pass?'ok':'bad'}">${pass?'적합':'부적합'}</span></td></tr>`;
+  }
+  return `<tr><td>${label}</td><td colspan="2">${valStr}</td></tr>`;
 }
 
 // ── 계산: 기본형 (TOC/TN/TP/SS/COD) ─────────────────────
@@ -171,44 +178,47 @@ function calcBasic(tab) {
   const range = g('range');
   if (!range) return;
 
-  // 반복성: Z1,Z3,Z5 / S1,S3,S5
-  const rep = repeatability([g('z1'),g('z3'),g('z5')], [g('s1'),g('s3'),g('s5')]);
+  // 반복성: 별도 측정 Z5,Z6,Z7 / S5,S6,S7
+  // Z6,Z7 미입력 시 드리프트 값에서 가장 먼 2개 자동 사용
+  const z5v=gv('z5'), z6v=gv('z6'), z7v=gv('z7');
+  const s5v=gv('s5'), s6v=gv('s6'), s7v=gv('s7');
+  const driftZVals = [g('z1'),g('z2'),g('z3'),g('z4')].filter(v=>v>0);
+  const driftSVals = [g('s1'),g('s2'),g('s3'),g('s4')].filter(v=>v>0);
+  function repVals(a, b, c, driftVals) {
+    const filled = [a,b,c].filter(v=>!isNaN(v)&&v>0);
+    if (filled.length>=3) return filled;          // Z5,Z6,Z7 모두 입력
+    if (filled.length>=1) {
+      // Z5만 있으면 드리프트에서 가장 먼 2개 자동 선택
+      const sorted = driftVals.map(v=>({v,d:Math.abs(v-filled[0])})).sort((a,b)=>b.d-a.d);
+      return [filled[0], ...sorted.slice(0,2).map(x=>x.v)];
+    }
+    return driftVals.slice(0,3); // 아무것도 없으면 드리프트 앞 3개
+  }
+  const zRepVals = repVals(z5v, z6v, z7v, driftZVals);
+  const sRepVals = repVals(s5v, s6v, s7v, driftSVals);
+  const rep = repeatability(zRepVals, sRepVals);
   document.getElementById('pv-res-rep').innerHTML =
-    `<div class="pv-lines">
-      ${row('저농도(Z) 평균', fmt(rep.zero.mean,4))} ${row('RSD', `${fmt(rep.zero.rsd)}%`)}
-      ${row('고농도(S) 평균', fmt(rep.span.mean,4))} ${row('RSD', `${fmt(rep.span.rsd)}%`)}
-    </div>
-    ${gauge(rep.zero.rsd, rep.limit, '저농도 RSD')}
-    ${gauge(rep.span.rsd, rep.limit, '고농도 RSD')}
-    <div class="pv-badges">
-      ${badge(`저농도 RSD ≤ ${rep.limit}%`, rep.zero.pass)}
-      ${badge(`고농도 RSD ≤ ${rep.limit}%`, rep.span.pass)}
-    </div>`;
+    `<table class="pv-rt">
+      <tr><th></th><th>Z 제로</th><th>S 스팬</th></tr>
+      ${rt2('평균', rep.zero.mean, rep.span.mean)}
+      ${rt2('RSD', rep.zero.rsd, rep.span.rsd, null, null, '%')}
+      ${rt2('판정', 0, 0, rep.zero.pass, rep.span.pass)}
+    </table>`;
 
   // 드리프트: 초기[Z1,Z2] → 최종[Z3,Z4] / 초기[S1,S2] → 최종[S3,S4]
   const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')]);
   document.getElementById('pv-res-drift').innerHTML =
-    `<div class="pv-lines">
-      ${row('제로드리프트', `${fmt(dr.zeroDrift)}%`)}
-      ${row('스팬드리프트', `${fmt(dr.spanDrift)}%`)}
-    </div>
-    ${gauge(dr.zeroDrift, PRECISION_CRITERIA.zeroDrift, '제로드리프트')}
-    ${gauge(dr.spanDrift, PRECISION_CRITERIA.spanDrift, '스팬드리프트')}
-    <div class="pv-badges">
-      ${badge(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, dr.zeroPass)}
-      ${badge(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, dr.spanPass)}
-    </div>`;
+    gauge(dr.zeroDrift, PRECISION_CRITERIA.zeroDrift, '제로드리프트') +
+    gauge(dr.spanDrift, PRECISION_CRITERIA.spanDrift, '스팬드리프트');
 
   // 직선성: M1,M2,M3
   const lin = linearity(range, [g('m1'),g('m2'),g('m3')]);
   document.getElementById('pv-res-lin').innerHTML =
-    `<div class="pv-lines">
-      ${row('기준값', fmt(lin.ref,4))} ${row('평균', fmt(lin.avg,4))} ${row('오차', `${fmt(lin.error)}%`)}
-    </div>
-    ${gauge(lin.error, PRECISION_CRITERIA.linearity, '직선성 오차')}
-    <div class="pv-badges">
-      ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
-    </div>`;
+    `<table class="pv-rt">
+      <tr><th>기준값</th><th>평균</th><th>오차</th></tr>
+      <tr><td colspan="1">${fmt(lin.ref,3)}</td><td>${fmt(lin.avg,3)}</td><td class="val--${lin.pass?'ok':'bad'}">${fmt(lin.error,2)}%</td></tr>
+    </table>` +
+    gauge(lin.error, PRECISION_CRITERIA.linearity, '직선성');
 
   // 측정범위 초과 체크: S값, M값이 range를 초과하면 부적합
   const allMeasured = [g('s1'),g('s2'),g('s3'),g('s4'),g('s5'),g('m1'),g('m2'),g('m3')].filter(v=>v>0);
@@ -533,15 +543,15 @@ function updateGuide(code) {
   const fmtR = (v) => isNaN(v) ? '—' : fmt(v, 3);
 
   // Z 값
-  const z1=gv('z1'), z2=gv('z2'), z3=gv('z3'), z4=gv('z4'), z5=gv('z5');
-  const s1=gv('s1'), s2=gv('s2'), s3=gv('s3'), s4=gv('s4'), s5=gv('s5');
+  const z1=gv('z1'), z2=gv('z2'), z3=gv('z3'), z4=gv('z4');
+  const s1=gv('s1'), s2=gv('s2'), s3=gv('s3'), s4=gv('s4');
 
   const mean = (...vs) => { const f=vs.filter(v=>!isNaN(v)); return f.length?f.reduce((a,b)=>a+b,0)/f.length:NaN; };
 
   const ziMean = mean(z1, z2);
   const siMean = mean(s1, s2);
-  const zRepMean = mean(z1, z3, z5);
-  const sRepMean = mean(s1, s3, s5);
+  const zRepMean = NaN; // 반복성 별도 측정 입력 전까지 미표시
+  const sRepMean = NaN;
 
   function rangeHtml(base, tol, label, cls='') {
     if (isNaN(base)) return '';
@@ -580,10 +590,20 @@ function updateGuide(code) {
     </div>`);
   }
 
-  el.innerHTML = `
-    <div class="pv-guide-title">📌 적합 목표범위 &nbsp; <small style="font-weight:400;text-transform:none;letter-spacing:0">측정범위 ${fmtR(range)} | 드리프트 허용편차 ≤ ${fmtR(driftTol)}</small></div>
-    ${rows.join('')}`;
-  el.hidden = false;
+  // 2줄 심플 요약
+  const zLine = [
+    !isNaN(ziMean) ? `Z3·Z4 평균: ${fmtR(ziMean-driftTol)}~${fmtR(ziMean+driftTol)}` : null,
+    !isNaN(zRepMean) ? `Z 반복성: ${fmtR(zRepMean*0.97)}~${fmtR(zRepMean*1.03)}` : null,
+  ].filter(Boolean).join('  |  ');
+  const sLine = [
+    !isNaN(siMean) ? `S3·S4 평균: ${fmtR(siMean-driftTol)}~${fmtR(siMean+driftTol)}` : null,
+    !isNaN(sRepMean) ? `S 반복성: ${fmtR(sRepMean*0.97)}~${fmtR(sRepMean*1.03)}` : null,
+  ].filter(Boolean).join('  |  ');
+
+  el.innerHTML = `<div class="pv-guide-title">적합 목표범위 — 범위 ${fmtR(range)} / 드리프트 허용 ±${fmtR(driftTol)}</div>
+    ${zLine ? `<div class="pv-guide-row"><span class="pv-guide-row__label pv-guide-group__hd--z">🔵 Z</span><span>${zLine}</span></div>` : ''}
+    ${sLine ? `<div class="pv-guide-row"><span class="pv-guide-row__label pv-guide-group__hd--s">🟢 S</span><span>${sLine}</span></div>` : ''}`;
+  el.hidden = !(zLine || sLine);
 }
 
 function calculate(tabId) {
@@ -690,23 +710,35 @@ function buildFormBasic(code) {
   </div>
 
   <div class="pv-section">
-    <div class="pv-zs-wrap">
-      <div class="pv-zs-table">
-        <div class="pv-zs-header">
-          <div class="pv-zs-col-z">Z (제로)</div>
-          <div class="pv-zs-col-s">S (스팬)</div>
-        </div>
-        <div class="pv-zs-section-label">드리프트 초기구간</div>
-        <div class="pv-zs-row">${zsCell('z1','1','z')}${zsCell('s1','1','s')}</div>
-        <div class="pv-zs-row">${zsCell('z2','2','z')}${zsCell('s2','2','s')}</div>
-        <div class="pv-zs-section-label pv-zs-section-label--sep">드리프트 최종구간 (4시간 후)</div>
-        <div class="pv-zs-row">${zsCell('z3','3','z')}${zsCell('s3','3','s')}</div>
-        <div class="pv-zs-row">${zsCell('z4','4','z')}${zsCell('s4','4','s')}</div>
-        <div class="pv-zs-section-label pv-zs-section-label--sep">반복성 추가 측정</div>
-        <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
+    <h3 class="pv-section__title">시험일지 <span class="pv-hint">드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</span></h3>
+    <div class="pv-zs-table">
+      <div class="pv-zs-header">
+        <div class="pv-zs-col-n">Z (제로)</div>
+        <div class="pv-zs-col-n">S (스팬)</div>
       </div>
-      <p class="pv-zs-note">반복성: RSD(Z1·Z3·Z5) &amp; RSD(S1·S3·S5) ≤ 3% &nbsp;|&nbsp; 드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</p>
+      <div class="pv-zs-section-label">드리프트 초기구간</div>
+      <div class="pv-zs-row">${zsCell('z1','1','z')}${zsCell('s1','1','s')}</div>
+      <div class="pv-zs-row">${zsCell('z2','2','z')}${zsCell('s2','2','s')}</div>
+      <div class="pv-zs-section-label pv-zs-section-label--sep">드리프트 최종구간 (4시간 후)</div>
+      <div class="pv-zs-row">${zsCell('z3','3','z')}${zsCell('s3','3','s')}</div>
+      <div class="pv-zs-row">${zsCell('z4','4','z')}${zsCell('s4','4','s')}</div>
     </div>
+  </div>
+
+  <div class="pv-section">
+    <h3 class="pv-section__title">반복성 별도 측정 <span class="pv-hint">Z5·S5 필수 / Z6·S6·Z7·S7 선택 — 미입력 시 드리프트 최원거리 자동 사용</span></h3>
+    <div class="pv-zs-table">
+      <div class="pv-zs-header">
+        <div class="pv-zs-col-n">Z (제로)</div>
+        <div class="pv-zs-col-n">S (스팬)</div>
+      </div>
+      <div class="pv-zs-section-label">반복성 1차 (필수)</div>
+      <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
+      <div class="pv-zs-section-label pv-zs-section-label--sep">반복성 2·3차 (선택)</div>
+      <div class="pv-zs-row">${zsCell('z6','6','z')}${zsCell('s6','6','s')}</div>
+      <div class="pv-zs-row">${zsCell('z7','7','z')}${zsCell('s7','7','s')}</div>
+    </div>
+    <p class="pv-zs-note" style="margin-top:6px">Z6·Z7 미입력 시 드리프트 4개 값 중 Z5와 거리가 먼 2개로 자동 계산</p>
   </div>
 
   <div id="pv-input-guide" class="pv-guide-panel" hidden></div>

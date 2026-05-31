@@ -1060,3 +1060,61 @@ select.field__control {
   color: var(--warn); font-weight: 700; font-size: 12px;
   display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
 }
+
+/* ── 심플 결과 테이블 ──────────────────────────────────────── */
+.pv-rt { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pv-rt th {
+  font-size: 10px; color: var(--text-muted); font-weight: 700;
+  padding: 7px 12px; border-bottom: 2px solid var(--border);
+  text-align: right; text-transform: uppercase; letter-spacing: .06em;
+}
+.pv-rt th:first-child { text-align: left; width: 38%; }
+.pv-rt td {
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px;
+}
+.pv-rt td:first-child { text-align: left; font-size: 12px; color: var(--text-dim); font-weight: 400; }
+.pv-rt tr:last-child td { border-bottom: 0; }
+.pv-rt .val--ok  { color: var(--pass); }
+.pv-rt .val--bad { color: var(--fail); }
+.pv-rt .verdict td { padding-top: 6px; padding-bottom: 6px; }
+.pv-rt .verdict td span {
+  display: inline-block; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 3px 10px;
+}
+.pv-rt .verdict td .val--ok  { background: rgba(63,185,80,0.12); }
+.pv-rt .verdict td .val--bad { background: rgba(248,81,73,0.12); }
+
+/* ── 심플 게이지 (1줄) ──────────────────────────────────────── */
+.pv-sg { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.pv-sg + .pv-sg { border-top: 1px solid var(--border); }
+.pv-sg__label { flex: 0 0 120px; font-size: 12px; color: var(--text-dim); }
+.pv-sg__val { flex: 0 0 56px; text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pv-sg__val--ok  { color: var(--pass); }
+.pv-sg__val--bad { color: var(--fail); }
+.pv-sg__bar { flex: 1; height: 5px; background: var(--surface-0); border-radius: 3px; overflow: hidden; position: relative; }
+.pv-sg__fill { height: 100%; border-radius: 3px; transition: width 0.35s cubic-bezier(.4,0,.2,1); }
+.pv-sg__fill--ok  { background: var(--pass); }
+.pv-sg__fill--bad { background: var(--fail); }
+.pv-sg__limit { flex: 0 0 48px; font-size: 10.5px; color: var(--text-muted); text-align: right; }
+.pv-sg__icon { flex: 0 0 18px; font-size: 13px; }
+
+/* ── 결과 블록 헤더 ─────────────────────────────────────────── */
+.pv-res-block__title {
+  font-size: 10.5px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .08em; margin: 0 0 10px;
+}
+
+/* ── Z/S 헤더 중성 스타일 (색상 제거) ──────────────────────── */
+.pv-zs-col-n {
+  padding: 10px 14px; font-size: 12px; font-weight: 700; text-align: center;
+  color: var(--text-dim); background: var(--surface-2);
+}
+.pv-zs-col-n:first-child { border-right: 1px solid var(--border); }
+
+/* 중성 배지 */
+.pv-zs-badge--z { background: var(--surface-0); color: var(--text-dim); border: 1px solid var(--border); }
+.pv-zs-badge--s { background: var(--surface-0); color: var(--text-dim); border: 1px solid var(--border); }
+
+/* 중성 셀 배경 */
+.pv-zs-cell--z { background: transparent; border-right: 1px solid var(--border); }
+.pv-zs-cell--s { background: transparent; }
