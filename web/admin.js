@@ -1,10 +1,40 @@
 /**
  * 관리자 패널 모듈.
  * initAdmin(token) — 관리자 토큰으로 /api/admin 조회 후 패널 렌더링.
+ *
+ * 발급된 접속 코드는 localStorage('ktl-issued-tokens')에 저장.
+ * 형식: [{ id, token, url, days, createdAt, expiresAt }]
  */
 
+const STORE_KEY = 'ktl-issued-tokens';
 let adminToken = '';
 
+// ── localStorage 토큰 목록 ──────────────────────────────────
+function loadTokenList() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); } catch { return []; }
+}
+function saveTokenList(list) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); } catch {}
+}
+function addToList(entry) {
+  const list = loadTokenList();
+  list.unshift(entry); // 최신 순
+  saveTokenList(list.slice(0, 50)); // 최대 50개
+}
+function removeFromList(id) {
+  saveTokenList(loadTokenList().filter(t => t.id !== id));
+}
+
+function isExpired(expiresAt) {
+  return Date.now() > new Date(expiresAt).getTime();
+}
+function daysLeft(expiresAt) {
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  if (diff <= 0) return 0;
+  return Math.ceil(diff / 86400000);
+}
+
+// ── 초기화 ──────────────────────────────────────────────────
 export async function initAdmin(token) {
   adminToken = token;
   const wrap = document.getElementById('admin-wrap');
@@ -28,15 +58,54 @@ function chip(ok, labelOk, labelFail) {
   return `<span class="admin-chip ${ok ? 'admin-chip--ok' : 'admin-chip--fail'}">${ok ? labelOk : labelFail}</span>`;
 }
 
+function statusBadge(expiresAt) {
+  if (isExpired(expiresAt)) {
+    return '<span class="admin-chip admin-chip--fail">만료</span>';
+  }
+  const d = daysLeft(expiresAt);
+  if (d <= 2) return `<span class="admin-chip admin-chip--warn">D-${d}</span>`;
+  return `<span class="admin-chip admin-chip--ok">유효 D-${d}</span>`;
+}
+
+// ── 토큰 목록 HTML ───────────────────────────────────────────
+function renderTokenTable() {
+  const list = loadTokenList();
+  if (!list.length) {
+    return '<p class="admin-empty">발급된 접속 코드가 없습니다.</p>';
+  }
+  const rows = list.map(t => `
+    <tr class="token-row${isExpired(t.expiresAt) ? ' token-row--expired' : ''}">
+      <td class="token-col--no">${t.no || '–'}</td>
+      <td class="token-col--date">${new Date(t.createdAt).toLocaleDateString('ko-KR')}</td>
+      <td class="token-col--exp">${new Date(t.expiresAt).toLocaleDateString('ko-KR')}</td>
+      <td class="token-col--days">${t.days}일</td>
+      <td class="token-col--status">${statusBadge(t.expiresAt)}</td>
+      <td class="token-col--code">
+        <input class="field__control token-code-input" value="${t.token}" readonly />
+      </td>
+      <td class="token-col--actions">
+        <button class="btn btn--mini" data-copy="${t.id}">복사</button>
+        <button class="btn btn--mini btn--danger" data-del="${t.id}">삭제</button>
+      </td>
+    </tr>`).join('');
+  return `
+    <table class="token-table">
+      <thead>
+        <tr>
+          <th>#</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th>
+          <th>접속 코드</th><th>관리</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── 메인 렌더 ────────────────────────────────────────────────
 function render(wrap, d) {
   const { db, gemini, access, server, ts } = d;
 
-  const expiryHtml = access.globalExpiry
-    ? `<span class="admin-val">${access.globalExpiry}</span>`
-    : `<span class="admin-val admin-val--dim">미설정 (로그인 기준 ${access.days}일)</span>`;
-
   wrap.innerHTML = `
-    <!-- 고객 초대 코드 발급 -->
+    <!-- 고객 접속 코드 발급 -->
     <div class="admin-section">
       <h3 class="admin-section__title">고객 접속 코드 발급</h3>
       <div class="admin-issue-bar">
@@ -44,21 +113,31 @@ function render(wrap, d) {
           <input id="issue-days" class="field__control admin-days-input" type="number" value="${access.days}" min="1" max="365" />
           <span class="admin-val--dim">일</span>
         </label>
-        <button class="btn btn--primary" id="issue-btn">새 접속 코드 발급</button>
+        <input id="issue-label" class="field__control admin-label-input" type="text" placeholder="메모 (선택, 예: 홍길동)" />
+        <button class="btn btn--primary" id="issue-btn">+ 새 접속 코드 발급</button>
       </div>
       <div id="issue-result" class="issue-result" hidden>
         <div class="issue-result__label">고객에게 전달할 접속 링크 (클릭 한 번으로 자동 로그인)</div>
         <div class="issue-url-row">
           <input id="issue-url" class="field__control issue-url-input" type="text" readonly />
-          <button class="btn btn--mini" id="copy-url-btn">복사</button>
+          <button class="btn btn--mini" id="copy-url-btn">링크 복사</button>
         </div>
         <div class="issue-result__label" style="margin-top:10px">코드만 전달할 경우 (입력란에 붙여넣기)</div>
         <div class="issue-url-row">
           <input id="issue-code" class="field__control issue-url-input" type="text" readonly />
-          <button class="btn btn--mini" id="copy-code-btn">복사</button>
+          <button class="btn btn--mini" id="copy-code-btn">코드 복사</button>
         </div>
         <p class="admin-card__sub" id="issue-exp"></p>
       </div>
+    </div>
+
+    <!-- 발급된 접속 코드 목록 -->
+    <div class="admin-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h3 class="admin-section__title" style="margin:0">발급된 접속 코드 목록</h3>
+        <button class="btn btn--mini btn--ghost" id="clear-expired-btn">만료 코드 정리</button>
+      </div>
+      <div id="token-list-wrap">${renderTokenTable()}</div>
     </div>
 
     <!-- 서비스 상태 -->
@@ -80,24 +159,7 @@ function render(wrap, d) {
         <div class="admin-card">
           <div class="admin-card__label">인증 설정</div>
           ${chip(access.adminPwSet, '완전', '관리자 비번 없음')}
-          <div class="admin-card__sub">관리자 ${access.adminPwSet ? '✓' : '✗'} &nbsp;·&nbsp; 레거시 공용 ${access.userPwSet ? '✓' : '✗'}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 접속 정책 -->
-    <div class="admin-section">
-      <h3 class="admin-section__title">접속 정책</h3>
-      <div class="admin-grid2">
-        <div class="admin-card">
-          <div class="admin-card__label">기본 유효기간</div>
-          <span class="admin-val">${access.days}일</span>
-          <div class="admin-card__sub">ACCESS_DAYS 환경변수</div>
-        </div>
-        <div class="admin-card">
-          <div class="admin-card__label">전역 만료일</div>
-          ${expiryHtml}
-          <div class="admin-card__sub">ACCESS_START 환경변수</div>
+          <div class="admin-card__sub">관리자 ${access.adminPwSet ? '✓' : '✗'} &nbsp;·&nbsp; 기본 ${access.days}일</div>
         </div>
       </div>
     </div>
@@ -123,6 +185,10 @@ function render(wrap, d) {
     </div>
   `;
 
+  bindEvents(wrap, access);
+}
+
+function bindEvents(wrap, access) {
   // 새로고침
   document.getElementById('admin-refresh')?.addEventListener('click', () => {
     wrap.innerHTML = '<p class="admin-loading">새로고침 중…</p>';
@@ -130,16 +196,50 @@ function render(wrap, d) {
   });
 
   // 토큰 발급
-  document.getElementById('issue-btn')?.addEventListener('click', issueToken);
+  document.getElementById('issue-btn')?.addEventListener('click', () => issueToken(access));
 
   // 복사 버튼
   makeCopyBtn('copy-url-btn', 'issue-url');
   makeCopyBtn('copy-code-btn', 'issue-code');
+
+  // 만료 코드 정리
+  document.getElementById('clear-expired-btn')?.addEventListener('click', () => {
+    saveTokenList(loadTokenList().filter(t => !isExpired(t.expiresAt)));
+    refreshTokenList();
+  });
+
+  // 토큰 목록 이벤트 위임
+  document.getElementById('token-list-wrap')?.addEventListener('click', async (e) => {
+    const copyId = e.target.dataset.copy;
+    const delId  = e.target.dataset.del;
+    if (copyId) {
+      const t = loadTokenList().find(t => t.id === copyId);
+      if (t) {
+        try { await navigator.clipboard.writeText(t.token); } catch {}
+        const orig = e.target.textContent;
+        e.target.textContent = '복사됨';
+        setTimeout(() => { e.target.textContent = orig; }, 1500);
+      }
+    }
+    if (delId) {
+      if (confirm('이 접속 코드를 목록에서 삭제할까요?')) {
+        removeFromList(delId);
+        refreshTokenList();
+      }
+    }
+  });
 }
 
-async function issueToken() {
-  const btn = document.getElementById('issue-btn');
-  const days = parseInt(document.getElementById('issue-days')?.value || '10', 10);
+function refreshTokenList() {
+  const wrap = document.getElementById('token-list-wrap');
+  if (wrap) wrap.innerHTML = renderTokenTable();
+}
+
+// ── 토큰 발급 ────────────────────────────────────────────────
+async function issueToken(access) {
+  const btn    = document.getElementById('issue-btn');
+  const days   = parseInt(document.getElementById('issue-days')?.value || String(access?.days || 10), 10);
+  const label  = document.getElementById('issue-label')?.value.trim() || '';
   const result = document.getElementById('issue-result');
 
   btn.disabled = true;
@@ -154,18 +254,37 @@ async function issueToken() {
     const data = await res.json();
     if (!res.ok) { alert(data.error || '토큰 생성 실패'); return; }
 
-    const origin = location.origin;
-    const url = `${origin}/?t=${data.inviteToken}`;
-    document.getElementById('issue-url').value = url;
+    const origin  = location.origin;
+    const url     = `${origin}/?t=${data.inviteToken}`;
+    const no      = loadTokenList().length + 1;
+
+    // localStorage 저장
+    addToList({
+      id:        data.inviteToken.slice(-16),  // 코드 끝 16자 = 고유 식별자
+      no,
+      token:     data.inviteToken,
+      url,
+      days,
+      label,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(data.exp * 1000).toISOString(),
+    });
+
+    // UI 업데이트
+    document.getElementById('issue-url').value  = url;
     document.getElementById('issue-code').value = data.inviteToken;
     document.getElementById('issue-exp').textContent =
       `만료: ${new Date(data.exp * 1000).toLocaleDateString('ko-KR')} (${days}일)`;
     result.hidden = false;
+
+    // 목록 갱신
+    refreshTokenList();
+
   } catch {
     alert('서버에 연결할 수 없습니다.');
   } finally {
     btn.disabled = false;
-    btn.textContent = '새 접속 코드 발급';
+    btn.textContent = '+ 새 접속 코드 발급';
   }
 }
 
@@ -177,7 +296,7 @@ function makeCopyBtn(btnId, inputId) {
       await navigator.clipboard.writeText(val);
       const btn = document.getElementById(btnId);
       const orig = btn.textContent;
-      btn.textContent = '복사됨';
+      btn.textContent = '복사됨 ✓';
       setTimeout(() => { btn.textContent = orig; }, 1500);
     } catch { /* 무시 */ }
   });

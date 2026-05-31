@@ -132,6 +132,39 @@ function badge(label, pass) {
 }
 function row(k, v) { return `<div class="pv-line"><span>${k}</span><b>${v}</b></div>`; }
 
+/**
+ * 게이지 바 생성.
+ * @param {number} val   측정값 (%)
+ * @param {number} limit 기준 (%)
+ * @param {string} label 라벨
+ * @param {boolean} lowerIsBetter 값이 작을수록 적합 (기본 true)
+ */
+function gauge(val, limit, label, lowerIsBetter = true) {
+  if (!val && val !== 0) return '';
+  const pass = lowerIsBetter ? val <= limit : val >= limit;
+  const maxRange = lowerIsBetter ? Math.max(limit * 2.5, val * 1.2, 0.01) : Math.max(limit * 1.5, val * 1.2, 0.01);
+  const limitPct = Math.min((limit / maxRange) * 100, 100);
+  const fillPct  = Math.min((val / maxRange) * 100, 100);
+  const cls = pass ? 'ok' : 'bad';
+  return `
+<div class="pv-gauge">
+  <div class="pv-gauge__header">
+    <span class="pv-gauge__val pv-gauge__val--${cls}">${fmt(val, 2)}%</span>
+    <span class="pv-gauge__limit-label">${label} 기준 ${lowerIsBetter ? '≤' : '≥'} ${limit}%</span>
+  </div>
+  <div class="pv-gauge__track">
+    <div class="pv-gauge__zone-bad" style="left:${limitPct}%"></div>
+    <div class="pv-gauge__limit-line" style="left:${limitPct}%"></div>
+    <div class="pv-gauge__fill pv-gauge__fill--${cls}" style="width:${fillPct}%"></div>
+  </div>
+  <div class="pv-gauge__footer">
+    <span>0%</span>
+    <span class="pv-gauge__footer-limit">기준 ${limit}%</span>
+    <span>${fmt(maxRange,1)}%</span>
+  </div>
+</div>`;
+}
+
 // ── 계산: 기본형 (TOC/TN/TP/SS/COD) ─────────────────────
 function calcBasic(tab) {
   const range = g('range');
@@ -143,7 +176,10 @@ function calcBasic(tab) {
     `<div class="pv-lines">
       ${row('저농도(Z) 평균', fmt(rep.zero.mean,4))} ${row('RSD', `${fmt(rep.zero.rsd)}%`)}
       ${row('고농도(S) 평균', fmt(rep.span.mean,4))} ${row('RSD', `${fmt(rep.span.rsd)}%`)}
-    </div><div class="pv-badges">
+    </div>
+    ${gauge(rep.zero.rsd, rep.limit, '저농도 RSD')}
+    ${gauge(rep.span.rsd, rep.limit, '고농도 RSD')}
+    <div class="pv-badges">
       ${badge(`저농도 RSD ≤ ${rep.limit}%`, rep.zero.pass)}
       ${badge(`고농도 RSD ≤ ${rep.limit}%`, rep.span.pass)}
     </div>`;
@@ -154,7 +190,10 @@ function calcBasic(tab) {
     `<div class="pv-lines">
       ${row('제로드리프트', `${fmt(dr.zeroDrift)}%`)}
       ${row('스팬드리프트', `${fmt(dr.spanDrift)}%`)}
-    </div><div class="pv-badges">
+    </div>
+    ${gauge(dr.zeroDrift, PRECISION_CRITERIA.zeroDrift, '제로드리프트')}
+    ${gauge(dr.spanDrift, PRECISION_CRITERIA.spanDrift, '스팬드리프트')}
+    <div class="pv-badges">
       ${badge(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, dr.zeroPass)}
       ${badge(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, dr.spanPass)}
     </div>`;
@@ -164,7 +203,9 @@ function calcBasic(tab) {
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
       ${row('기준값', fmt(lin.ref,4))} ${row('평균', fmt(lin.avg,4))} ${row('오차', `${fmt(lin.error)}%`)}
-    </div><div class="pv-badges">
+    </div>
+    ${gauge(lin.error, PRECISION_CRITERIA.linearity, '직선성 오차')}
+    <div class="pv-badges">
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
 
@@ -190,24 +231,25 @@ function calcBasic(tab) {
   }
   if (fieldPass !== null) passes.push(fieldPass);
 
-  // 응답시간
-  const resp = g('resp'), respLimit = g('resp_limit');
-  let respPass = null;
-  const respBlock = document.getElementById('pv-res-resp-block');
-  if (resp && respLimit) {
-    respPass = resp <= respLimit;
-    document.getElementById('pv-res-resp').innerHTML =
-      `<div class="pv-lines">
-        ${row('측정값 (T90)', `${fmt(resp,0)}초`)}
-        ${row('기준 (≤)', `${fmt(respLimit,0)}초`)}
-      </div><div class="pv-badges">
-        ${badge(`응답시간 ≤ ${fmt(respLimit,0)}초`, respPass)}
-      </div>`;
-    if (respBlock) respBlock.hidden = false;
-  } else {
-    if (respBlock) respBlock.hidden = true;
+  // 응답시간 (TOC 전용)
+  if (tab.code === 'TOC') {
+    const resp = g('resp');
+    const respLimit = 900;
+    let respPass = null;
+    const respBlock = document.getElementById('pv-res-resp-block');
+    if (resp) {
+      respPass = resp <= respLimit;
+      document.getElementById('pv-res-resp').innerHTML =
+        `<div class="pv-lines">
+          ${row('측정값 (T90)', `${fmt(resp,0)}초`)}
+          ${row('기준', '≤ 900초 (15분)')}
+        </div><div class="pv-badges">${badge(`응답시간 ≤ 900초`, respPass)}</div>`;
+      if (respBlock) respBlock.hidden = false;
+    } else {
+      if (respBlock) respBlock.hidden = true;
+    }
+    if (respPass !== null) passes.push(respPass);
   }
-  if (respPass !== null) passes.push(respPass);
 
   // COD 포도당변동성
   if (IS_COD(tab.code)) {
@@ -236,7 +278,6 @@ function calcBasic(tab) {
 
 // ── 계산: pH ─────────────────────────────────────────────
 function calcPH(tab) {
-  // 반복성: pH7측정 3회, pH4측정 3회
   const z7 = [g('ph7a'),g('ph7b'),g('ph7c')];
   const z4 = [g('ph4a'),g('ph4b'),g('ph4c')];
   const rep = repeatability(z7, z4);
@@ -249,9 +290,7 @@ function calcPH(tab) {
       ${badge(`pH4 RSD ≤ ${rep.limit}%`, rep.span.pass)}
     </div>`;
 
-  // 드리프트: 초기/2시간 (범위=14)
   const dr = drift(14, [g('phdi')], [g('phdf')], [g('phdi')], [g('phdf')]);
-  // pH는 제로/스팬 드리프트가 같은 값 (1채널)
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
       ${row('드리프트 초기', fmt(g('phdi'),3))}
@@ -261,7 +300,6 @@ function calcPH(tab) {
       ${badge(`드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, dr.zeroPass)}
     </div>`;
 
-  // 직선성: pH4, pH7, pH10
   const lin = phLinearity([g('phm4'),g('phm7'),g('phm10')]);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
@@ -273,7 +311,6 @@ function calcPH(tab) {
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
 
-  // 온도보상시험
   const temps = {t10:g('pht10'),t15:g('pht15'),t20:g('pht20'),t25:g('pht25'),t30:g('pht30')};
   const tc = phTemperatureComp(temps);
   const tcBlock = document.getElementById('pv-res-tc-block');
@@ -293,7 +330,6 @@ function calcPH(tab) {
     if (tcBlock) tcBlock.hidden = true;
   }
 
-  // 현장적용계수 (pH)
   const ci1=g('phci1'),ci2=g('phci2'),ai1=g('phai1'),ai2=g('phai2'),ai3=g('phai3'),ai4=g('phai4');
   let fieldPass = null;
   const fieldBlock = document.getElementById('pv-res-field-block');
@@ -319,12 +355,10 @@ function calcPH(tab) {
 
 // ── 계산: DO ─────────────────────────────────────────────
 function calcDO(tab) {
-  const range = 20; // DO 고정 측정범위
-  const span = DO_SPAN_TABLE[25]; // 8.263
+  const range = 20; 
+  const span = DO_SPAN_TABLE[25]; 
 
-  // 반복성: S 3회 (25℃ Span 기준)
   const rep = repeatability([span,span,span], [g('dos1'),g('dos2'),g('dos3')]);
-  // DO는 Span 반복성만 판정
   document.getElementById('pv-res-rep').innerHTML =
     `<div class="pv-lines">
       ${row('S1', fmt(g('dos1'),3))} ${row('S2', fmt(g('dos2'),3))} ${row('S3', fmt(g('dos3'),3))}
@@ -333,7 +367,6 @@ function calcDO(tab) {
       ${badge(`DO 반복성 RSD ≤ ${rep.limit}%`, rep.span.pass)}
     </div>`;
 
-  // 드리프트: Z초기/최종, S초기/최종
   const dr = drift(range, [g('dozi')], [g('dozf')], [g('dosi')], [g('dosf')]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
@@ -344,7 +377,6 @@ function calcDO(tab) {
       ${badge(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, dr.spanPass)}
     </div>`;
 
-  // 직선성: max/min
   const lin = doLinearity(g('domax'), g('domin'), range);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
@@ -354,7 +386,6 @@ function calcDO(tab) {
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
 
-  // 온도보상시험
   const m20=g('dot20'), m30=g('dot30');
   let tcPass = null;
   const tcBlock = document.getElementById('pv-res-tc-block');
@@ -374,18 +405,16 @@ function calcDO(tab) {
     if (tcBlock) tcBlock.hidden = true;
   }
 
-  // 응답시간
-  const resp = g('resp'), respLimit = g('resp_limit') || 120;
+  const resp = g('resp');
+  const respLimit = 120;
   let respPass = null;
   const respBlock = document.getElementById('pv-res-resp-block');
   if (resp) {
     respPass = resp <= respLimit;
     document.getElementById('pv-res-resp').innerHTML =
       `<div class="pv-lines">
-        ${row('측정값 (T90)', `${fmt(resp,0)}초`)} ${row('기준', `≤${fmt(respLimit,0)}초`)}
-      </div><div class="pv-badges">
-        ${badge(`응답시간 ≤ ${fmt(respLimit,0)}초`, respPass)}
-      </div>`;
+        ${row('측정값 (T90)', `${fmt(resp,0)}초`)} ${row('기준', '≤ 120초')}
+        </div><div class="pv-badges">${badge('응답시간 ≤ 120초', respPass)}</div>`;
     if (respBlock) respBlock.hidden = false;
   } else {
     if (respBlock) respBlock.hidden = true;
@@ -399,6 +428,7 @@ function calcDO(tab) {
 
 // ── 계산: 먹는물 (TU/CL) ────────────────────────────────
 function calcWater(tab) {
+  const pfx = tab.code + '_';
   const range = g('range');
   if (!range) return;
   const rep = repeatability([g('z1'),g('z3'),g('z5')], [g('s1'),g('s3'),g('s5')]);
@@ -410,7 +440,7 @@ function calcWater(tab) {
       ${badge(`Z RSD ≤ ${rep.limit}%`, rep.zero.pass)}
       ${badge(`S RSD ≤ ${rep.limit}%`, rep.span.pass)}
     </div>`;
-  const dr = drift(range, [g('z2')], [g('z4')], [g('s2')], [g('s4')]);
+  const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
       ${row('제로드리프트', `${fmt(dr.zeroDrift)}%`)} ${row('스팬드리프트', `${fmt(dr.spanDrift)}%`)}
@@ -418,21 +448,28 @@ function calcWater(tab) {
       ${badge(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, dr.zeroPass)}
       ${badge(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, dr.spanPass)}
     </div>`;
-  const lin = linearity(range, [g('m1'),g('m1'),g('m1')]); // TU/CL: M 1개
+  const lin = linearity(range, [g('m1'),g('m1'),g('m1')]);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
       ${row('주입농도 M', fmt(g('m1'),3))} ${row('오차', `${fmt(lin.error)}%`)}
     </div><div class="pv-badges">
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
-  const resp=g('resp'), respLimit=g('resp_limit');
+  
+  const respSkip = document.getElementById('pv_resp_skip')?.checked;
+  const resp = g('resp');
+  const s1val = g('s1');
+  const respLimit = s1val ? s1val * 0.5 : null;
   const respBlock = document.getElementById('pv-res-resp-block');
   let respPass = null;
-  if (resp && respLimit) {
-    respPass = resp <= respLimit;
+  if (respSkip) {
+    if (respBlock) respBlock.hidden = true;
+  } else if (resp && respLimit !== null) {
+    respPass = resp >= respLimit;
     document.getElementById('pv-res-resp').innerHTML =
-      `<div class="pv-lines">${row('T90', `${fmt(resp,0)}초`)} ${row('기준', `≤${fmt(respLimit,0)}초`)}</div>
-       <div class="pv-badges">${badge(`응답시간 ≤ ${fmt(respLimit,0)}초`, respPass)}</div>`;
+      `<div class="pv-lines">${row('측정값', `${fmt(resp,2)}`)}
+        ${row('기준 (S1×0.5)', `≥ ${fmt(respLimit,2)}`)}</div>
+       <div class="pv-badges">${badge(`응답값 ≥ S1×0.5`, respPass)}</div>`;
     if (respBlock) respBlock.hidden = false;
   } else {
     if (respBlock) respBlock.hidden = true;
@@ -476,15 +513,11 @@ function switchTab(id) {
   const tab = tabs.find(t => t.id === id);
   const formArea = document.getElementById('pv-form-area');
   if (!formArea || !tab) return;
+  
+  stored = loadData(id);
   formArea.innerHTML = buildForm(tab.code);
 
-  const saved = loadData(id);
   const fields = getFields(tab.code);
-  fields.forEach(f => {
-    const el = document.getElementById(`pv_${f}`);
-    if (el && saved[f] !== undefined) el.value = saved[f];
-  });
-
   fields.forEach(f => {
     document.getElementById(`pv_${f}`)?.addEventListener('input', () => {
       saveData(id);
@@ -529,8 +562,18 @@ function renderEmpty() {
 
 // ── 폼 HTML ──────────────────────────────────────────────
 function ni(id, label, placeholder='0') {
+  const val = stored[id] ?? '';
   return `<label class="field"><span class="field__label">${label}</span>
-    <input id="pv_${id}" class="field__control" type="number" step="any" inputmode="decimal" placeholder="${placeholder}"/></label>`;
+    <input id="pv_${id}" class="field__control" type="number" step="any" inputmode="decimal" placeholder="${placeholder}" value="${val}"/></label>`;
+}
+
+function zsCell(id, num, type) {
+  const val = stored[id] ?? '';
+  const cls = type === 'z' ? 'z' : 's';
+  return `<div class="pv-zs-cell pv-zs-cell--${cls}">
+    <span class="pv-zs-badge pv-zs-badge--${cls}">${type.toUpperCase()}${num}</span>
+    <input class="field__control pv-zs-input" id="pv_${id}" type="number" step="any" placeholder="0" value="${val}" />
+  </div>`;
 }
 
 function buildForm(code) {
@@ -550,11 +593,6 @@ function buildFormBasic(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">Z / S 측정값
-      <span class="pv-hint">반복성: RSD(Z1·Z3·Z5) / RSD(S1·S3·S5) | 드리프트: |평균(Z3·Z4)−평균(Z1·Z2)| / 범위 ≤ 5%</span>
-    </h3>
-    <div class="pv-zs-table">
-      <div class="pv-zs-header"><span></span><span>Z (제로)</span><span>S (스팬)</span></div>
       <div class="pv-zs-row"><span class="pv-zs-label">드리프트<br><small>초기구간</small></span>${ni('z1','Z1')}${ni('s1','S1')}</div>
       <div class="pv-zs-row"><span class="pv-zs-label"></span>${ni('z2','Z2')}${ni('s2','S2')}</div>
       <div class="pv-zs-row pv-zs-row--sep"><span class="pv-zs-label">드리프트<br><small>최종구간</small></span>${ni('z3','Z3')}${ni('s3','S3')}</div>
@@ -704,10 +742,9 @@ function buildFormDO() {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">응답시간 (T90)
-      <span class="pv-hint">기준 ≤ 120초</span>
-    </h3>
-    <div class="pv-grid2">${ni('resp','측정값 (초)')}${ni('resp_limit','기준 (초, 기본120)','120')}</div>
+    <h3 class="pv-section__title">응답시간 (T90) <span class="pv-hint">기준: 120초 이하</span></h3>
+    <div style="max-width:200px">${ni('resp','측정값 (초)')}</div>
+    <p class="pv-zs-note" style="margin-top:6px">기준값 고정 ≤ 120초. 측정값만 입력하세요.</p>
   </div>
 </div>
 
@@ -724,14 +761,22 @@ function buildFormWater(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">Z / S 측정값</h3>
-    <div class="pv-zs-table">
-      <div class="pv-zs-header"><span></span><span>Z (제로)</span><span>S (스팬)</span></div>
-      <div class="pv-zs-row"><span class="pv-zs-label">반복성</span>${ni('z1','Z1')}${ni('s1','S1')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label"></span>${ni('z3','Z3')}${ni('s3','S3')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label"></span>${ni('z5','Z5')}${ni('s5','S5')}</div>
-      <div class="pv-zs-row pv-zs-row--sep"><span class="pv-zs-label">드리프트 초기</span>${ni('z2','Z2')}${ni('s2','S2')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label">드리프트 최종</span>${ni('z4','Z4')}${ni('s4','S4')}</div>
+    <div class="pv-zs-wrap">
+      <div class="pv-zs-table">
+        <div class="pv-zs-header">
+          <div class="pv-zs-col-z">Z (제로)</div>
+          <div class="pv-zs-col-s">S (스팬)</div>
+        </div>
+        <div class="pv-zs-section-label">드리프트 초기구간</div>
+        <div class="pv-zs-row">${zsCell('z1','1','z')}${zsCell('s1','1','s')}</div>
+        <div class="pv-zs-row">${zsCell('z2','2','z')}${zsCell('s2','2','s')}</div>
+        <div class="pv-zs-section-label pv-zs-section-label--sep">드리프트 최종구간</div>
+        <div class="pv-zs-row">${zsCell('z3','3','z')}${zsCell('s3','3','s')}</div>
+        <div class="pv-zs-row">${zsCell('z4','4','z')}${zsCell('s4','4','s')}</div>
+        <div class="pv-zs-section-label pv-zs-section-label--sep">반복성 추가</div>
+        <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
+      </div>
+      <p class="pv-zs-note">반복성: RSD(Z1·Z3·Z5) &amp; RSD(S1·S3·S5) | 드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</p>
     </div>
   </div>
 
@@ -741,8 +786,19 @@ function buildFormWater(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">응답시간 (T90) <span class="pv-hint">(선택)</span></h3>
-    <div class="pv-grid2">${ni('resp','측정값 (초)')}${ni('resp_limit','기준 (초)')}</div>
+    <h3 class="pv-section__title">응답시간 (T90)
+      <span class="pv-hint">기준: S1 × 0.5 자동계산. 시약식은 해당 없음.</span>
+    </h3>
+    <div class="pv-resp-water">
+      <label class="pv-resp-toggle">
+        <input type="checkbox" id="${pfx}resp_skip" />
+        <span>시약식 — 응답시간 시험 해당 없음</span>
+      </label>
+      <div id="${pfx}resp_fields" style="margin-top:8px">
+        <div style="max-width:200px">${ni('resp','측정값 (mm)')}</div>
+        <p class="pv-zs-note" style="margin-top:4px" id="${pfx}resp_criterion">기준: S1 입력 후 자동계산 (S1 × 0.5)</p>
+      </div>
+    </div>
   </div>
 </div>
 

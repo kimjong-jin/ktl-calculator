@@ -865,3 +865,110 @@ select.field__control {
 .issue-result__label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
 .issue-url-row { display: flex; gap: 8px; align-items: center; }
 .issue-url-input { flex: 1; font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+.admin-label-input { flex: 1; min-width: 120px; }
+.admin-empty { color: var(--text-dim); font-size: 13px; padding: 20px 0; text-align: center; }
+.admin-chip--warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+
+/* ── 토큰 관리 테이블 ───────────────────────────────────────── */
+.token-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.token-table th { background: var(--surface-2); border: 1px solid var(--border); padding: 8px 10px; font-weight: 600; color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.token-table td { border: 1px solid var(--border); padding: 7px 10px; vertical-align: middle; }
+.token-row--expired td { color: var(--text-muted); opacity: 0.7; }
+.token-col--no { width: 32px; text-align: center; color: var(--text-dim); }
+.token-col--date, .token-col--exp, .token-col--days { white-space: nowrap; }
+.token-col--code input { font-size: 11px; font-family: ui-monospace,monospace; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; width: 180px; color: var(--text-dim); }
+.token-col--actions { white-space: nowrap; display: flex; gap: 4px; }
+
+/* ── Z/S 새 디자인 ──────────────────────────────────────────── */
+.pv-zs-wrap { display: flex; flex-direction: column; gap: 6px; }
+.pv-zs-note { margin: 0; font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+/* 새 Z/S 테이블 (배지+컬러) */
+.pv-zs-table {
+  display: flex; flex-direction: column; border: 1px solid var(--border);
+  border-radius: var(--r-md); overflow: hidden;
+}
+.pv-zs-header {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-bottom: 2px solid var(--border);
+}
+.pv-zs-col-z, .pv-zs-col-s {
+  padding: 10px 14px; font-size: 13px; font-weight: 700; text-align: center;
+}
+.pv-zs-col-z { background: rgba(47,129,247,0.1); color: var(--accent-base); border-right: 1px solid rgba(47,129,247,0.2); }
+.pv-zs-col-s { background: rgba(63,185,80,0.1); color: var(--pass); }
+
+.pv-zs-section-label {
+  padding: 5px 14px; background: var(--surface-2);
+  font-size: 10.5px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .08em;
+  border-bottom: 1px solid var(--border);
+}
+.pv-zs-section-label--sep { border-top: 2px solid var(--border); }
+
+.pv-zs-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--border);
+}
+.pv-zs-row:last-child { border-bottom: 0; }
+
+.pv-zs-cell {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+}
+.pv-zs-cell--z { background: rgba(47,129,247,0.04); border-right: 1px solid rgba(47,129,247,0.12); }
+.pv-zs-cell--s { background: rgba(63,185,80,0.04); }
+
+.pv-zs-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  font-size: 11px; font-weight: 800; flex-shrink: 0;
+}
+.pv-zs-badge--z { background: rgba(47,129,247,0.18); color: var(--accent-base); }
+.pv-zs-badge--s { background: rgba(63,185,80,0.18); color: var(--pass); }
+
+.pv-zs-input { flex: 1; min-width: 0; padding: 8px 10px; font-size: 15px; font-weight: 600; }
+
+/* ── 응답시간 토글 (TU/CL) ──────────────────────────────────── */
+.pv-resp-water { display: flex; flex-direction: column; gap: 6px; }
+.pv-resp-toggle {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: 13px; color: var(--text-dim); padding: 8px 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.pv-resp-toggle input { accent-color: var(--accent-base); width: 16px; height: 16px; }
+
+/* ── 게이지 그래프 ──────────────────────────────────────────── */
+.pv-gauge { margin: 10px 0 4px; }
+.pv-gauge__header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 6px;
+}
+.pv-gauge__val { font-size: 20px; font-weight: 800; }
+.pv-gauge__val--ok  { color: var(--pass); }
+.pv-gauge__val--bad { color: var(--fail); }
+.pv-gauge__limit-label { font-size: 11.5px; color: var(--text-dim); }
+.pv-gauge__track {
+  position: relative; height: 14px; border-radius: 7px;
+  background: var(--surface-0); border: 1px solid var(--border); overflow: hidden;
+}
+.pv-gauge__fill {
+  height: 100%; border-radius: 7px;
+  transition: width 0.35s cubic-bezier(.4,0,.2,1), background 0.25s;
+}
+.pv-gauge__fill--ok  { background: linear-gradient(90deg, #3fb950, #56d364); }
+.pv-gauge__fill--bad { background: linear-gradient(90deg, #f85149, #ff6b6b); }
+.pv-gauge__limit-line {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: rgba(255,255,255,0.6); pointer-events: none;
+}
+.pv-gauge__zone-bad {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  background: rgba(248,81,73,0.18);
+}
+.pv-gauge__footer {
+  display: flex; justify-content: space-between;
+  margin-top: 4px; font-size: 11px; color: var(--text-muted);
+}
+.pv-gauge__footer-limit { color: var(--fail); font-weight: 700; }
+
