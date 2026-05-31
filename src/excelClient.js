@@ -92,26 +92,44 @@ export function getSheetData(sheetName) {
   return { sheetName, rowCount: rows.length, rows };
 }
 
-/** Sheet5에서 "항목" 행과 "수수료" 행을 찾아 {항목: 수수료} 맵을 만든다. */
+/** 한글 항목명 → 표준 약어 매핑 (TU·CL 섹션용) */
+const KO_TO_ABBR = {
+  '탁도':     'TU',
+  '잔류염소': 'CL',
+};
+
+/** Sheet5에서 모든 "항목"/"수수료" 쌍을 찾아 {항목: 수수료} 맵을 만든다. */
 function buildFeeMap() {
   const rows = sheetToRows(FEE_SHEET);
 
-  const itemRow = rows.find((r) => String(r[0]).trim() === '항목');
-  const feeRow = rows.find((r) => String(r[0]).trim() === '수수료');
+  /** @type {Map<string, { item: string, fee: number }>} */
+  const map = new Map();
 
-  if (!itemRow || !feeRow) {
-    throw new Error(`${FEE_SHEET}에서 "항목"/"수수료" 행을 찾을 수 없습니다.`);
+  for (let r = 0; r < rows.length; r++) {
+    if (String(rows[r][0]).trim() !== '항목') continue;
+    const itemRow = rows[r];
+    const feeRow  = rows[r + 1];
+    if (!feeRow || String(feeRow[0]).trim() !== '수수료') continue;
+
+    for (let col = 1; col < itemRow.length; col++) {
+      const rawName = String(itemRow[col]).trim();
+      if (!rawName) continue;
+      const fee = feeRow[col];
+      if (typeof fee !== 'number' || fee <= 0) continue;
+
+      // 숫자로만 된 항목명, 복합 항목(슬래시 포함) 제외
+      if (/^\d+$/.test(rawName) || rawName.includes('/')) continue;
+
+      // 한글명은 표준 약어로 변환, 나머지는 대문자 유지
+      const abbr = KO_TO_ABBR[rawName] ?? rawName.toUpperCase();
+      if (!map.has(abbr)) {
+        map.set(abbr, { item: abbr, fee });
+      }
+    }
   }
 
-  /** @type {Map<string, number>} */
-  const map = new Map();
-  // 첫 칸(라벨)은 건너뛰고 항목명-수수료를 짝지운다.
-  for (let col = 1; col < itemRow.length; col++) {
-    const name = String(itemRow[col]).trim();
-    const fee = feeRow[col];
-    if (name && typeof fee === 'number') {
-      map.set(name.toUpperCase(), { item: name, fee });
-    }
+  if (map.size === 0) {
+    throw new Error(`${FEE_SHEET}에서 "항목"/"수수료" 데이터를 찾을 수 없습니다.`);
   }
   return map;
 }
