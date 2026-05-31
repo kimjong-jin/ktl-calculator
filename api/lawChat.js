@@ -101,11 +101,25 @@ export default async function handler(req, res) {
   const history = Array.isArray(body?.history) ? body.history.slice(-10) : [];
   if (!message) return res.status(400).json({ error: "message 파라미터가 필요합니다." });
 
+  // 관리자 등록 전문 지식 — 서버 env var(영구) + 요청 페이로드(세션)
+  const envSkill = process.env.ADMIN_SKILL_CONTEXT || "";
+  const reqSkill = typeof body?.adminSkill === "string" ? body.adminSkill.slice(0, 4000) : "";
+  const combinedSkill = [envSkill, reqSkill].filter(Boolean).join("\n\n---\n\n");
+  const systemPrompt = combinedSkill
+    ? SYSTEM + `\n\n[관리자 등록 전문 지식 — 반드시 우선 적용]\n${combinedSkill}`
+    : SYSTEM;
+
+  // 법령 조회 (연동 성공 여부 추적)
+  let lawConnected = false;
   const laws = await searchLaws(message);
   let lawCtx = "", lawRef = null;
   if (laws.length > 0) {
     const text = await getLawText(laws[0].mst);
-    if (text) { lawRef = laws[0].name; lawCtx = `\n\n[참고 법령: ${laws[0].name}]\n${text}`; }
+    if (text) {
+      lawConnected = true;
+      lawRef = laws[0].name;
+      lawCtx = `\n\n[참고 법령: ${laws[0].name}]\n${text}`;
+    }
   }
 
   const contents = [
@@ -120,9 +134,9 @@ export default async function handler(req, res) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          system_instruction: { parts: [{ text: SYSTEM }] },
+          system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: { maxOutputTokens: 1024, temperature: 0.2 },
+          generationConfig: { maxOutputTokens: 1536, temperature: 0.2 },
         }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       }
@@ -134,7 +148,8 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: `AI 오류: ${msg}` });
     }
     const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성하지 못했습니다.";
-    return res.status(200).json({ reply, lawRef });
+    const skillActive = !!(envSkill || reqSkill);
+    return res.status(200).json({ reply, lawRef, lawConnected, skillActive });
   } catch (e) {
     console.error("[lawChat]", e instanceof Error ? e.message : e);
     return res.status(502).json({ error: "AI 응답 생성에 실패했습니다. 잠시 후 다시 시도하세요." });

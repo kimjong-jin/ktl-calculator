@@ -7,7 +7,16 @@
  */
 
 const STORE_KEY = 'ktl-issued-tokens';
+const SKILL_KEY = 'ktl-admin-skill';
 let adminToken = '';
+
+// ── 관리자 AI 스킬 ──────────────────────────────────────────
+function loadSkill() {
+  try { return localStorage.getItem(SKILL_KEY) || ''; } catch { return ''; }
+}
+function saveSkill(text) {
+  try { localStorage.setItem(SKILL_KEY, text); } catch {}
+}
 
 // ── localStorage 토큰 목록 ──────────────────────────────────
 function loadTokenList() {
@@ -102,9 +111,61 @@ function renderTokenTable() {
 
 // ── 메인 렌더 ────────────────────────────────────────────────
 function render(wrap, d) {
-  const { db, gemini, access, server, ts } = d;
+  const { db, gemini, skill, access, server, ts } = d;
 
   wrap.innerHTML = `
+    <!-- AI 전문 지식 스킬 -->
+    <div class="admin-section admin-section--skill">
+      <div class="skill-section-header">
+        <div>
+          <h3 class="admin-section__title" style="margin:0">AI 전문 지식 스킬</h3>
+          <p class="skill-section-desc">이 지식이 AI 법령 해석 답변에 자동으로 반영됩니다. 모든 사용자의 답변 품질이 향상됩니다.</p>
+        </div>
+        <div class="skill-status-row">
+          ${chip(!!(skill && skill.envConfigured), '서버 적용됨', '서버 미적용')}
+          <span class="skill-local-badge" id="skill-local-badge">${loadSkill() ? '로컬 스킬 있음' : '로컬 스킬 없음'}</span>
+        </div>
+      </div>
+
+      ${skill && skill.envConfigured ? `
+      <div class="skill-env-info">
+        <span class="skill-env-icon">✦</span>
+        <div>
+          <strong>서버 전문 지식 활성화됨</strong> — ADMIN_SKILL_CONTEXT 환경변수로 설정 (${skill.charCount}자)
+          ${skill.preview ? `<div class="skill-env-preview">"${escAdminHtml(skill.preview)}…"</div>` : ''}
+        </div>
+      </div>` : `
+      <div class="skill-env-info skill-env-info--warn">
+        <span class="skill-env-icon">⚠</span>
+        <div>
+          <strong>서버 전문 지식 미설정</strong> — 아래에서 작성 후 Vercel 환경변수 <code>ADMIN_SKILL_CONTEXT</code>에 적용하면 모든 사용자에게 반영됩니다.
+        </div>
+      </div>`}
+
+      <div class="skill-editor-wrap">
+        <div class="skill-editor-header">
+          <label class="skill-editor-label" for="skill-textarea">전문 지식 내용 <span class="skill-char-count" id="skill-char-count">${loadSkill().length}자</span></label>
+          <div class="skill-editor-actions">
+            <button class="btn btn--mini" id="skill-save-btn">로컬 저장</button>
+            <button class="btn btn--mini btn--ghost" id="skill-copy-btn" title="Vercel 환경변수에 복사하여 붙여넣기">Vercel 환경변수 복사</button>
+            <button class="btn btn--mini btn--danger" id="skill-clear-btn">초기화</button>
+          </div>
+        </div>
+        <textarea id="skill-textarea" class="skill-textarea" placeholder="예시:
+■ 수질TMS 현장 경험 (2018~현재)
+- pH 전극 교정 시 0.1pH 오차 이상이면 즉시 재교정 필요
+- TOC 측정기 NDIR 방식은 고온산화법보다 유지비 낮음
+- 반복성 검사 실패 주요 원인: 배관 내 에어포켓, 시약 오염
+
+■ 최신 고시 업데이트 (2025)
+- 물환경보전법 시행규칙 개정으로 정도검사 주기 변경...">${loadSkill()}</textarea>
+        <p class="skill-hint">
+          <strong>로컬 저장</strong>: 이 브라우저(관리자) 세션에서만 AI에 반영됩니다.<br>
+          <strong>Vercel 환경변수 복사</strong> → Vercel 대시보드 → Settings → Environment Variables → <code>ADMIN_SKILL_CONTEXT</code>에 붙여넣기하면 모든 사용자에게 영구 반영됩니다.
+        </p>
+      </div>
+    </div>
+
     <!-- 고객 접속 코드 발급 -->
     <div class="admin-section">
       <h3 class="admin-section__title">고객 접속 코드 발급</h3>
@@ -228,6 +289,50 @@ function bindEvents(wrap, access) {
       }
     }
   });
+
+  // AI 스킬 관리
+  const skillTA = document.getElementById('skill-textarea');
+  const charCount = document.getElementById('skill-char-count');
+  const localBadge = document.getElementById('skill-local-badge');
+
+  skillTA?.addEventListener('input', () => {
+    if (charCount) charCount.textContent = `${skillTA.value.length}자`;
+  });
+
+  document.getElementById('skill-save-btn')?.addEventListener('click', () => {
+    const val = skillTA?.value || '';
+    saveSkill(val);
+    if (localBadge) localBadge.textContent = val ? '로컬 스킬 있음' : '로컬 스킬 없음';
+    const btn = document.getElementById('skill-save-btn');
+    const orig = btn.textContent;
+    btn.textContent = '저장됨 ✓';
+    btn.classList.add('btn--success');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('btn--success'); }, 2000);
+  });
+
+  document.getElementById('skill-copy-btn')?.addEventListener('click', async () => {
+    const val = skillTA?.value || '';
+    if (!val) { alert('내용을 먼저 입력하세요.'); return; }
+    try {
+      await navigator.clipboard.writeText(val);
+      const btn = document.getElementById('skill-copy-btn');
+      const orig = btn.textContent;
+      btn.textContent = '복사됨 ✓';
+      setTimeout(() => { btn.textContent = orig; }, 2000);
+    } catch { alert('복사 실패. 직접 선택하여 복사하세요.'); }
+  });
+
+  document.getElementById('skill-clear-btn')?.addEventListener('click', () => {
+    if (!confirm('AI 전문 지식을 모두 초기화할까요?')) return;
+    saveSkill('');
+    if (skillTA) skillTA.value = '';
+    if (charCount) charCount.textContent = '0자';
+    if (localBadge) localBadge.textContent = '로컬 스킬 없음';
+  });
+}
+
+function escAdminHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function refreshTokenList() {

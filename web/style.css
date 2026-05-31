@@ -1118,3 +1118,156 @@ select.field__control {
 /* 중성 셀 배경 */
 .pv-zs-cell--z { background: transparent; border-right: 1px solid var(--border); }
 .pv-zs-cell--s { background: transparent; }
+
+/* ══════════════════════════════════════════════════════════════
+   법령 연동 상태 칩 (chat 헤더)
+   ══════════════════════════════════════════════════════════════ */
+.law-status-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  border: 1px solid; white-space: nowrap; transition: all 0.3s;
+  cursor: default;
+}
+.law-status-chip__dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.law-status-chip--ok {
+  background: var(--pass-bg); color: var(--pass); border-color: var(--pass);
+}
+.law-status-chip--ok .law-status-chip__dot {
+  background: var(--pass);
+  box-shadow: 0 0 0 2px var(--pass-bg);
+  animation: pulse-ok 2s infinite;
+}
+.law-status-chip--down {
+  background: var(--fail-bg); color: var(--fail); border-color: var(--fail);
+}
+.law-status-chip--down .law-status-chip__dot { background: var(--fail); }
+.law-status-chip--checking {
+  background: var(--neutral-bg); color: var(--neutral); border-color: var(--border);
+}
+.law-status-chip--checking .law-status-chip__dot {
+  background: var(--neutral); animation: blink 1.2s step-start infinite;
+}
+
+@keyframes pulse-ok {
+  0%,100% { box-shadow: 0 0 0 2px var(--pass-bg); }
+  50%      { box-shadow: 0 0 0 4px var(--pass-bg); }
+}
+@keyframes blink {
+  50% { opacity: 0.3; }
+}
+
+/* 전문 스킬 배지 */
+.skill-active-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  background: linear-gradient(135deg, rgba(47,129,247,0.15), rgba(63,185,80,0.15));
+  color: var(--accent-base); border: 1px solid rgba(47,129,247,0.3);
+  letter-spacing: .02em;
+}
+
+/* chat 헤더 레이아웃 */
+.chat-header {
+  display: flex; flex-direction: column; gap: 10px;
+  flex-shrink: 0; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+}
+.chat-header__main { flex: 1; }
+.chat-header__badges {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+
+/* 로딩 메시지 점 애니메이션 */
+.chat-msg--loading {
+  color: var(--text-dim) !important;
+  font-style: italic;
+}
+.chat-msg--loading::after {
+  content: '';
+  display: inline-block;
+  animation: dots 1.2s infinite;
+}
+@keyframes dots {
+  0%   { content: ''; }
+  33%  { content: '.'; }
+  66%  { content: '..'; }
+  100% { content: '...'; }
+}
+
+/* 법령 참조 개선 */
+.chat-lawref {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-dim); margin: 2px 0 0;
+  padding: 6px 10px;
+  background: linear-gradient(90deg, rgba(47,129,247,0.06), transparent);
+  border-left: 2px solid var(--accent-base);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0; align-self: flex-start;
+}
+.chat-lawref__icon { font-size: 14px; }
+.chat-bullet { color: var(--accent-base); }
+
+/* ══════════════════════════════════════════════════════════════
+   관리자 AI 전문 지식 스킬 섹션
+   ══════════════════════════════════════════════════════════════ */
+.admin-section--skill {
+  background: linear-gradient(135deg, rgba(47,129,247,0.03), rgba(63,185,80,0.03));
+  border: 1px solid rgba(47,129,247,0.2); border-radius: var(--r-lg);
+  padding: 20px; margin-bottom: 24px;
+}
+.skill-section-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.skill-section-desc {
+  font-size: 12.5px; color: var(--text-dim); margin: 4px 0 0;
+}
+.skill-status-row { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.skill-local-badge {
+  font-size: 11px; color: var(--text-dim); padding: 3px 8px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+}
+.skill-env-info {
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
+  background: var(--pass-bg); border: 1px solid var(--pass); border-radius: var(--r-md);
+  margin-bottom: 14px; font-size: 13px; color: var(--pass);
+}
+.skill-env-info--warn {
+  background: var(--warn-bg); border-color: var(--warn); color: var(--warn);
+}
+.skill-env-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.skill-env-preview {
+  font-size: 11px; opacity: 0.8; margin-top: 4px;
+  font-family: ui-monospace, monospace;
+  color: var(--text-dim);
+}
+.skill-editor-wrap { margin-top: 4px; }
+.skill-editor-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; gap: 12px; flex-wrap: wrap;
+}
+.skill-editor-label {
+  font-size: 12px; font-weight: 600; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .04em;
+  display: flex; align-items: center; gap: 8px;
+}
+.skill-char-count {
+  font-size: 11px; font-weight: 400; color: var(--text-muted);
+  background: var(--surface-0); padding: 1px 6px; border-radius: 4px;
+}
+.skill-editor-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.skill-textarea {
+  width: 100%; min-height: 160px; max-height: 360px; resize: vertical;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-md); color: var(--text); font-size: 13px;
+  font-family: inherit; padding: 12px 14px; line-height: 1.7;
+  transition: border-color .15s; display: block;
+}
+.skill-textarea:focus { outline: none; border-color: var(--accent-base); }
+.skill-hint {
+  font-size: 11.5px; color: var(--text-muted); margin: 8px 0 0; line-height: 1.6;
+}
+.skill-hint code {
+  background: var(--surface-0); border: 1px solid var(--border);
+  border-radius: 3px; padding: 1px 4px; font-size: 11px; color: var(--accent-base);
+}
+.btn--success { background: var(--pass) !important; border-color: var(--pass) !important; color: #fff !important; }

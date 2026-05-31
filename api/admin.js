@@ -64,9 +64,16 @@ export default async function handler(req, res) {
     if (!Number.isNaN(t)) globalExpiry = new Date(t + days * 86_400_000).toISOString().slice(0, 10);
   }
 
+  const skillCtx = process.env.ADMIN_SKILL_CONTEXT || '';
+
   return res.status(200).json({
     db,
     gemini: { configured: !!geminiKey, status: geminiKey ? 'ok' : 'unconfigured' },
+    skill: {
+      envConfigured: !!skillCtx,
+      charCount: skillCtx.length,
+      preview: skillCtx.slice(0, 80) || null,
+    },
     access: {
       days,
       globalExpiry,
