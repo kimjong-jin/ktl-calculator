@@ -13,8 +13,9 @@
       <div class="auth-card">
         <div class="auth-logo">KTL</div>
         <h1 class="auth-title">전문 계측 서비스</h1>
-        <p class="auth-sub">고객 전용 서비스입니다.<br>접속 비밀번호를 입력하세요.</p>
-        <input id="auth-pass" class="field__control" type="password" placeholder="비밀번호" autocomplete="current-password" />
+        <p class="auth-sub">고객 전용 서비스입니다.<br>발급받은 접속 코드 또는 ID/PW를 입력하세요.</p>
+        <input id="auth-id" class="field__control" type="text" placeholder="아이디 (관리자만)" autocomplete="username" style="margin-bottom:8px" />
+        <input id="auth-pass" class="field__control" type="password" placeholder="비밀번호 또는 접속 코드" autocomplete="current-password" />
         <button id="auth-btn" class="btn btn--primary auth-btn" type="button">접속하기</button>
         <p id="auth-err" class="error auth-err" hidden></p>
       </div>
@@ -37,6 +38,7 @@
             <span class="status-chip__meta"></span>
           </span>
           <button id="theme-btn" class="icon-btn icon-btn--lg" type="button" title="라이트/다크 전환" aria-label="테마 전환">◐</button>
+          <button id="logout-btn" class="btn btn--ghost btn--mini" type="button" title="로그아웃">로그아웃</button>
         </div>
       </header>
 

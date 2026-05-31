@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'POST 또는 GET 만 허용됩니다.' });
   }
   const body = await readJson(req);
-  const result = verifyAccess(String(body.password ?? ''));
+  const result = verifyAccess(String(body.password ?? ''), Date.now(), String(body.id ?? ''));
   if (!result.ok) return res.status(result.code || 401).json({ error: result.error });
   return res.status(200).json({ token: result.token, exp: result.exp, role: result.role });
 }

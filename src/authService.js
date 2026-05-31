@@ -77,13 +77,15 @@ export function generateInviteToken(days, now = Date.now()) {
  *   - 초대 토큰       → role: 'user' (HMAC 검증)
  *   - ACCESS_PASSWORD → role: 'user' (레거시)
  */
-export function verifyAccess(password, now = Date.now()) {
+export function verifyAccess(password, now = Date.now(), id = '') {
   const secret = process.env.AUTH_SECRET;
   if (!secret) return { ok: false, code: 500, error: '서버 인증이 설정되지 않았습니다.' };
 
-  // 1. 관리자 비번
+  // 1. 관리자 ID+PW (ADMIN_ID 설정된 경우 id 필수 일치)
   const adminPw = process.env.ADMIN_PASSWORD;
-  if (adminPw && safeEqual(password, adminPw)) {
+  const adminId = process.env.ADMIN_ID || '';
+  const idMatch = adminId ? safeEqual(id, adminId) : true;
+  if (adminPw && safeEqual(password, adminPw) && idMatch) {
     const exp = Math.floor((now + 30 * DAY_MS) / 1000);
     return { ok: true, token: sign({ exp, role: 'admin' }, secret), exp, role: 'admin' };
   }

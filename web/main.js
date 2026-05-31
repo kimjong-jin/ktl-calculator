@@ -61,20 +61,23 @@ function showAuthError(msg) {
 }
 
 function setupAuthGate(onSuccess) {
+  const idEl   = $('auth-id');
   const passEl = $('auth-pass');
-  const btn = $('auth-btn');
+  const btn    = $('auth-btn');
   if (!passEl || !btn) return;
-  passEl.focus();
+  (idEl || passEl).focus();
 
   async function attempt() {
     btn.disabled = true;
     btn.textContent = '확인 중…';
     showAuthError('');
     try {
+      const body = { password: passEl.value };
+      if (idEl && idEl.value.trim()) body.id = idEl.value.trim();
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passEl.value }),
+        body: JSON.stringify(body),
       });
       if (res.status === 500 && import.meta.env.DEV) {
         console.warn('[auth] DEV: 인증 우회');
@@ -82,7 +85,7 @@ function setupAuthGate(onSuccess) {
         return;
       }
       const data = await res.json();
-      if (!res.ok) { showAuthError(data.error || '비밀번호가 올바르지 않습니다.'); return; }
+      if (!res.ok) { showAuthError(data.error || '아이디 또는 비밀번호가 올바르지 않습니다.'); return; }
       storeToken(data.token);
       onSuccess(data.role || 'user');
     } catch {
@@ -94,6 +97,7 @@ function setupAuthGate(onSuccess) {
   }
   btn.addEventListener('click', attempt);
   passEl.addEventListener('keydown', e => { if (e.key === 'Enter') attempt(); });
+  idEl?.addEventListener('keydown', e => { if (e.key === 'Enter') passEl.focus(); });
 }
 
 function showApp() {
@@ -154,6 +158,11 @@ function init(role) {
   $('theme-btn')?.addEventListener('click', () => {
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
     applyTheme(next);
+  });
+
+  $('logout-btn')?.addEventListener('click', () => {
+    try { localStorage.removeItem('ktl-auth'); } catch { /* 무시 */ }
+    location.reload();
   });
 
   initSvcTabs(role);
