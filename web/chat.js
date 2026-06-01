@@ -57,6 +57,7 @@ export function initChat() {
         history.push({ role: 'assistant', content: reply });
         updateLawStatus(data.lawConnected ? 'ok' : 'down');
         if (data.skillActive) markSkillActive();
+        if (data.tokens) appendTokenBadge(loader, data.tokens);
       }
       if (data.lawRef) {
         const ref = document.createElement('div');
@@ -138,6 +139,18 @@ function formatReply(text) {
 
 function escHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function appendTokenBadge(msgEl, tokens) {
+  const badge = document.createElement('div');
+  badge.className = 'chat-token-badge';
+  badge.innerHTML =
+    `<span class="chat-token-badge__item" title="입력 토큰">↑${tokens.input.toLocaleString()}</span>` +
+    `<span class="chat-token-badge__sep">·</span>` +
+    `<span class="chat-token-badge__item" title="출력 토큰">↓${tokens.output.toLocaleString()}</span>` +
+    `<span class="chat-token-badge__sep">·</span>` +
+    `<span class="chat-token-badge__total" title="합계">합계 ${tokens.total.toLocaleString()} 토큰</span>`;
+  msgEl.appendChild(badge);
 }
 
 function adjustTextarea(el) {

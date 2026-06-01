@@ -1520,3 +1520,14 @@ select.field__control {
   font-size: 11px; color: var(--text-dim);
   padding-top: 8px; border-top: 1px solid var(--border);
 }
+
+/* ── 채팅 토큰 뱃지 ───────────────────────────────────────── */
+.chat-token-badge {
+  display: flex; align-items: center; gap: 4px;
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 10px; color: var(--text-dim);
+}
+.chat-token-badge__item { font-variant-numeric: tabular-nums; }
+.chat-token-badge__sep { opacity: .4; }
+.chat-token-badge__total { font-weight: 600; color: var(--text-dim); }

@@ -149,7 +149,13 @@ export default async function handler(req, res) {
     }
     const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성하지 못했습니다.";
     const skillActive = !!(envSkill || reqSkill);
-    return res.status(200).json({ reply, lawRef, lawConnected, skillActive });
+    const usage = data?.usageMetadata;
+    const tokens = usage ? {
+      input: usage.promptTokenCount ?? 0,
+      output: usage.candidatesTokenCount ?? 0,
+      total: usage.totalTokenCount ?? 0,
+    } : null;
+    return res.status(200).json({ reply, lawRef, lawConnected, skillActive, tokens });
   } catch (e) {
     console.error("[lawChat]", e instanceof Error ? e.message : e);
     return res.status(502).json({ error: "AI 응답 생성에 실패했습니다. 잠시 후 다시 시도하세요." });
