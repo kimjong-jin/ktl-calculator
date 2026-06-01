@@ -149,7 +149,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: { maxOutputTokens: 1536, temperature: 0.2 },
+          generationConfig: { maxOutputTokens: 8192, temperature: 0.2 },
         }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       }
