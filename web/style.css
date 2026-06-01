@@ -1529,5 +1529,6 @@ select.field__control {
   font-size: 10px; color: var(--text-dim);
 }
 .chat-token-badge__item { font-variant-numeric: tabular-nums; }
+.chat-token-badge__thinking { font-variant-numeric: tabular-nums; color: var(--warn); }
 .chat-token-badge__sep { opacity: .4; }
 .chat-token-badge__total { font-weight: 600; color: var(--text-dim); }

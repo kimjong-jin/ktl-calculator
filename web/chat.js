@@ -55,7 +55,8 @@ export function initChat() {
       loader.innerHTML = formatReply(reply);
       if (res.ok) {
         history.push({ role: 'assistant', content: reply });
-        updateLawStatus(data.lawConnected ? 'ok' : 'down');
+        // 법령 실제 참조 시만 'ok'로 업데이트 — 미참조여도 'down'으로 강등하지 않음
+        if (data.lawConnected) updateLawStatus('ok');
         if (data.skillActive) markSkillActive();
         if (data.tokens) appendTokenBadge(loader, data.tokens);
       }
@@ -142,14 +143,22 @@ function escHtml(s) {
 }
 
 function appendTokenBadge(msgEl, tokens) {
+  const thinking = tokens.total - tokens.input - tokens.output;
   const badge = document.createElement('div');
   badge.className = 'chat-token-badge';
-  badge.innerHTML =
-    `<span class="chat-token-badge__item" title="입력 토큰">↑${tokens.input.toLocaleString()}</span>` +
+  let html =
+    `<span class="chat-token-badge__item" title="입력 토큰">↑${tokens.input.toLocaleString()} 입력</span>` +
+    `<span class="chat-token-badge__sep">·</span>`;
+  if (thinking > 0) {
+    html +=
+      `<span class="chat-token-badge__thinking" title="추론(thinking) 토큰">💭${thinking.toLocaleString()} 추론</span>` +
+      `<span class="chat-token-badge__sep">·</span>`;
+  }
+  html +=
+    `<span class="chat-token-badge__item" title="출력 토큰">↓${tokens.output.toLocaleString()} 출력</span>` +
     `<span class="chat-token-badge__sep">·</span>` +
-    `<span class="chat-token-badge__item" title="출력 토큰">↓${tokens.output.toLocaleString()}</span>` +
-    `<span class="chat-token-badge__sep">·</span>` +
-    `<span class="chat-token-badge__total" title="합계">합계 ${tokens.total.toLocaleString()} 토큰</span>`;
+    `<span class="chat-token-badge__total" title="합계">합계 ${tokens.total.toLocaleString()}</span>`;
+  badge.innerHTML = html;
   msgEl.appendChild(badge);
 }
 
