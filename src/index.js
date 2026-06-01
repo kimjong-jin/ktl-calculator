@@ -2,13 +2,16 @@
 /**
  * KTL 정도검사 계산기 MCP 서버 (stdio).
  *
- * 도구 6종
+ * 도구 8종
  *  1. list_test_items       - 검사 항목 및 수수료 목록
  *  2. get_test_fee          - 특정 항목 수수료 조회
  *  3. get_sheet_data        - 엑셀 DB(Version11) 시트 원본 데이터 조회
  *  4. calculate_accuracy    - 오차율 계산 및 합격 판정
  *  5. list_claydox_targets  - 파라미터별 Claydox target→셀 매핑 조회
  *  6. build_claydox_payload - Claydox phpEXCEL 전송 페이로드 생성
+ *  7. search_laws           - 국가법령정보 법령명 검색
+ *  8. get_law_content       - 법령 본문 조회 (MST)
+ *  9. get_legal_basis       - 측정항목별 법령근거·정도검사기준 조회
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -27,6 +30,7 @@ import {
   getClaydoxTargets,
   buildClaydoxPayload,
 } from './claydoxMappings.js';
+import { getLegalBasis, supportedItems } from './lawMapping.js';
 
 /** 객체를 MCP 텍스트 콘텐츠 결과로 감싼다. */
 function jsonResult(data) {
@@ -188,6 +192,97 @@ server.registerTool(
       return jsonResult(buildClaydoxPayload(param, values ?? {}));
     } catch (e) {
       return errorResult(e instanceof Error ? e.message : 'Claydox 페이로드 생성에 실패했습니다.');
+    }
+  },
+);
+
+server.registerTool(
+  'get_legal_basis',
+  {
+    title: '측정항목 법령근거 조회',
+    description:
+      '측정항목 코드로 정도검사 법령근거와 기준값을 반환합니다. ' +
+      '법령 본문을 실시간으로 조회해 정규식으로 파싱하므로 항상 최신 기준을 제공합니다. ' +
+      '결과는 1일 캐시됩니다.',
+    inputSchema: {
+      item: z
+        .string()
+        .describe(`측정항목 코드 (지원: ${supportedItems().join(', ')}). 대소문자 무관.`),
+    },
+  },
+  async ({ item }) => {
+    try {
+      return jsonResult(await getLegalBasis(item));
+    } catch (e) {
+      return errorResult(e instanceof Error ? e.message : '법령근거 조회에 실패했습니다.');
+    }
+  },
+);
+
+// ── 법령 검색 공통 ────────────────────────────────────────────────────────────
+
+const LAW_BASE = 'https://www.law.go.kr/DRF';
+const LAW_TIMEOUT_MS = 10_000;
+
+function getLawOC() {
+  return process.env.LAW_OC || 'kbisss_2026';
+}
+
+async function callLawApi(endpoint, params) {
+  const search = new URLSearchParams({ OC: getLawOC(), type: 'XML', ...params });
+  const url = `${LAW_BASE}/${endpoint}?${search.toString()}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(LAW_TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`law.go.kr responded ${res.status}`);
+  return await res.text();
+}
+
+server.registerTool(
+  'search_laws',
+  {
+    title: '법령 검색',
+    description:
+      '국가법령정보센터(law.go.kr)에서 법령명을 검색합니다. ' +
+      '검색 결과는 XML 문자열로 반환됩니다. ' +
+      '특정 법령 본문이 필요하면 결과의 MST 값으로 get_law_content를 호출하세요.',
+    inputSchema: {
+      query: z.string().describe('검색할 법령명 (예: 대기환경보전법, 수질오염물질)'),
+      target: z
+        .enum(['law', 'admrul', 'ordin', 'trty'])
+        .optional()
+        .describe('검색 대상: law=법령(기본), admrul=행정규칙, ordin=자치법규, trty=조약'),
+    },
+  },
+  async ({ query, target = 'law' }) => {
+    try {
+      const xml = await callLawApi('lawSearch.do', { target, query });
+      return { content: [{ type: 'text', text: xml }] };
+    } catch (e) {
+      return errorResult(e instanceof Error ? e.message : '법령 검색에 실패했습니다.');
+    }
+  },
+);
+
+server.registerTool(
+  'get_law_content',
+  {
+    title: '법령 본문 조회',
+    description:
+      '법령 고유번호(MST)로 법령 본문 전체를 XML로 반환합니다. ' +
+      'MST는 search_laws 결과에서 확인할 수 있습니다.',
+    inputSchema: {
+      mst: z.string().describe('법령 고유번호 MST (예: 267581)'),
+      target: z
+        .enum(['law', 'admrul', 'ordin', 'trty'])
+        .optional()
+        .describe('대상 유형: law=법령(기본), admrul=행정규칙, ordin=자치법규, trty=조약'),
+    },
+  },
+  async ({ mst, target = 'law' }) => {
+    try {
+      const xml = await callLawApi('lawService.do', { target, MST: mst });
+      return { content: [{ type: 'text', text: xml }] };
+    } catch (e) {
+      return errorResult(e instanceof Error ? e.message : '법령 본문 조회에 실패했습니다.');
     }
   },
 );
