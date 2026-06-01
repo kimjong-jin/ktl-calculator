@@ -3,15 +3,7 @@
   "outputDirectory": "dist",
   "functions": {
     "api/**/*.js": {
-      "includeFiles": "**/*.xlsx"
-    },
-    "api/lawSearch.js": {
-      "regions": ["icn1"]
-    },
-    "api/legalBasis.js": {
-      "regions": ["icn1"]
-    },
-    "api/lawChat.js": {
+      "includeFiles": "**/*.xlsx",
       "regions": ["icn1"]
     }
   }
