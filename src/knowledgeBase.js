@@ -55,7 +55,16 @@ export function searchKnowledge(query, topK = 3) {
   const nodes = loadNodes();
   if (!nodes.length) return [];
 
-  const terms = query.replace(/[?？]/g, '').split(/\s+/).filter(t => t.length > 1);
+  // 한국어 조사·어미 제거 후 검색 (이/가/을/를/은/는/의/에/으로/랑/이랑/도/만/까지/서/에서/로/와/과)
+  const stripParticles = t => t
+    .replace(/(이랑|으로|에서|까지|이가|이는|이를|이도|이만|이와|이과|이서|이에서|이에|이로)$/, '')
+    .replace(/(랑|가|을|를|은|는|의|에|로|도|만|서|와|과|이)$/, '');
+  const terms = query
+    .replace(/[?？]/g, '')
+    .split(/\s+/)
+    .filter(t => t.length > 1)
+    .flatMap(t => [t, stripParticles(t)])
+    .filter((t, i, a) => t.length > 1 && a.indexOf(t) === i); // 중복 제거
 
   // 1단계: 점수 기반 상위 노드 선택
   const nodeMap = new Map(nodes.map(n => [n.file.toLowerCase().replace(/[\s-]/g, ''), n]));
