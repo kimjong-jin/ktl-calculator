@@ -1464,14 +1464,19 @@ select.field__control {
   margin-bottom: 12px;
 }
 .pv-legal-criterion {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 5px 10px;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 8px 10px;
   background: var(--surface-2);
   border-radius: var(--r-sm);
-  font-size: 12px;
+  border-left: 3px solid var(--border);
 }
-.pv-legal-key { color: var(--text-dim); }
-.pv-legal-val { color: var(--text); font-weight: 600; }
+.pv-legal-key {
+  font-size: 10px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.pv-legal-val {
+  font-size: 13px; font-weight: 700; color: var(--text);
+}
 
 .pv-legal-refs {
   display: flex; flex-direction: column; gap: 4px;
