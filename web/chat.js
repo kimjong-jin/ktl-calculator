@@ -55,10 +55,11 @@ export function initChat() {
       loader.innerHTML = formatReply(reply);
       if (res.ok) {
         history.push({ role: 'assistant', content: reply });
-        // 법령 실제 참조 시만 'ok'로 업데이트 — 미참조여도 'down'으로 강등하지 않음
-        if (data.lawConnected) updateLawStatus('ok');
+        // 지식서비스·법령 연결 상태 업데이트
+        if (data.knowledgeUsed || data.lawConnected) updateLawStatus('ok');
         if (data.skillActive) markSkillActive();
         if (data.tokens) appendTokenBadge(loader, data.tokens);
+        if (data.knowledgeUsed) markKnowledgeUsed(loader);
       }
       if (data.lawRef) {
         const ref = document.createElement('div');
@@ -97,14 +98,22 @@ export function updateLawStatus(status) {
   if (dot) dot.className = `law-status-chip__dot`;
   if (label) {
     label.textContent =
-      status === 'ok' ? '법령 연동됨' :
-      status === 'down' ? '법령 미연결' : '연동 확인 중';
+      status === 'ok' ? '지식 서비스 연결됨' :
+      status === 'down' ? '서비스 미연결' : '연결 확인 중';
   }
 }
 
 function markSkillActive() {
   const badge = document.getElementById('skill-active-badge');
   if (badge) badge.hidden = false;
+}
+
+function markKnowledgeUsed(msgEl) {
+  const tag = document.createElement('span');
+  tag.className = 'chat-kb-tag';
+  tag.textContent = '📚 지식베이스';
+  tag.title = 'KTL 도메인 지식 베이스가 이 답변에 활용됐습니다';
+  msgEl.prepend(tag);
 }
 
 function loadAdminSkill() {

@@ -2,7 +2,7 @@
 /**
  * KTL 정도검사 계산기 MCP 서버 (stdio).
  *
- * 도구 8종
+ * 도구 12종
  *  1. list_test_items       - 검사 항목 및 수수료 목록
  *  2. get_test_fee          - 특정 항목 수수료 조회
  *  3. get_sheet_data        - 엑셀 DB(Version11) 시트 원본 데이터 조회
@@ -12,6 +12,9 @@
  *  7. search_laws           - 국가법령정보 법령명 검색
  *  8. get_law_content       - 법령 본문 조회 (MST)
  *  9. get_legal_basis       - 측정항목별 법령근거·정도검사기준 조회
+ * 10. search_knowledge      - 지식 베이스 검색 (Obsidian 노드)
+ * 11. get_knowledge_node    - 지식 노드 전체 조회
+ * 12. knowledge_status      - 지식 서비스 연결 상태
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -31,6 +34,7 @@ import {
   buildClaydoxPayload,
 } from './claydoxMappings.js';
 import { getLegalBasis, supportedItems } from './lawMapping.js';
+import { searchKnowledge, getKnowledgeNode, listKnowledgeNodes, knowledgeStatus } from './knowledgeBase.js';
 
 /** 객체를 MCP 텍스트 콘텐츠 결과로 감싼다. */
 function jsonResult(data) {
@@ -215,6 +219,67 @@ server.registerTool(
       return jsonResult(await getLegalBasis(item));
     } catch (e) {
       return errorResult(e instanceof Error ? e.message : '법령근거 조회에 실패했습니다.');
+    }
+  },
+);
+
+// ── 지식 베이스 ───────────────────────────────────────────────────────────────
+
+server.registerTool(
+  'knowledge_status',
+  {
+    title: '지식 서비스 상태',
+    description: '지식 베이스 연결 상태와 등록된 노드 목록을 반환합니다.',
+    inputSchema: {},
+  },
+  async () => {
+    try {
+      return jsonResult(knowledgeStatus());
+    } catch (e) {
+      return errorResult(e instanceof Error ? e.message : '상태 조회 실패');
+    }
+  },
+);
+
+server.registerTool(
+  'search_knowledge',
+  {
+    title: '지식 베이스 검색',
+    description:
+      '정도검사·법령·수수료·측정기준 등 KTL 도메인 지식 베이스를 검색합니다. ' +
+      '질문과 관련도가 높은 노드 최대 3개를 반환합니다.',
+    inputSchema: {
+      query: z.string().describe('검색 질문 (예: 최초정도검사, 반복성 기준, 수수료)'),
+      topK: z.number().int().min(1).max(5).optional().describe('반환할 최대 노드 수 (기본 3)'),
+    },
+  },
+  async ({ query, topK = 3 }) => {
+    try {
+      const results = searchKnowledge(query, topK);
+      if (!results.length) return jsonResult({ found: false, message: '관련 지식을 찾지 못했습니다.' });
+      return jsonResult({ found: true, count: results.length, results });
+    } catch (e) {
+      return errorResult(e instanceof Error ? e.message : '지식 검색 실패');
+    }
+  },
+);
+
+server.registerTool(
+  'get_knowledge_node',
+  {
+    title: '지식 노드 조회',
+    description: '지식 베이스에서 특정 노드의 전체 내용을 반환합니다.',
+    inputSchema: {
+      file: z.string().describe('노드 파일명 (확장자 제외, 예: 정도검사-개요)'),
+    },
+  },
+  async ({ file }) => {
+    try {
+      const node = getKnowledgeNode(file);
+      if (!node) return errorResult(`'${file}' 노드를 찾을 수 없습니다. list_knowledge_nodes로 목록을 확인하세요.`);
+      return jsonResult(node);
+    } catch (e) {
+      return errorResult(e instanceof Error ? e.message : '노드 조회 실패');
     }
   },
 );

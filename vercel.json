@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "functions": {
     "api/**/*.js": {
-      "includeFiles": "**/*.xlsx",
+      "includeFiles": "**/*.xlsx knowledge/**/*.md",
       "regions": ["icn1"]
     }
   }

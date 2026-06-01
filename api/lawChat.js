@@ -1,7 +1,8 @@
 /**
- * /api/lawChat — 수질TMS 정도검사 전문 AI 챗봇 (Gemini + 국가법령정보).
- * POST { message, history? } → { reply, lawRef? }
+ * /api/lawChat — 수질TMS 정도검사 전문 AI 챗봇 (Gemini + 지식베이스 + 국가법령정보).
+ * POST { message, history? } → { reply, lawRef?, knowledgeUsed?, tokens? }
  */
+import { searchKnowledge } from '../src/knowledgeBase.js';
 
 const MODEL = "gemini-2.5-flash";
 const TIMEOUT_MS = 30_000;
@@ -109,7 +110,18 @@ export default async function handler(req, res) {
     ? SYSTEM + `\n\n[관리자 등록 전문 지식 — 반드시 우선 적용]\n${combinedSkill}`
     : SYSTEM;
 
-  // 법령 조회 (연동 성공 여부 추적)
+  // 1. 지식 베이스 검색 (로컬 Obsidian 노드)
+  let knowledgeCtx = "", knowledgeUsed = false;
+  try {
+    const knNodes = searchKnowledge(message, 2);
+    if (knNodes.length > 0) {
+      knowledgeUsed = true;
+      knowledgeCtx = "\n\n[KTL 지식 베이스]\n" +
+        knNodes.map(n => `## ${n.title}\n${n.excerpt}`).join("\n\n---\n\n");
+    }
+  } catch { /* 지식 베이스 오류는 무시하고 진행 */ }
+
+  // 2. 법령 실시간 조회 (law.go.kr)
   let lawConnected = false;
   const laws = await searchLaws(message);
   let lawCtx = "", lawRef = null;
@@ -122,9 +134,10 @@ export default async function handler(req, res) {
     }
   }
 
+  const userMessage = message + knowledgeCtx + lawCtx;
   const contents = [
     ...history.map(h => ({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: h.content }] })),
-    { role: "user", parts: [{ text: message + lawCtx }] },
+    { role: "user", parts: [{ text: userMessage }] },
   ];
 
   try {
@@ -155,7 +168,7 @@ export default async function handler(req, res) {
       output: usage.candidatesTokenCount ?? 0,
       total: usage.totalTokenCount ?? 0,
     } : null;
-    return res.status(200).json({ reply, lawRef, lawConnected, skillActive, tokens });
+    return res.status(200).json({ reply, lawRef, lawConnected, knowledgeUsed, skillActive, tokens });
   } catch (e) {
     console.error("[lawChat]", e instanceof Error ? e.message : e);
     return res.status(502).json({ error: "AI 응답 생성에 실패했습니다. 잠시 후 다시 시도하세요." });
