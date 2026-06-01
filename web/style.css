@@ -1420,3 +1420,72 @@ select.field__control {
 }
 
 .btn--success { background: var(--pass) !important; border-color: var(--pass) !important; color: #fff !important; }
+
+/* ── 법령근거 패널 ─────────────────────────────────────── */
+.pv-legal-wrap {
+  margin-top: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.pv-legal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.pv-legal-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.pv-legal-badge {
+  font-size: 10px; font-weight: 600; letter-spacing: .03em;
+  padding: 2px 7px; border-radius: 20px;
+  background: #dbeafe; color: #1d4ed8;
+}
+[data-theme="dark"] .pv-legal-badge { background: #1e3a5f; color: #93c5fd; }
+
+.pv-legal-content { padding: 12px 14px; }
+
+.pv-legal-loading, .pv-legal-err, .pv-legal-na {
+  font-size: 12px; color: var(--text-dim); padding: 6px 0;
+}
+.pv-legal-err { color: var(--fail); }
+
+.pv-legal-meta {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  font-size: 12px; color: var(--text-dim);
+  margin-bottom: 10px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.pv-legal-meta b { color: var(--text); font-weight: 600; }
+
+.pv-legal-criteria {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.pv-legal-criterion {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+}
+.pv-legal-key { color: var(--text-dim); }
+.pv-legal-val { color: var(--text); font-weight: 600; }
+
+.pv-legal-refs {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-bottom: 8px;
+}
+.pv-legal-ref {
+  font-size: 12px; color: #0969da; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.pv-legal-ref:hover { text-decoration: underline; }
+.pv-legal-ref__org { color: var(--text-dim); font-weight: 400; }
+[data-theme="dark"] .pv-legal-ref { color: #58a6ff; }
+
+.pv-legal-source {
+  font-size: 11px; color: var(--text-dim);
+  padding-top: 8px; border-top: 1px solid var(--border);
+}

@@ -528,6 +528,52 @@ function updateFinal(tab, passes) {
   saveMeta();
   const btn = document.querySelector(`.pv-item-tab[data-id="${tab.id}"]`);
   if (btn) btn.dataset.pass = tab.pass;
+  loadLegalBasis(tab.code);
+}
+
+// 법령근거 API 호출 — 1일 캐시(서버), 클라이언트도 탭당 1회 fetch
+const _legalCache = new Map();
+async function loadLegalBasis(code) {
+  const el = document.getElementById('pv-legal-content');
+  if (!el) return;
+
+  if (_legalCache.has(code)) {
+    renderLegal(el, _legalCache.get(code));
+    return;
+  }
+
+  el.innerHTML = '<div class="pv-legal-loading">법령 조회 중…</div>';
+  try {
+    const res = await fetch(`/api/legalBasis?item=${code}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    _legalCache.set(code, d);
+    renderLegal(el, d);
+  } catch {
+    el.innerHTML = '<div class="pv-legal-err">법령 조회 실패 — 네트워크를 확인하세요</div>';
+  }
+}
+
+function renderLegal(el, d) {
+  const criteriaHtml = d.정도검사기준
+    ? Object.entries(d.정도검사기준)
+        .map(([k, v]) => `<div class="pv-legal-criterion"><span class="pv-legal-key">${k}</span><b class="pv-legal-val">${v}</b></div>`)
+        .join('')
+    : '<span class="pv-legal-na">기준값 정보 없음</span>';
+
+  const refsHtml = d.법령근거
+    .map(l => `<a class="pv-legal-ref" href="${l.링크}" target="_blank" rel="noopener noreferrer">${l.법령명}<span class="pv-legal-ref__org"> · ${l.소관기관}</span></a>`)
+    .join('');
+
+  el.innerHTML = `
+    <div class="pv-legal-meta">
+      <span>분야 <b>${d.분야}</b></span>
+      <span>기기명 <b>${d.기기명}</b></span>
+      <span>정도검사주기 <b>${d.정도검사주기}</b></span>
+    </div>
+    <div class="pv-legal-criteria">${criteriaHtml}</div>
+    <div class="pv-legal-refs">${refsHtml}</div>
+    <div class="pv-legal-source">출처: ${d.출처} · ${d.조회일시} 기준</div>`;
 }
 
 // ── 실시간 입력 가이드 ───────────────────────────────────────
@@ -997,6 +1043,13 @@ function buildResultsPanel(code) {
     ${extraBlocks.join('\n    ')}
   </div>
   <div id="pv-final"></div>
+  <div class="pv-legal-wrap">
+    <div class="pv-legal-header">
+      <span class="pv-legal-title">📋 법령근거 · 정도검사기준</span>
+      <span class="pv-legal-badge">국가법령정보센터</span>
+    </div>
+    <div id="pv-legal-content" class="pv-legal-content"></div>
+  </div>
   <div style="text-align:right;margin-top:12px">
     <button class="btn btn--ghost btn--mini" id="pv-cert-btn-result" type="button">성적서 출력</button>
   </div>
