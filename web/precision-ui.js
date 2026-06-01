@@ -150,15 +150,34 @@ function gauge(val, limit, label, lowerIsBetter = true) {
   </div>`;
 }
 
-// 결과 테이블 행 (Z | S 2열)
+// 반복성 Z/S 카드 2열
+function repCards(rep) {
+  function card(label, cls, data) {
+    const p = data.pass;
+    const pc = p === null || p === undefined ? 'na' : p ? 'ok' : 'bad';
+    const icon = p === null || p === undefined ? '' : p ? '✅' : '❌';
+    const verdict = p === null || p === undefined ? '—' : p ? '적합' : '부적합';
+    return `<div class="pv-rep-card pv-rep-card--${cls}">
+      <div class="pv-rep-card__label">${label}</div>
+      <div class="pv-rep-card__mean">평균 <b>${fmt(data.mean, 3)}</b></div>
+      <div class="pv-rep-card__rsd pv-rep-card__rsd--${pc}">${fmt(data.rsd, 2)}%</div>
+      <div class="pv-rep-card__limit">기준 RSD ≤ ${rep.limit}%</div>
+      <div class="pv-rep-card__verdict pv-rep-card__verdict--${pc}">${icon} ${verdict}</div>
+    </div>`;
+  }
+  return `<div class="pv-rep-cards">
+    ${card('Z 제로', 'z', rep.zero)}
+    ${card('S 스팬', 's', rep.span)}
+  </div>`;
+}
+
+// 결과 테이블 단일열 행 (직선성 등 소형 테이블용)
 function rt2(label, zVal, sVal, zPass, sPass, unit='') {
   if (zPass !== undefined && sPass !== undefined && zPass !== null && sPass !== null) {
-    // 판정 행
     return `<tr class="verdict"><td>${label}</td>
       <td><span class="val--${zPass?'ok':'bad'}">${zPass?'적합':'부적합'}</span></td>
       <td><span class="val--${sPass?'ok':'bad'}">${sPass?'적합':'부적합'}</span></td></tr>`;
   }
-  // 수치 행
   const zStr = (zVal===null||isNaN(zVal)) ? '—' : fmt(zVal,3)+unit;
   const sStr = (sVal===null||isNaN(sVal)) ? '—' : fmt(sVal,3)+unit;
   return `<tr><td>${label}</td><td>${zStr}</td><td>${sStr}</td></tr>`;
@@ -197,13 +216,7 @@ function calcBasic(tab) {
   const zRepVals = repVals(z5v, z6v, z7v, driftZVals);
   const sRepVals = repVals(s5v, s6v, s7v, driftSVals);
   const rep = repeatability(zRepVals, sRepVals);
-  document.getElementById('pv-res-rep').innerHTML =
-    `<table class="pv-rt">
-      <tr><th></th><th>Z 제로</th><th>S 스팬</th></tr>
-      ${rt2('평균', rep.zero.mean, rep.span.mean)}
-      ${rt2('RSD', rep.zero.rsd, rep.span.rsd, null, null, '%')}
-      ${rt2('판정', 0, 0, rep.zero.pass, rep.span.pass)}
-    </table>`;
+  document.getElementById('pv-res-rep').innerHTML = repCards(rep);
 
   // 드리프트: 초기[Z1,Z2] → 최종[Z3,Z4] / 초기[S1,S2] → 최종[S3,S4]
   const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')]);
@@ -310,14 +323,11 @@ function calcPH(tab) {
   const z7 = [g('ph7a'),g('ph7b'),g('ph7c')];
   const z4 = [g('ph4a'),g('ph4b'),g('ph4c')];
   const rep = repeatability(z7, z4);
-  document.getElementById('pv-res-rep').innerHTML =
-    `<div class="pv-lines">
-      ${row('pH7 평균', fmt(rep.zero.mean,3))} ${row('RSD', `${fmt(rep.zero.rsd)}%`)}
-      ${row('pH4 평균', fmt(rep.span.mean,3))} ${row('RSD', `${fmt(rep.span.rsd)}%`)}
-    </div><div class="pv-badges">
-      ${badge(`pH7 RSD ≤ ${rep.limit}%`, rep.zero.pass)}
-      ${badge(`pH4 RSD ≤ ${rep.limit}%`, rep.span.pass)}
-    </div>`;
+  document.getElementById('pv-res-rep').innerHTML = repCards({
+    zero: { mean: rep.zero.mean, rsd: rep.zero.rsd, pass: rep.zero.pass },
+    span: { mean: rep.span.mean, rsd: rep.span.rsd, pass: rep.span.pass },
+    limit: rep.limit,
+  });
 
   const dr = drift(14, [g('phdi')], [g('phdf')], [g('phdi')], [g('phdf')]);
   document.getElementById('pv-res-drift').innerHTML =
@@ -388,13 +398,11 @@ function calcDO(tab) {
   const span = DO_SPAN_TABLE[25]; 
 
   const rep = repeatability([span,span,span], [g('dos1'),g('dos2'),g('dos3')]);
-  document.getElementById('pv-res-rep').innerHTML =
-    `<div class="pv-lines">
-      ${row('S1', fmt(g('dos1'),3))} ${row('S2', fmt(g('dos2'),3))} ${row('S3', fmt(g('dos3'),3))}
-      ${row('평균', fmt(rep.span.mean,3))} ${row('RSD', `${fmt(rep.span.rsd)}%`)}
-    </div><div class="pv-badges">
-      ${badge(`DO 반복성 RSD ≤ ${rep.limit}%`, rep.span.pass)}
-    </div>`;
+  document.getElementById('pv-res-rep').innerHTML = repCards({
+    zero: { mean: DO_SPAN_TABLE[25], rsd: 0, pass: null },
+    span: { mean: rep.span.mean, rsd: rep.span.rsd, pass: rep.span.pass },
+    limit: rep.limit,
+  });
 
   const dr = drift(range, [g('dozi')], [g('dozf')], [g('dosi')], [g('dosf')]);
   document.getElementById('pv-res-drift').innerHTML =
@@ -461,14 +469,7 @@ function calcWater(tab) {
   const range = g('range');
   if (!range) return;
   const rep = repeatability([g('z1'),g('z3'),g('z5')], [g('s1'),g('s3'),g('s5')]);
-  document.getElementById('pv-res-rep').innerHTML =
-    `<div class="pv-lines">
-      ${row('Z 평균', fmt(rep.zero.mean,4))} ${row('Z RSD', `${fmt(rep.zero.rsd)}%`)}
-      ${row('S 평균', fmt(rep.span.mean,4))} ${row('S RSD', `${fmt(rep.span.rsd)}%`)}
-    </div><div class="pv-badges">
-      ${badge(`Z RSD ≤ ${rep.limit}%`, rep.zero.pass)}
-      ${badge(`S RSD ≤ ${rep.limit}%`, rep.span.pass)}
-    </div>`;
+  document.getElementById('pv-res-rep').innerHTML = repCards(rep);
   const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">

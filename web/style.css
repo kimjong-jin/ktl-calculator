@@ -1061,7 +1061,39 @@ select.field__control {
   display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
 }
 
-/* ── 심플 결과 테이블 ──────────────────────────────────────── */
+/* ── 반복성 카드 (Z/S 2열) ──────────────────────────────────── */
+.pv-rep-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pv-rep-card {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--surface-2);
+  border-top: 3px solid var(--border);
+}
+.pv-rep-card--z { border-top-color: #60a5fa; }
+.pv-rep-card--s { border-top-color: #34d399; }
+.pv-rep-card__label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-dim); margin-bottom: 4px;
+}
+.pv-rep-card__mean { font-size: 11px; color: var(--text-dim); }
+.pv-rep-card__mean b { font-size: 15px; color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pv-rep-card__rsd {
+  font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums;
+  line-height: 1.15; margin: 2px 0;
+}
+.pv-rep-card__rsd--ok  { color: var(--pass); }
+.pv-rep-card__rsd--bad { color: var(--fail); }
+.pv-rep-card__rsd--na  { color: var(--text-dim); }
+.pv-rep-card__limit { font-size: 10px; color: var(--text-dim); }
+.pv-rep-card__verdict {
+  margin-top: 6px; padding: 4px 0; border-radius: var(--r-sm);
+  font-size: 12px; font-weight: 700; text-align: center;
+}
+.pv-rep-card__verdict--ok  { background: var(--pass-bg); color: var(--pass); }
+.pv-rep-card__verdict--bad { background: var(--fail-bg); color: var(--fail); }
+.pv-rep-card__verdict--na  { background: var(--neutral-bg); color: var(--neutral); }
+
+/* ── 심플 결과 테이블 (선형·온도 등 소형) ──────────────────── */
 .pv-rt { width: 100%; border-collapse: collapse; font-size: 13px; }
 .pv-rt th {
   font-size: 10px; color: var(--text-muted); font-weight: 700;
@@ -1077,12 +1109,6 @@ select.field__control {
 .pv-rt tr:last-child td { border-bottom: 0; }
 .pv-rt .val--ok  { color: var(--pass); }
 .pv-rt .val--bad { color: var(--fail); }
-.pv-rt .verdict td { padding-top: 6px; padding-bottom: 6px; }
-.pv-rt .verdict td span {
-  display: inline-block; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 3px 10px;
-}
-.pv-rt .verdict td .val--ok  { background: rgba(63,185,80,0.12); }
-.pv-rt .verdict td .val--bad { background: rgba(248,81,73,0.12); }
 
 /* ── 심플 게이지 (1줄) ──────────────────────────────────────── */
 .pv-sg { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
