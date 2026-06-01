@@ -53,7 +53,7 @@ export function searchKnowledge(query, topK = 3) {
     .slice(0, topK)
     .map(({ file, title, tags, links, content, score: s }) => ({
       file, title, tags, links,
-      excerpt: content.replace(/^---[\s\S]*?---\n/m, '').slice(0, 800),
+      excerpt: content.replace(/^---[\s\S]*?---\n/m, '').slice(0, 3000),
       score: s,
     }));
 }
