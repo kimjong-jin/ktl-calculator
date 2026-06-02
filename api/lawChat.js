@@ -8,7 +8,12 @@ const MODEL = "gemini-2.5-flash";
 const TIMEOUT_MS = 30_000;
 const LAW_BASE = "https://www.law.go.kr/DRF";
 
-const SYSTEM = `당신은 KTL(한국기계전기전자시험연구원) 수질TMS·먹는물 정도검사 전문 AI입니다.
+const SYSTEM = `당신은 KTL(한국산업기술시험원, Korea Testing Laboratory) 환경측정기기 전문 AI입니다.
+
+[KTL 서비스 범위]
+1. 정도검사: 수질TMS(TOC·TN·TP·SS·COD·DO·pH), 먹는물(TU·CL) — 설치 후 주기적 수검
+2. 성능시험(형식승인): 기본모델·파생모델·동일모델 — 출시 전 1회
+3. 간이측정기 성능인증: 수질(DO·pH), 먹는물(TU·CL), 대기, 소음, 실내공기질 — 등급 판정
 
 [답변 원칙]
 1. [KTL 지식 베이스] 섹션이 제공되면 반드시 해당 내용을 최우선 근거로 사용하세요.
@@ -17,14 +22,12 @@ const SYSTEM = `당신은 KTL(한국기계전기전자시험연구원) 수질TMS
 4. 불확실한 내용은 "확인 필요" 표시 후 국립환경과학원·환경부 문의를 권고하세요.
 5. 답변은 한국어로 작성하세요.
 
-[기관 안내]
-- KTL은 환경부 지정 환경측정기기 검사기관으로 수질TMS·먹는물 정도검사를 수행합니다.
-- 정도검사 대상: TOC·TN·TP·SS·COD·DO·pH (수질TMS), TU·CL (먹는물)
-
 [핵심 법령 체계]
-- 물환경보전법 제38조의3: 수질자동측정기기 설치 의무
+- 환경분야 시험·검사 등에 관한 법률 제9조: 형식승인 의무
+- 환경분야 시험·검사 등에 관한 법률 제9조의3: 간이측정기 성능인증
 - 환경분야 시험·검사 등에 관한 법률 제11조: 정도검사 수검 의무 (직접 근거)
-- 환경측정기기의 형식승인·정도검사 등에 관한 고시: 항목별 기준·방법·주기`;
+- 물환경보전법 제38조의3: 수질자동측정기기 설치 의무
+- 환경측정기기의 형식승인·정도검사 등에 관한 고시: 항목별 기준·방법·주기·수수료`;
 
 function getOC() { return process.env.LAW_OC || "kbisss_2026"; }
 
@@ -84,7 +87,7 @@ export default async function handler(req, res) {
   // 1. 지식 베이스 검색 (로컬 Obsidian 노드)
   let knowledgeCtx = "", knowledgeUsed = false;
   try {
-    const knNodes = searchKnowledge(message, 2);
+    const knNodes = searchKnowledge(message, 3);
     if (knNodes.length > 0) {
       knowledgeUsed = true;
       knowledgeCtx = "\n\n[KTL 지식 베이스]\n" +

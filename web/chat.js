@@ -8,7 +8,7 @@ const SKILLS_KEY = 'ktl-admin-skills';
 let history = [];
 let sending = false;
 
-const WELCOME = "수질TMS 정도검사·먹는물 관련 법령에 대해 질문하세요.\n예: 수질TMS 반복성 검사 주기, 물환경보전법 정도검사 기준, 잔류염소 허용 기준 등";
+const WELCOME = "KTL 환경측정기기 서비스에 대해 질문하세요.\n예: TOC 정도검사 기준, CL 성능시험 방법, 파생모델 수수료, 간이측정기 등급 판정, 포르마진 표준용액 제조";
 
 export function initChat() {
   const msgs = document.getElementById('chat-msgs');
