@@ -1425,8 +1425,17 @@ select.field__control {
 .chat-panel__close:hover { background: var(--surface-2); color: var(--text); }
 .chat-panel__desc {
   font-size: 12px; color: var(--text-dim); margin: 6px 18px 0;
-  padding-bottom: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  padding-bottom: 8px; flex-shrink: 0;
 }
+.chat-panel__disclaimer {
+  font-size: 11px; color: var(--text-dim);
+  margin: 0 18px; padding: 6px 10px 8px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--warn, #f59e0b) 8%, var(--surface-1));
+  flex-shrink: 0;
+}
+.chat-panel__disclaimer strong { color: var(--warn, #b45309); }
 
 /* 메시지 영역은 기존 .chat-msgs 재사용 */
 #chat-panel .chat-msgs {
