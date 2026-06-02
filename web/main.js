@@ -159,7 +159,19 @@ function initSvcTabs(role) {
   // 플로팅 채팅 버튼
   fab?.addEventListener('click', openChat);
   $('chat-close')?.addEventListener('click', closeChat);
+  $('chat-close-bottom')?.addEventListener('click', closeChat);
   $('chat-overlay')?.addEventListener('click', closeChat);
+
+  // 스와이프 다운 닫기 (모바일)
+  const panel = $('chat-panel');
+  let touchStartY = 0;
+  panel?.addEventListener('touchstart', e => {
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  panel?.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (dy > 80) closeChat(); // 80px 이상 아래로 스와이프하면 닫기
+  }, { passive: true });
 
   // 서비스 탭 (calc / admin 만)
   document.querySelectorAll('.svc-tab').forEach(tab => {

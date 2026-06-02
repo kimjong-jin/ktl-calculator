@@ -1439,10 +1439,54 @@ select.field__control {
   background: var(--surface-1);
 }
 
-/* 모바일: 전체화면 */
+/* 드래그 핸들 (모바일 bottom-sheet 표준 UX) */
+.chat-panel__drag-handle {
+  display: none;
+  width: 40px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 10px auto 0;
+  flex-shrink: 0;
+  cursor: grab;
+}
+
+/* 하단 닫기 버튼 — 기본 숨김 */
+.chat-panel__close-bottom {
+  display: none;
+}
+
+/* 모바일: 전체화면 + 드래그 핸들 + 하단 닫기 버튼 표시 */
 @media (max-width: 500px) {
-  .chat-panel { width: 100vw; height: 92vh; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .chat-panel {
+    width: 100vw; height: 92vh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+  }
   .chat-fab { bottom: 18px; right: 16px; }
+
+  /* 드래그 핸들 표시 */
+  .chat-panel__drag-handle { display: block; }
+
+  /* 상단 ✕ 버튼 크기 확대 */
+  .chat-panel__close {
+    font-size: 22px;
+    padding: 6px 10px;
+    min-width: 40px; min-height: 40px;
+  }
+
+  /* 하단 닫기 버튼 표시 */
+  .chat-panel__close-bottom {
+    display: block;
+    width: calc(100% - 28px);
+    margin: 0 14px 14px;
+    padding: 12px;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    font-size: 15px; font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
 }
 
 .btn--success { background: var(--pass) !important; border-color: var(--pass) !important; color: #fff !important; }
