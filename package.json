@@ -14,7 +14,8 @@
     "prebuild": "node src/genClaydoxJson.js",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test/smoke.test.js && node test/precision.test.js"
+    "test": "node test/smoke.test.js && node test/precision.test.js",
+    "check:laws": "node src/checkLaws.js"
   },
   "engines": {
     "node": ">=18"

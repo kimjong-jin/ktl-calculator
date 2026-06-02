@@ -55,11 +55,10 @@ export function initChat() {
       loader.innerHTML = formatReply(reply);
       if (res.ok) {
         history.push({ role: 'assistant', content: reply });
-        // 지식서비스·법령 연결 상태 업데이트
         if (data.knowledgeUsed || data.lawConnected) updateLawStatus('ok');
         if (data.skillActive) markSkillActive();
         if (data.tokens) appendTokenBadge(loader, data.tokens);
-        if (data.knowledgeUsed) markKnowledgeUsed(loader);
+        if (data.knowledgeUsed) markKnowledgeUsed(loader, data.knowledgeVersion);
       }
       if (data.lawRef) {
         const ref = document.createElement('div');
@@ -108,11 +107,13 @@ function markSkillActive() {
   if (badge) badge.hidden = false;
 }
 
-function markKnowledgeUsed(msgEl) {
+function markKnowledgeUsed(msgEl, version) {
   const tag = document.createElement('span');
   tag.className = 'chat-kb-tag';
-  tag.textContent = '📚 지식베이스';
-  tag.title = 'KTL 도메인 지식 베이스가 이 답변에 활용됐습니다';
+  tag.textContent = version ? `📚 지식베이스 (${version} 기준)` : '📚 지식베이스';
+  tag.title = version
+    ? `KTL 지식 베이스 활용 — ${version} 시행 법령 기준`
+    : 'KTL 도메인 지식 베이스가 이 답변에 활용됐습니다';
   msgEl.prepend(tag);
 }
 

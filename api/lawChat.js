@@ -85,12 +85,20 @@ export default async function handler(req, res) {
     : SYSTEM;
 
   // 1. 지식 베이스 검색 (로컬 Obsidian 노드)
-  let knowledgeCtx = "", knowledgeUsed = false;
+  let knowledgeCtx = "", knowledgeUsed = false, knowledgeVersion = "";
   try {
     const knNodes = searchKnowledge(message, 3);
     if (knNodes.length > 0) {
       knowledgeUsed = true;
-      knowledgeCtx = "\n\n[KTL 지식 베이스]\n" +
+      // 노드에서 시행일 추출 (가장 최신 날짜)
+      const dates = knNodes.flatMap(n =>
+        [...(n.excerpt || "").matchAll(/시행[：:]\s*(\d{4}-\d{2}-\d{2})/g)].map(m => m[1])
+      ).sort().reverse();
+      if (dates.length > 0) knowledgeVersion = dates[0];
+      const versionNote = knowledgeVersion
+        ? `\n\n[지식 베이스 기준: ${knowledgeVersion} 시행 법령]`
+        : "";
+      knowledgeCtx = "\n\n[KTL 지식 베이스]" + versionNote + "\n" +
         knNodes.map(n => `## ${n.title}\n${n.excerpt}`).join("\n\n---\n\n");
     }
   } catch { /* 지식 베이스 오류는 무시하고 진행 */ }
@@ -142,7 +150,7 @@ export default async function handler(req, res) {
       output: usage.candidatesTokenCount ?? 0,
       total: usage.totalTokenCount ?? 0,
     } : null;
-    return res.status(200).json({ reply, lawRef, lawConnected, knowledgeUsed, skillActive, tokens });
+    return res.status(200).json({ reply, lawRef, lawConnected, knowledgeUsed, knowledgeVersion, skillActive, tokens });
   } catch (e) {
     console.error("[lawChat]", e instanceof Error ? e.message : e);
     return res.status(502).json({ error: "AI 응답 생성에 실패했습니다. 잠시 후 다시 시도하세요." });
