@@ -1,0 +1,162 @@
+{
+  "main": {
+    "id": "e9ca431d8a569203",
+    "type": "split",
+    "children": [
+      {
+        "id": "bfb54099fd507e9b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "19823e618436536d",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "그래프 뷰"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "4c5b4669c67e3cc2",
+    "type": "split",
+    "children": [
+      {
+        "id": "4f3e867f71923f43",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9d65714895d17178",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "파일 탐색기"
+            }
+          },
+          {
+            "id": "17e43d8a9babe0c7",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "검색"
+            }
+          },
+          {
+            "id": "372a9f04708072cf",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "북마크"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "c58cbd69ff36ab2d",
+    "type": "split",
+    "children": [
+      {
+        "id": "df420461f572a556",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2e7f71c22f17d514",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "백링크"
+            }
+          },
+          {
+            "id": "8e3db6872eb5789f",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "태그"
+            }
+          },
+          {
+            "id": "1ee8e8892e5c6ba2",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "모든 속성"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:빠른 전환기 열기": false,
+      "graph:그래프 뷰 열기": false,
+      "canvas:새 캔버스 만들기": false,
+      "command-palette:명령어 팔레트 열기": false,
+      "bases:새 베이스 생성하기": false
+    }
+  },
+  "active": "19823e618436536d",
+  "lastOpenFiles": [
+    "법령-배출허용기준.md",
+    "법령-수질오염공정시험기준-상세.md",
+    "법령-물환경측정망-정도관리지침.md",
+    "법령-물환경보전법-시행령.md",
+    "법령-물환경보전법-시행규칙.md",
+    "용어-관계도.md",
+    "법령-환경시험검사법-시행령.md",
+    "정도검사-부적합조치.md",
+    "형식승인-절차.md"
+  ]
+}

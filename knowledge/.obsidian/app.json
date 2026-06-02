@@ -1,0 +1,16 @@
+{
+  "monospaceFont": "",
+  "promptDelete": false,
+  "defaultViewMode": "preview",
+  "legacyEditor": false,
+  "livePreview": true,
+  "alwaysUpdateLinks": true,
+  "newFileLocation": "current",
+  "attachmentFolderPath": ".",
+  "showLineNumber": false,
+  "strictLineBreaks": false,
+  "spellcheck": false,
+  "spellcheckLanguages": [
+    "ko"
+  ]
+}

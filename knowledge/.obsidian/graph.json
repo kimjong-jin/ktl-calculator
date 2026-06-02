@@ -1,0 +1,51 @@
+{
+  "collapse-filter": false,
+  "search": "",
+  "showTags": true,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "tag:#법령",
+      "color": {
+        "a": 1,
+        "rgb": 4444231
+      }
+    },
+    {
+      "query": "tag:#정도검사",
+      "color": {
+        "a": 1,
+        "rgb": 1482264
+      }
+    },
+    {
+      "query": "tag:#형식승인",
+      "color": {
+        "a": 1,
+        "rgb": 14737632
+      }
+    },
+    {
+      "query": "tag:#핵심",
+      "color": {
+        "a": 1,
+        "rgb": 14423100
+      }
+    }
+  ],
+  "collapse-display": false,
+  "showArrow": true,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 1.4,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": false,
+  "centerStrength": 0.518,
+  "repelStrength": 10,
+  "linkStrength": 1,
+  "linkDistance": 250,
+  "scale": 0.7384531598961968,
+  "close": false
+}
