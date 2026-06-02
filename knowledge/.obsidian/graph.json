@@ -9,31 +9,52 @@
   "colorGroups": [
     {
       "query": "tag:#정도검사",
-      "color": { "a": 1, "rgb": 1482264 }
+      "color": {
+        "a": 1,
+        "rgb": 1482264
+      }
     },
     {
       "query": "tag:#성능시험",
-      "color": { "a": 1, "rgb": 10053171 }
+      "color": {
+        "a": 1,
+        "rgb": 10053171
+      }
     },
     {
       "query": "tag:#간이측정기",
-      "color": { "a": 1, "rgb": 3361563 }
+      "color": {
+        "a": 1,
+        "rgb": 3361563
+      }
     },
     {
       "query": "tag:#형식승인",
-      "color": { "a": 1, "rgb": 14737632 }
+      "color": {
+        "a": 1,
+        "rgb": 14737632
+      }
     },
     {
       "query": "tag:#표준용액",
-      "color": { "a": 1, "rgb": 16744448 }
+      "color": {
+        "a": 1,
+        "rgb": 16744448
+      }
     },
     {
       "query": "tag:#법령",
-      "color": { "a": 1, "rgb": 4444231 }
+      "color": {
+        "a": 1,
+        "rgb": 4444231
+      }
     },
     {
       "query": "tag:#핵심",
-      "color": { "a": 1, "rgb": 14423100 }
+      "color": {
+        "a": 1,
+        "rgb": 14423100
+      }
     }
   ],
   "collapse-display": false,
