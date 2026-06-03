@@ -57,7 +57,9 @@ function getFields(code) {
     'resp','resp_limit',
   ];
   if (IS_WATER(code)) return [
-    'z1','z2','z3','z4','z5','s1','s2','s3','s4','s5',
+    'range',
+    'z1','z2','z3','z4','z5','z6','z7',
+    's1','s2','s3','s4','s5','s6','s7',
     'm1','resp','resp_limit',
   ];
   // TOC/TN/TP/SS/COD (기본형)
@@ -1146,20 +1148,18 @@ function buildFormWater(code) {
   <div class="pv-section">
     <div class="pv-zs-wrap">
       <div class="pv-zs-table">
-        <div class="pv-zs-header">
-          <div class="pv-zs-col-z">Z (제로)</div>
-          <div class="pv-zs-col-s">S (스팬)</div>
-        </div>
         <div class="pv-zs-section-label">드리프트 초기구간</div>
         <div class="pv-zs-row">${zsCell('z1','1','z')}${zsCell('s1','1','s')}</div>
         <div class="pv-zs-row">${zsCell('z2','2','z')}${zsCell('s2','2','s')}</div>
         <div class="pv-zs-section-label pv-zs-section-label--sep">드리프트 최종구간</div>
         <div class="pv-zs-row">${zsCell('z3','3','z')}${zsCell('s3','3','s')}</div>
         <div class="pv-zs-row">${zsCell('z4','4','z')}${zsCell('s4','4','s')}</div>
-        <div class="pv-zs-section-label pv-zs-section-label--sep">반복성 추가</div>
+        <div class="pv-zs-section-label pv-zs-section-label--sep">반복성 (1차 필수·2·3차 선택)</div>
         <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
+        <div class="pv-zs-row">${zsCell('z6','6','z')}${zsCell('s6','6','s')}</div>
+        <div class="pv-zs-row">${zsCell('z7','7','z')}${zsCell('s7','7','s')}</div>
       </div>
-      <p class="pv-zs-note">반복성: RSD(Z1·Z3·Z5) &amp; RSD(S1·S3·S5) | 드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</p>
+      <p class="pv-zs-note">드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 3% | 반복성: 4콤보 MAX STDEV / 범위 ≤ 3%</p>
     </div>
   </div>
 
