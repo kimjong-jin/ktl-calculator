@@ -688,15 +688,19 @@ function updateInlineHints(code) {
     const ziMean = !isNaN(z1) && !isNaN(z2) ? (z1+z2)/2 : z1;  // 초기구간 평균
     const siMean = !isNaN(s1) && !isNaN(s2) ? (s1+s2)/2 : s1;
 
-    // Z2: Z1과 같은 초기구간 — Z1 기준 ±range×2% (초기 일관성)
-    setHint('z2', !isNaN(z1) ? z1-range*0.02 : NaN, !isNaN(z1) ? z1+range*0.02 : NaN, z2);
-    // Z3/Z4: 최종구간 → mean(Z1,Z2) ± range×5% (드리프트 합격 범위)
-    setHint('z3', !isNaN(ziMean) ? ziMean-driftTol : NaN, !isNaN(ziMean) ? ziMean+driftTol : NaN, z3);
-    setHint('z4', !isNaN(ziMean) ? ziMean-driftTol : NaN, !isNaN(ziMean) ? ziMean+driftTol : NaN, z4);
+    // 힌트 범위를 [0, range]로 클램프 — 음수·범위초과 표시 방지
+    const clamp = (v, r) => isNaN(v) ? NaN : Math.max(0, Math.min(r, v));
+    const sh = (id, lo, hi, cur) => setHint(id, clamp(lo, range), clamp(hi, range), cur);
 
-    setHint('s2', !isNaN(s1) ? s1-range*0.02 : NaN, !isNaN(s1) ? s1+range*0.02 : NaN, s2);
-    setHint('s3', !isNaN(siMean) ? siMean-driftTol : NaN, !isNaN(siMean) ? siMean+driftTol : NaN, s3);
-    setHint('s4', !isNaN(siMean) ? siMean-driftTol : NaN, !isNaN(siMean) ? siMean+driftTol : NaN, s4);
+    // Z2: Z1과 같은 초기구간 — Z1 기준 ±range×2%
+    sh('z2', !isNaN(z1) ? z1-range*0.02 : NaN, !isNaN(z1) ? z1+range*0.02 : NaN, z2);
+    // Z3/Z4: 최종구간 → mean(Z1,Z2) ± range×5% (드리프트 합격 범위)
+    sh('z3', !isNaN(ziMean) ? ziMean-driftTol : NaN, !isNaN(ziMean) ? ziMean+driftTol : NaN, z3);
+    sh('z4', !isNaN(ziMean) ? ziMean-driftTol : NaN, !isNaN(ziMean) ? ziMean+driftTol : NaN, z4);
+
+    sh('s2', !isNaN(s1) ? s1-range*0.02 : NaN, !isNaN(s1) ? s1+range*0.02 : NaN, s2);
+    sh('s3', !isNaN(siMean) ? siMean-driftTol : NaN, !isNaN(siMean) ? siMean+driftTol : NaN, s3);
+    sh('s4', !isNaN(siMean) ? siMean-driftTol : NaN, !isNaN(siMean) ? siMean+driftTol : NaN, s4);
 
     // ── 반복성(별도): RSD = σ/mean × 100 ≤ 3% ──────────────
     const repTol = v => v * 0.03;           // ±3% of ref value (RSD ≤ 3% 목표)
