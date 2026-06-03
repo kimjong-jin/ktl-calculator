@@ -612,27 +612,49 @@ function computeRepZ5Range(initVals, finVals, range) {
     return maxS / range * 100;
   }
 
+  // 엑셀 ROUND(x,1) 기준 통과 여부
+  const passes = x => Math.round(worstStdAt(x) * 10) / 10 <= 3;
+
   const all = [...iv, ...fv];
   const dMin = Math.min(...all), dMax = Math.max(...all);
   const span = Math.max(dMax - dMin, dMin * 0.1);
   const scanLo = Math.max(0, dMin - span), scanHi = dMax + span;
-  const STEPS = 2000;
-  const step = (scanHi - scanLo) / STEPS;
 
-  let lo = NaN, hi = NaN;
+  // 1단계: 선형 스캔으로 통과 구간 대략 파악 (200단계)
+  const STEPS = 200;
+  const step = (scanHi - scanLo) / STEPS;
+  let coarseLo = NaN, coarseHi = NaN;
   for (let i = 0; i <= STEPS; i++) {
     const x = scanLo + i * step;
-    // 엑셀 ROUND(x,1) 기준으로 판정 — 힌트 범위도 동일하게 적용
-    if (Math.round(worstStdAt(x) * 10) / 10 <= 3) {
-      if (isNaN(lo)) lo = x;
-      hi = x;
+    if (passes(x)) {
+      if (isNaN(coarseLo)) coarseLo = x;
+      coarseHi = x;
     }
   }
 
-  if (isNaN(lo)) {
+  if (isNaN(coarseLo)) {
     const dm = all.reduce((a,b)=>a+b,0)/all.length;
     return { lo: dm, hi: dm, passable: false };
   }
+
+  // 2단계: 이진 탐색으로 하한·상한 정밀 계산 (오차 ~0.000001)
+  const ITER = 50;
+  // 하한 이진탐색: coarseLo-step ~ coarseLo 구간
+  let bLo = Math.max(0, coarseLo - step), bHi = coarseLo;
+  for (let i = 0; i < ITER; i++) {
+    const mid = (bLo + bHi) / 2;
+    if (passes(mid)) bHi = mid; else bLo = mid;
+  }
+  const lo = bHi;
+
+  // 상한 이진탐색: coarseHi ~ coarseHi+step 구간
+  bLo = coarseHi; bHi = Math.min(range, coarseHi + step);
+  for (let i = 0; i < ITER; i++) {
+    const mid = (bLo + bHi) / 2;
+    if (passes(mid)) bLo = mid; else bHi = mid;
+  }
+  const hi = bLo;
+
   return { lo, hi, passable: true };
 }
 
