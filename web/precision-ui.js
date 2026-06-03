@@ -721,7 +721,9 @@ function updateInlineHints(code) {
       setHint('s7', sRef-repTol(sRef), sRef+repTol(sRef), gv('s7'));
     }
 
-    // 직선성: 평균(M1,M2,M3) vs ref 요약바
+    // 드리프트·반복성·직선성 요약바
+    updateDriftSummary(range);
+    updateRepSummary(range);
     updateLinSummary(range);
     return;
   }
@@ -762,6 +764,61 @@ function updateLinSummary(range) {
     `<span class="pv-lin-summary__range">목표 ${f(lo)} ~ ${f(hi)}</span>` +
     `<span class="pv-lin-summary__sep">·</span>` +
     `<span class="pv-lin-summary__status">${pass ? '✓ 적합' : '✗ ' + f(error) + '%'}</span>`;
+}
+
+function updateDriftSummary(range) {
+  const el = document.getElementById('pv_drift_summary');
+  if (!el) return;
+  const f2 = v => Number(v).toFixed(2);
+  const z1=gv('z1'),z2=gv('z2'),z3=gv('z3'),z4=gv('z4');
+  const s1=gv('s1'),s2=gv('s2'),s3=gv('s3'),s4=gv('s4');
+  const hasZ = [z1,z2,z3,z4].every(v=>!isNaN(v)&&v>0);
+  const hasS = [s1,s2,s3,s4].every(v=>!isNaN(v)&&v>0);
+  if (!range || (!hasZ && !hasS)) { el.className='pv-lin-summary'; el.innerHTML=''; return; }
+  const zd = hasZ ? Math.abs(((z3+z4)/2 - (z1+z2)/2) / range * 100) : null;
+  const sd = hasS ? Math.abs(((s3+s4)/2 - (s1+s2)/2) / range * 100) : null;
+  const limit = 5;
+  const zPass = zd !== null ? zd <= limit : null;
+  const sPass = sd !== null ? sd <= limit : null;
+  const allPass = [zPass,sPass].filter(v=>v!==null).every(Boolean);
+  const parts = [];
+  if (zd !== null) parts.push(`Z ${f2(zd)}%`);
+  if (sd !== null) parts.push(`S ${f2(sd)}%`);
+  parts.push(`기준 ≤${limit}%`);
+  el.className = 'pv-lin-summary pv-lin-summary--' + (allPass ? 'ok' : 'ng');
+  el.innerHTML = parts.map((t,i) => i<parts.length-1
+    ? `<span class="pv-lin-summary__label">${t}</span><span class="pv-lin-summary__sep">·</span>`
+    : `<span class="pv-lin-summary__status">${allPass?'✓':''} ${t} ${allPass?'적합':'부적합'}</span>`
+  ).join('');
+}
+
+function updateRepSummary(range) {
+  const el = document.getElementById('pv_rep_summary');
+  if (!el) return;
+  const f2 = v => Number(v).toFixed(2);
+  const zVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
+  const sVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
+  if (!range || (zVals.length < 2 && sVals.length < 2)) { el.className='pv-lin-summary'; el.innerHTML=''; return; }
+  const stdDiv = (vals, r) => {
+    if (vals.length < 2) return null;
+    const m = vals.reduce((a,b)=>a+b,0)/vals.length;
+    const s = Math.sqrt(vals.reduce((a,v)=>a+(v-m)**2,0)/(vals.length-1));
+    return r > 0 ? s/r*100 : s/m*100;
+  };
+  const zRsd = stdDiv(zVals, range), sRsd = stdDiv(sVals, range);
+  const limit = 3;
+  const zPass = zRsd !== null ? zRsd <= limit : null;
+  const sPass = sRsd !== null ? sRsd <= limit : null;
+  const allPass = [zPass,sPass].filter(v=>v!==null).every(Boolean);
+  const parts = [];
+  if (zRsd !== null) parts.push(`Z ${f2(zRsd)}%`);
+  if (sRsd !== null) parts.push(`S ${f2(sRsd)}%`);
+  parts.push(`기준 ≤${limit}%`);
+  el.className = 'pv-lin-summary pv-lin-summary--' + (allPass ? 'ok' : 'ng');
+  el.innerHTML = parts.map((t,i) => i<parts.length-1
+    ? `<span class="pv-lin-summary__label">${t}</span><span class="pv-lin-summary__sep">·</span>`
+    : `<span class="pv-lin-summary__status">${allPass?'✓':''} ${t} ${allPass?'적합':'부적합'}</span>`
+  ).join('');
 }
 
 // ── 실시간 입력 가이드 (비활성: 인라인 힌트로 대체) ──────────
@@ -964,6 +1021,7 @@ function buildFormBasic(code) {
       <div class="pv-zs-row">${zsCell('z3','3','z')}${zsCell('s3','3','s')}</div>
       <div class="pv-zs-row">${zsCell('z4','4','z')}${zsCell('s4','4','s')}</div>
     </div>
+    <div id="pv_drift_summary" class="pv-lin-summary"></div>
   </div>
 
   <div class="pv-section">
@@ -975,6 +1033,7 @@ function buildFormBasic(code) {
       <div class="pv-zs-row">${zsCell('z6','6','z')}${zsCell('s6','6','s')}</div>
       <div class="pv-zs-row">${zsCell('z7','7','z')}${zsCell('s7','7','s')}</div>
     </div>
+    <div id="pv_rep_summary" class="pv-lin-summary"></div>
   </div>
 
   <div id="pv-input-guide" class="pv-guide-panel" hidden></div>
