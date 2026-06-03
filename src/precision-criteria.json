@@ -1,0 +1,13 @@
+{
+  "_source": "Version11_(2026).xlsx",
+  "_synced": "2026-06-03 22:31",
+  "_note": "이 파일은 sync-excel.py가 자동 생성합니다. 직접 수정하지 마세요.",
+  "repeatabilityRsd": 3.0,
+  "repeatabilityRound": 1,
+  "zeroDrift": 5.0,
+  "spanDrift": 5.0,
+  "driftRound": 1,
+  "linearity": 5.0,
+  "linearityRound": 1,
+  "responseTime": 15.0
+}

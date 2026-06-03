@@ -15,7 +15,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node test/smoke.test.js && node test/precision.test.js",
-    "check:laws": "node src/checkLaws.js"
+    "check:laws": "node src/checkLaws.js",
+    "sync-excel": "python3 scripts/sync-excel.py",
+    "sync-build": "npm run sync-excel && npm run build"
   },
   "engines": {
     "node": ">=18"

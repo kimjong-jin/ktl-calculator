@@ -21,14 +21,22 @@
  *   DO 온도보상 ≤ 5.0% (측정범위 기준)
  */
 
+import _criteria from './precision-criteria.json';
+
+// 엑셀 DB (Version11_(2026).xlsx) 에서 sync-excel.py 가 자동 추출한 기준값
+// 변경 시: npm run sync-excel → git commit → Vercel 자동 배포
 export const PRECISION_CRITERIA = {
-  repeatabilityRsd: 3.0,  // %
-  zeroDrift:        5.0,  // %
-  spanDrift:        5.0,  // %
-  linearity:        5.0,  // %
-  phTempComp:       0.1,  // pH 단위 (max - min)
-  doTempComp:       5.0,  // % (측정범위 기준)
-  codGlucose:       5.0,  // % (측정범위 기준, 미확인 시 사용)
+  repeatabilityRsd: _criteria.repeatabilityRsd ?? 3.0,  // %
+  zeroDrift:        _criteria.zeroDrift        ?? 5.0,  // %
+  spanDrift:        _criteria.spanDrift        ?? 5.0,  // %
+  linearity:        _criteria.linearity        ?? 5.0,  // %
+  phTempComp:       0.1,   // pH — 엑셀 별도 기준, 고정
+  doTempComp:       5.0,   // DO — 엑셀 별도 기준, 고정
+  codGlucose:       5.0,
+  // 반올림 자릿수 (엑셀 ROUND 수식에서 추출)
+  repeatabilityRound: _criteria.repeatabilityRound ?? 1,
+  driftRound:         _criteria.driftRound         ?? 1,
+  linearityRound:     _criteria.linearityRound     ?? 1,
 };
 
 /* ── 통계 헬퍼 ─────────────────────────────────────────── */
