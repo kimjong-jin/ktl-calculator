@@ -1217,10 +1217,12 @@ function buildResultsPanel(code) {
 
 // ── 성적서 ───────────────────────────────────────────────
 function certRow(l,v,p) {
+  const color = p===null?'#888':p?'#1a7f37':'#cf222e';
+  const verdict = p===null?'—':p?'적합':'부적합';
   return `<tr>
     <td style="padding:7px 10px;border:1px solid #ccc">${l}</td>
     <td style="padding:7px 10px;border:1px solid #ccc">${v}</td>
-    <td style="padding:7px 10px;border:1px solid #ccc;font-weight:600;color:${p?'#1a7f37':'#cf222e'}">${p?'적합':'부적합'}</td></tr>`;
+    <td style="padding:7px 10px;border:1px solid #ccc;font-weight:600;color:${color}">${verdict}</td></tr>`;
 }
 
 function showCert(tabId) {
@@ -1257,13 +1259,15 @@ function showCert(tabId) {
     }
   } else {
     const range = g('range');
-    const rep = repeatability([g('z1'),g('z3'),g('z5')],[g('s1'),g('s3'),g('s5')]);
+    const zRepVals = [gv('z5'),gv('z6'),gv('z7')].filter(v=>!isNaN(v)&&v>0);
+    const sRepVals = [gv('s5'),gv('s6'),gv('s7')].filter(v=>!isNaN(v)&&v>0);
+    const rep = repeatability(zRepVals, sRepVals);
     const dr = drift(range,[g('z1'),g('z2')],[g('z3'),g('z4')],[g('s1'),g('s2')],[g('s3'),g('s4')]);
     const lin = IS_WATER(tab.code)
       ? linearity(range,[g('m1'),g('m1'),g('m1')])
       : linearity(range,[g('m1'),g('m2'),g('m3')]);
-    addRow(`저농도 반복성 RSD ≤ ${rep.limit}%`, `${fmt(rep.zero.rsd)}%`, rep.zero.pass);
-    addRow(`고농도 반복성 RSD ≤ ${rep.limit}%`, `${fmt(rep.span.rsd)}%`, rep.span.pass);
+    addRow(`저농도 반복성 RSD ≤ ${rep.limit}%`, rep.zero.pass===null?'—':`${fmt(rep.zero.rsd)}%`, rep.zero.pass);
+    addRow(`고농도 반복성 RSD ≤ ${rep.limit}%`, rep.span.pass===null?'—':`${fmt(rep.span.rsd)}%`, rep.span.pass);
     addRow(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, `${fmt(dr.zeroDrift)}%`, dr.zeroPass);
     addRow(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, `${fmt(dr.spanDrift)}%`, dr.spanPass);
     addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, `${fmt(lin.error)}%`, lin.pass);
