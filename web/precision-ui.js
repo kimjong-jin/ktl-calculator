@@ -701,9 +701,6 @@ function updateInlineHints(code) {
     sh('s3', !isNaN(siMean) ? siMean-driftTol : NaN, !isNaN(siMean) ? siMean+driftTol : NaN, s3);
     sh('s4', !isNaN(siMean) ? siMean-driftTol : NaN, !isNaN(siMean) ? siMean+driftTol : NaN, s4);
 
-    // ── 반복성(별도): RSD = σ/mean × 100 ≤ 3% ──────────────
-    const repTol = v => v * 0.03;           // ±3% of ref value (RSD ≤ 3% 목표)
-
     // Z5/S5: 4콤보 std/range ≤ 3% 실제 통과 범위
     const z5r = computeRepZ5Range([z1,z2],[z3,z4], range);
     const s5r = computeRepZ5Range([s1,s2],[s3,s4], range);
@@ -712,16 +709,16 @@ function updateInlineHints(code) {
     if (s5r.passable) setHint('s5', s5r.lo, s5r.hi, s5);
     else setHintRef('s5', s5r.lo);
 
-    // Z6/Z7: Z5 기준 ±3% (Z5 미입력 시 Z1 사용)
-    const zRef = !isNaN(z5) ? z5 : z1;
-    const sRef = !isNaN(s5) ? s5 : s1;
-    if (!isNaN(zRef)) {
-      setHint('z6', zRef-repTol(zRef), zRef+repTol(zRef), gv('z6'));
-      setHint('z7', zRef-repTol(zRef), zRef+repTol(zRef), gv('z7'));
+    // Z6/Z7: Z5 기준값 ± range×3% (절대 허용오차)
+    // Z5 미입력 시 힌트 없음 — Z5가 반복성 기준값
+    const repAbs = range * 0.03;
+    if (!isNaN(z5) && z5 > 0) {
+      setHint('z6', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z6'));
+      setHint('z7', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z7'));
     }
-    if (!isNaN(sRef)) {
-      setHint('s6', sRef-repTol(sRef), sRef+repTol(sRef), gv('s6'));
-      setHint('s7', sRef-repTol(sRef), sRef+repTol(sRef), gv('s7'));
+    if (!isNaN(s5) && s5 > 0) {
+      setHint('s6', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s6'));
+      setHint('s7', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s7'));
     }
 
     // 드리프트·반복성·직선성 요약바
