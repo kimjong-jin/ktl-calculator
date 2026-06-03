@@ -629,7 +629,11 @@ function updateInlineHints(code) {
     setHint('s3', !isNaN(siMean) ? siMean-tol : NaN, !isNaN(siMean) ? siMean+tol : NaN, s3);
     setHint('s4', !isNaN(siMean) ? siMean-tol : NaN, !isNaN(siMean) ? siMean+tol : NaN, s4);
 
-    // 반복성 Z5/S5는 기준점 — Z6/Z7은 Z5 기준 ±5%
+    // 반복성 Z5: Z1 기준 ±5% (같은 제로용액이므로 Z1과 유사해야 함)
+    if (!isNaN(z1)) setHint('z5', z1 - repT(z1), z1 + repT(z1), z5);
+    if (!isNaN(s1)) setHint('s5', s1 - repT(s1), s1 + repT(s1), s5);
+
+    // 반복성 Z6/Z7: Z5 기준 ±5% (Z5 미입력 시 Z1 사용)
     const zRef = !isNaN(z5) ? z5 : z1;
     const sRef = !isNaN(s5) ? s5 : s1;
     if (!isNaN(zRef)) {
