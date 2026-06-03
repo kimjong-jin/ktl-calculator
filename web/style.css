@@ -926,7 +926,9 @@ select.field__control {
 .pv-zs-badge--z { background: rgba(47,129,247,0.18); color: var(--accent-base); }
 .pv-zs-badge--s { background: rgba(63,185,80,0.18); color: var(--pass); }
 
-.pv-zs-input { flex: 1; min-width: 0; padding: 8px 10px; font-size: 15px; font-weight: 600; }
+.pv-zs-input-wrap { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 3px; }
+.pv-zs-input { width: 100%; padding: 8px 10px; font-size: 15px; font-weight: 600; }
+.pv-zs-input-wrap .pv-zs-range-hint { align-self: flex-start; }
 
 /* ── 인라인 범위 힌트 바 ─────────────────────────────────────── */
 .pv-zs-range-hint {

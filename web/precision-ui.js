@@ -918,14 +918,15 @@ function ni(id, label, placeholder='0') {
 function zsCell(id, num, type) {
   const val = stored[id] ?? '';
   const cls = type === 'z' ? 'z' : 's';
-  // 1번(Z1/S1)은 기준점 고정 라벨, 나머지는 동적 힌트
   const hintHtml = num === '1'
     ? `<span class="pv-zs-range-hint pv-zs-range-hint--ref">기준점</span>`
     : `<span class="pv-zs-range-hint" id="pv_hint_${id}"></span>`;
   return `<div class="pv-zs-cell pv-zs-cell--${cls}">
     <span class="pv-zs-badge pv-zs-badge--${cls}">${type.toUpperCase()}${num}</span>
-    <input class="field__control pv-zs-input" id="pv_${id}" type="number" step="any" placeholder="0" value="${val}" />
-    ${hintHtml}
+    <div class="pv-zs-input-wrap">
+      <input class="field__control pv-zs-input" id="pv_${id}" type="number" step="any" placeholder="0" value="${val}" />
+      ${hintHtml}
+    </div>
   </div>`;
 }
 
@@ -946,7 +947,7 @@ function buildFormBasic(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">시험일지 <span class="pv-hint">드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</span></h3>
+    <h3 class="pv-section__title">드리프트 측정 <span class="pv-hint">|평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</span></h3>
     <div class="pv-zs-table">
       <div class="pv-zs-section-label">초기구간</div>
       <div class="pv-zs-row">${zsCell('z1','1','z')}${zsCell('s1','1','s')}</div>
