@@ -149,7 +149,12 @@ function closeChat() {
 
 function initSvcTabs(role) {
   const fab = $('chat-fab');
-  if (fab) fab.hidden = false;
+  // 관리자: 항상 표시 (테스트 목적)
+  // 일반 사용자: ktl-chat-enabled = 'true' 일 때만 표시
+  if (fab) {
+    const enabled = localStorage.getItem('ktl-chat-enabled') === 'true';
+    fab.hidden = !(role === 'admin' || enabled);
+  }
 
   if (role === 'admin') {
     const adminTab = $('admin-tab');

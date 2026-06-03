@@ -3,9 +3,21 @@
  * initAdmin(token) — 관리자 토큰으로 /api/admin 조회 후 패널 렌더링.
  */
 
-const STORE_KEY  = 'ktl-issued-tokens';
-const SKILLS_KEY = 'ktl-admin-skills';   // 스킬 라이브러리 (배열)
+const STORE_KEY    = 'ktl-issued-tokens';
+const SKILLS_KEY   = 'ktl-admin-skills';   // 스킬 라이브러리 (배열)
+const CHAT_KEY     = 'ktl-chat-enabled';   // AI 법령 기능 활성화 여부
 let adminToken = '';
+
+// ── AI 법령 활성 상태 ────────────────────────────────────────
+function isChatEnabled() {
+  return localStorage.getItem(CHAT_KEY) === 'true';
+}
+function setChatEnabled(val) {
+  localStorage.setItem(CHAT_KEY, val ? 'true' : 'false');
+  // 즉시 FAB 반영
+  const fab = document.getElementById('chat-fab');
+  if (fab) fab.hidden = !val;
+}
 
 // ── 스킬 라이브러리 ─────────────────────────────────────────
 function loadSkills() {
@@ -211,11 +223,36 @@ function skillSectionHTML(serverSkill) {
     </div>`;
 }
 
-// ── 메인 렌더 ────────────────────────────────────────────────
+// ── AI 법령 기능 잠금/해제 섹션 ──────────────────────────────
+function chatToggleSectionHTML() {
+  const enabled = isChatEnabled();
+  return `
+    <div class="admin-section" id="chat-toggle-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div>
+          <h3 class="admin-section__title" style="margin:0 0 4px">AI 법령 기능</h3>
+          <p class="admin-card__sub" style="margin:0">
+            ${enabled
+              ? '🟢 현재 <strong>사용 가능</strong> — 로그인한 사용자에게 AI 법령 버튼이 표시됩니다.'
+              : '🔴 현재 <strong>잠금</strong> — 관리자만 테스트 가능, 일반 사용자에게는 숨겨집니다.'}
+          </p>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <label class="skill-toggle" title="${enabled ? '클릭하면 잠금' : '클릭하면 배포(활성화)'}">
+            <input type="checkbox" class="skill-toggle__input" id="chat-enabled-toggle" ${enabled ? 'checked' : ''} />
+            <span class="skill-toggle__track"></span>
+            <span class="skill-toggle__label">${enabled ? '배포 중' : '잠금'}</span>
+          </label>
+        </div>
+      </div>
+    </div>`;
+}
+
 function render(wrap, d) {
   const { db, gemini, skill, access, server, ts } = d;
 
   wrap.innerHTML = `
+    ${chatToggleSectionHTML()}
     ${skillSectionHTML(skill)}
 
     <!-- 고객 접속 코드 발급 -->
@@ -303,6 +340,22 @@ function render(wrap, d) {
 
 // ── 이벤트 바인딩 ────────────────────────────────────────────
 function bindEvents(wrap, access) {
+  // AI 법령 잠금/해제 토글
+  document.getElementById('chat-enabled-toggle')?.addEventListener('change', (e) => {
+    const enabled = e.target.checked;
+    setChatEnabled(enabled);
+    // 섹션 상태 문구 즉시 갱신
+    const section = document.getElementById('chat-toggle-section');
+    if (section) {
+      const desc = section.querySelector('.admin-card__sub');
+      const label = section.querySelector('.skill-toggle__label');
+      if (desc) desc.innerHTML = enabled
+        ? '🟢 현재 <strong>사용 가능</strong> — 로그인한 사용자에게 AI 법령 버튼이 표시됩니다.'
+        : '🔴 현재 <strong>잠금</strong> — 관리자만 테스트 가능, 일반 사용자에게는 숨겨집니다.';
+      if (label) label.textContent = enabled ? '배포 중' : '잠금';
+    }
+  });
+
   // 새로고침
   document.getElementById('admin-refresh')?.addEventListener('click', () => {
     wrap.innerHTML = '<p class="admin-loading">새로고침 중…</p>';
