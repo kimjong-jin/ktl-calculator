@@ -67,13 +67,15 @@ export function repeatability(zVals, sVals, range) {
  *   spanBefore=[S2,S3], spanAfter=[S4,S5]
  *   drift = |평균After - 평균Before| / range * 100
  * pH/DO: 각 1개값 배열로 전달 */
-export function drift(range, zeroBefore, zeroAfter, spanBefore, spanAfter) {
+export function drift(range, zeroBefore, zeroAfter, spanBefore, spanAfter, limits) {
   const zeroDrift = pct(mean(zeroAfter) - mean(zeroBefore), range);
   const spanDrift = pct(mean(spanAfter) - mean(spanBefore), range);
+  const zeroLim = limits?.zero ?? PRECISION_CRITERIA.zeroDrift;
+  const spanLim = limits?.span ?? PRECISION_CRITERIA.spanDrift;
   return {
-    zeroDrift, spanDrift,
-    zeroPass: zeroDrift <= PRECISION_CRITERIA.zeroDrift,
-    spanPass: spanDrift <= PRECISION_CRITERIA.spanDrift,
+    zeroDrift, spanDrift, zeroLim, spanLim,
+    zeroPass: zeroDrift <= zeroLim,
+    spanPass: spanDrift <= spanLim,
   };
 }
 
@@ -81,11 +83,11 @@ export function drift(range, zeroBefore, zeroAfter, spanBefore, spanAfter) {
  * TOC/TN/TP/SS/COD: ref = 0.9×range/2, 오차 = |avg-ref|/ref*100
  * pH: mVals=[4,7,10] 고정 3점, ref=7 (중간값), 오차=|avg-ref|/range×100
  * DO: max-min 방식 */
-export function linearity(range, mVals) {
+export function linearity(range, mVals, ref) {
   const avg = mean(mVals);
-  const ref = (0.9 * range) / 2;
-  const error = pct(avg - ref, ref);
-  return { avg, ref, error, pass: error <= PRECISION_CRITERIA.linearity };
+  const reference = ref !== undefined ? ref : (0.9 * range) / 2;
+  const error = pct(avg - reference, reference);
+  return { avg, ref: reference, error, pass: error <= PRECISION_CRITERIA.linearity };
 }
 
 /* ── ③-pH 직선성 (4·7·10 고정 3점) ────────────────────────

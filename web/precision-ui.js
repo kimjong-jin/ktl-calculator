@@ -469,23 +469,32 @@ function calcDO(tab) {
 
 // ── 계산: 먹는물 (TU/CL) ────────────────────────────────
 function calcWater(tab) {
-  const pfx = tab.code + '_';
   const range = g('range');
   if (!range) return;
-  const rep = repeatability([g('z1'),g('z3'),g('z5')], [g('s1'),g('s3'),g('s5')]);
-  document.getElementById('pv-res-rep').innerHTML = repCards(rep);
-  const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')]);
+
+  // 반복성: 4콤보 pickRepVals (TMS와 동일 엑셀 로직)
+  const zRepVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
+  const sRepVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
+  const rep = repeatability(zRepVals, sRepVals, range);
+  document.getElementById('pv-res-rep').innerHTML = repCards(rep, zRepVals, sRepVals);
+
+  // 드리프트: TU/CL 기준 ≤ 3% (TMS는 5%)
+  const WATER_DRIFT_LIMIT = 3;
+  const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')], { zero: WATER_DRIFT_LIMIT, span: WATER_DRIFT_LIMIT });
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
       ${row('제로드리프트', `${fmt(dr.zeroDrift)}%`)} ${row('스팬드리프트', `${fmt(dr.spanDrift)}%`)}
     </div><div class="pv-badges">
-      ${badge(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, dr.zeroPass)}
-      ${badge(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, dr.spanPass)}
+      ${badge(`제로드리프트 ≤ ${WATER_DRIFT_LIMIT}%`, dr.zeroPass)}
+      ${badge(`스팬드리프트 ≤ ${WATER_DRIFT_LIMIT}%`, dr.spanPass)}
     </div>`;
-  const lin = linearity(range, [g('m1'),g('m1'),g('m1')]);
+
+  // 직선성: 기준값 = S1/2 (TMS는 range×0.45)
+  const linRef = g('s1') > 0 ? g('s1') / 2 : undefined;
+  const lin = linearity(range, [g('m1')], linRef);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
-      ${row('주입농도 M', fmt(g('m1'),3))} ${row('오차', `${fmt(lin.error)}%`)}
+      ${row('기준값 (S1÷2)', fmt(lin.ref,3))} ${row('주입농도 M', fmt(g('m1'),3))} ${row('오차', `${fmt(lin.error)}%`)}
     </div><div class="pv-badges">
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
@@ -1278,14 +1287,16 @@ function showCert(tabId) {
     const zRepVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
     const sRepVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
     const rep = repeatability(zRepVals, sRepVals, range);
-    const dr = drift(range,[g('z1'),g('z2')],[g('z3'),g('z4')],[g('s1'),g('s2')],[g('s3'),g('s4')]);
-    const lin = IS_WATER(tab.code)
-      ? linearity(range,[g('m1'),g('m1'),g('m1')])
-      : linearity(range,[g('m1'),g('m2'),g('m3')]);
+    const isWater = IS_WATER(tab.code);
+    const driftLim = isWater ? 3 : PRECISION_CRITERIA.zeroDrift;
+    const dr = drift(range,[g('z1'),g('z2')],[g('z3'),g('z4')],[g('s1'),g('s2')],[g('s3'),g('s4')],
+      isWater ? {zero:3,span:3} : undefined);
+    const linRef = isWater && g('s1') > 0 ? g('s1')/2 : undefined;
+    const lin = linearity(range, isWater ? [g('m1')] : [g('m1'),g('m2'),g('m3')], linRef);
     addRow(`저농도 반복성 RSD ≤ ${rep.limit}%`, rep.zero.pass===null?'—':`${fmt(rep.zero.rsd)}%`, rep.zero.pass);
     addRow(`고농도 반복성 RSD ≤ ${rep.limit}%`, rep.span.pass===null?'—':`${fmt(rep.span.rsd)}%`, rep.span.pass);
-    addRow(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, `${fmt(dr.zeroDrift)}%`, dr.zeroPass);
-    addRow(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, `${fmt(dr.spanDrift)}%`, dr.spanPass);
+    addRow(`제로드리프트 ≤ ${driftLim}%`, `${fmt(dr.zeroDrift)}%`, dr.zeroPass);
+    addRow(`스팬드리프트 ≤ ${driftLim}%`, `${fmt(dr.spanDrift)}%`, dr.spanPass);
     addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, `${fmt(lin.error)}%`, lin.pass);
     const ci1=g('ci1'),ci2=g('ci2'),ai1=g('ai1'),ai2=g('ai2'),ai3=g('ai3'),ai4=g('ai4');
     if (ci1||ci2||ai1||ai2||ai3||ai4) {
