@@ -709,9 +709,10 @@ function updateInlineHints(code) {
     if (s5r.passable) setHint('s5', s5r.lo, s5r.hi, s5);
     else setHintRef('s5', s5r.lo);
 
-    // Z6/Z7: Z5 기준값 ± range×3% (절대 허용오차)
-    // Z5 미입력 시 힌트 없음 — Z5가 반복성 기준값
-    const repAbs = range * 0.03;
+    // Z6/Z7: Z5 기준값 ± range×3%×√3
+    // std([Z5,Z6,Z6]) = |Z6-Z5|/√3 ≤ 3 → |Z6-Z5| ≤ 3√3 ≈ 5.196
+    // Z5 미입력 시 힌트 없음
+    const repAbs = range * 0.03 * Math.sqrt(3);
     if (!isNaN(z5) && z5 > 0) {
       setHint('z6', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z6'));
       setHint('z7', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z7'));
