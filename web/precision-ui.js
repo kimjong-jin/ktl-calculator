@@ -676,13 +676,19 @@ function setHint(id, lo, hi, cur) {
   el.textContent = `${f(loDisp)} ~ ${f(hiDisp)}`;
 }
 
-// 통과 불가 참고점 — --ref(보라색) 고정, 녹/적 전환 없음
-function setHintRef(id, ref) {
+// 통과 불가 참고점 — 어떤 값을 넣어도 부적합
+function setHintRef(id, ref, cur) {
   const el = document.getElementById(`pv_hint_${id}`);
   if (!el) return;
+  // 음수 입력 = 명백히 잘못된 값 → 빨간 오류 표시
+  if (!isNaN(cur) && cur < 0) {
+    el.className = 'pv-zs-range-hint pv-zs-range-hint--ng';
+    el.textContent = '⚠ 음수 불가';
+    return;
+  }
   if (isNaN(ref)) { el.className = 'pv-zs-range-hint'; el.textContent = ''; return; }
   el.className = 'pv-zs-range-hint pv-zs-range-hint--ref';
-  el.textContent = `참고 ${Number(ref).toFixed(3).replace(/\.?0+$/, '')}`;
+  el.textContent = `어떤값도 부적합 (참고 ${Number(ref).toFixed(3).replace(/\.?0+$/, '')})`;
 }
 
 // 직선성 M 힌트 (기준값 ref ± 5%)
@@ -743,9 +749,9 @@ function updateInlineHints(code) {
     const z5r = computeRepZ5Range([z1,z2],[z3,z4], range);
     const s5r = computeRepZ5Range([s1,s2],[s3,s4], range);
     if (z5r.passable) setHint('z5', z5r.lo, z5r.hi, z5);
-    else setHintRef('z5', z5r.lo);
+    else setHintRef('z5', z5r.lo, z5);
     if (s5r.passable) setHint('s5', s5r.lo, s5r.hi, s5);
-    else setHintRef('s5', s5r.lo);
+    else setHintRef('s5', s5r.lo, s5);
 
     // Z6/Z7: Z5 기준값 ± range×3%×√3
     // std([Z5,Z6,Z6]) = |Z6-Z5|/√3 ≤ 3 → |Z6-Z5| ≤ 3√3 ≈ 5.196
@@ -836,10 +842,23 @@ function updateDriftSummary(range) {
 function updateRepSummary(range) {
   const el = document.getElementById('pv_rep_summary');
   if (!el) return;
-  const f2 = v => Number(v).toFixed(2);
   const zVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
   const sVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
-  if (!range || (zVals.length < 2 && sVals.length < 2)) { el.className='pv-lin-summary'; el.innerHTML=''; return; }
+
+  // 통과 불가 여부 확인 (힌트가 참고 상태 = 어떤 S5를 넣어도 부적합)
+  const zr = computeRepZ5Range([g('z1'),g('z2')],[g('z3'),g('z4')], range);
+  const sr = computeRepZ5Range([g('s1'),g('s2')],[g('s3'),g('s4')], range);
+  const zImpossible = range > 0 && !zr.passable;
+  const sImpossible = range > 0 && !sr.passable;
+  // 음수 입력도 부적합
+  const z5v = gv('z5'), s5v = gv('s5');
+  const zNeg = !isNaN(z5v) && z5v < 0;
+  const sNeg = !isNaN(s5v) && s5v < 0;
+
+  const hasZ = zVals.length >= 2 || zImpossible || zNeg;
+  const hasS = sVals.length >= 2 || sImpossible || sNeg;
+  if (!range || (!hasZ && !hasS)) { el.className='pv-lin-summary'; el.innerHTML=''; return; }
+
   const stdDiv = (vals, r) => {
     if (vals.length < 2) return null;
     const m = vals.reduce((a,b)=>a+b,0)/vals.length;
@@ -848,13 +867,14 @@ function updateRepSummary(range) {
   };
   const zRsd = stdDiv(zVals, range), sRsd = stdDiv(sVals, range);
   const limit = 3;
-  // 엑셀 기준: ROUND(rsd, 1) 후 > 3 비교 (소수점 1자리)
-  const zPass = zRsd !== null ? Math.round(zRsd * 10) / 10 <= limit : null;
-  const sPass = sRsd !== null ? Math.round(sRsd * 10) / 10 <= limit : null;
+  const r1 = v => Math.round(v * 10) / 10;
+  // 통과불가 또는 음수 → 강제 부적합
+  const zPass = (zImpossible || zNeg) ? false : (zRsd !== null ? r1(zRsd) <= limit : null);
+  const sPass = (sImpossible || sNeg) ? false : (sRsd !== null ? r1(sRsd) <= limit : null);
   const allPass = [zPass,sPass].filter(v=>v!==null).every(Boolean);
   const parts = [];
-  if (zRsd !== null) parts.push(`Z ${(Math.round(zRsd*10)/10).toFixed(1)}%`);
-  if (sRsd !== null) parts.push(`S ${(Math.round(sRsd*10)/10).toFixed(1)}%`);
+  if (hasZ) parts.push(`Z ${(zImpossible||zNeg) ? '부적합' : (zRsd!==null ? r1(zRsd).toFixed(1)+'%' : '')}`);
+  if (hasS) parts.push(`S ${(sImpossible||sNeg) ? '부적합' : (sRsd!==null ? r1(sRsd).toFixed(1)+'%' : '')}`);
   parts.push(`기준 ≤${limit}%`);
   el.className = 'pv-lin-summary pv-lin-summary--' + (allPass ? 'ok' : 'ng');
   el.innerHTML = parts.map((t,i) => i<parts.length-1
