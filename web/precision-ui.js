@@ -611,11 +611,11 @@ function computeRepZ5Range(driftVals, targetRSD) {
   }
 
   if (isNaN(lo)) {
-    // 어떤 Z5도 통과 불가 — 드리프트 평균 ±3% 참고 표시
+    // 어떤 Z5도 통과 불가 — 드리프트 평균을 참고점으로 반환 (passable: false)
     const dm = valid.reduce((a, b) => a + b, 0) / valid.length;
-    return { lo: dm * 0.97, hi: dm * 1.03 };
+    return { lo: dm, hi: dm, passable: false };
   }
-  return { lo, hi };
+  return { lo, hi, passable: true };
 }
 
 // ── 인라인 힌트 바 ───────────────────────────────────────────
@@ -629,6 +629,15 @@ function setHint(id, lo, hi, cur) {
   el.className = 'pv-zs-range-hint' +
     (inRange ? ' pv-zs-range-hint--ok' : outRange ? ' pv-zs-range-hint--ng' : '');
   el.textContent = `${f(lo)} ~ ${f(hi)}`;
+}
+
+// 통과 불가 참고점 — --ref(보라색) 고정, 녹/적 전환 없음
+function setHintRef(id, ref) {
+  const el = document.getElementById(`pv_hint_${id}`);
+  if (!el) return;
+  if (isNaN(ref)) { el.className = 'pv-zs-range-hint'; el.textContent = ''; return; }
+  el.className = 'pv-zs-range-hint pv-zs-range-hint--ref';
+  el.textContent = `참고 ${Number(ref).toFixed(3).replace(/\.?0+$/, '')}`;
 }
 
 // 직선성 M 힌트 (기준값 ref ± 5%)
@@ -677,12 +686,15 @@ function updateInlineHints(code) {
     const repTol = v => v * 0.03;           // ±3% of ref value (RSD ≤ 3% 목표)
 
     // Z5/S5: 드리프트 실제값 기반 — [Z5 + 2개 최원거리 드리프트] RSD ≤ 3% 통과 범위
+    // passable=false 시 드리프트 평균을 보라색 "참고" 표시 (진입해도 부적합임을 구분)
     const zDriftVals = [z1,z2,z3,z4].filter(v => !isNaN(v) && v > 0);
     const sDriftVals = [s1,s2,s3,s4].filter(v => !isNaN(v) && v > 0);
     const z5Range = computeRepZ5Range(zDriftVals, 3);
     const s5Range = computeRepZ5Range(sDriftVals, 3);
-    setHint('z5', z5Range.lo, z5Range.hi, z5);
-    setHint('s5', s5Range.lo, s5Range.hi, s5);
+    if (z5Range.passable) setHint('z5', z5Range.lo, z5Range.hi, z5);
+    else setHintRef('z5', z5Range.lo);
+    if (s5Range.passable) setHint('s5', s5Range.lo, s5Range.hi, s5);
+    else setHintRef('s5', s5Range.lo);
 
     // Z6/Z7: Z5 기준 ±3% (Z5 미입력 시 Z1 사용)
     const zRef = !isNaN(z5) ? z5 : z1;
