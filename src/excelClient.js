@@ -19,20 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import XLSX from 'xlsx';
 
-// 번들링 환경(Vercel esbuild)에서 import.meta.url이 entry 파일을 가리킬 수 있으므로
-// process.cwd()를 우선, import.meta.url 기반을 폴백으로 사용
 const _metaDir = dirname(fileURLToPath(import.meta.url));
-const _cwdRoot  = process.cwd();
-// src/ 하위에 있으면 한 단계 올라가고, 아니면 그대로 사용
-const PROJECT_ROOT = (() => {
-  // import.meta.url 기반 경로에서 실제 파일 확인
-  const fromMeta = join(_metaDir, '..');
-  for (const name of ['Version11_(2026).xlsx', 'data.xlsx']) {
-    if (existsSync(join(fromMeta, name))) return fromMeta;
-    if (existsSync(join(_cwdRoot, name))) return _cwdRoot;
-  }
-  return fromMeta; // 폴백
-})();
 
 /** 기본 DB 파일명(우선순위 순). 첫 번째로 존재하는 파일을 사용한다. */
 const DEFAULT_DATA_FILES = ['Version11_(2026).xlsx', 'data.xlsx'];
@@ -42,25 +29,30 @@ const FEE_SHEET = 'Sheet5';
 
 /** 실제로 읽을 엑셀 DB 경로를 결정한다. */
 function resolveDataPath() {
-  // 1. 환경변수 우선 (배포 환경에서 경로 교체 가능).
+  // 1. 환경변수 우선
   const fromEnv = process.env.KTL_DATA_FILE;
   if (fromEnv) {
-    const envPath = isAbsolute(fromEnv) ? fromEnv : join(PROJECT_ROOT, fromEnv);
-    if (existsSync(envPath)) return envPath;
-    // cwd 기반도 시도
-    const cwdPath = isAbsolute(fromEnv) ? fromEnv : join(_cwdRoot, fromEnv);
-    if (existsSync(cwdPath)) return cwdPath;
-    throw new Error(`KTL_DATA_FILE이 가리키는 파일을 찾을 수 없습니다: ${fromEnv}`);
+    const p = isAbsolute(fromEnv) ? fromEnv : join(process.cwd(), fromEnv);
+    if (existsSync(p)) return p;
+    throw new Error(`KTL_DATA_FILE 경로를 찾을 수 없습니다: ${fromEnv}`);
   }
-  // 2. 기본 후보 중 존재하는 첫 파일 (PROJECT_ROOT, cwd 순으로 탐색).
-  for (const base of [PROJECT_ROOT, _cwdRoot]) {
+  // 2. 후보 경로 순서대로 탐색:
+  //    ① import.meta.url 기준 (로컬/개발: src/ → 프로젝트 루트)
+  //    ② process.cwd() 기준 (Vercel 번들링: /var/task)
+  const bases = [
+    join(_metaDir, '..'),   // src/ 기준 → 프로젝트 루트
+    join(_metaDir, '../..'), // 혹시 중첩 번들인 경우
+    process.cwd(),           // Vercel: /var/task
+  ];
+  for (const base of bases) {
     for (const name of DEFAULT_DATA_FILES) {
       const candidate = join(base, name);
       if (existsSync(candidate)) return candidate;
     }
   }
   throw new Error(
-    `엑셀 DB 파일을 찾을 수 없습니다 (${DEFAULT_DATA_FILES.join(', ')}). cwd=${_cwdRoot}`,
+    `엑셀 DB 파일을 찾을 수 없습니다 (${DEFAULT_DATA_FILES.join(', ')}). ` +
+    `검색 경로: ${bases.join(', ')}`,
   );
 }
 
