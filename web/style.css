@@ -1576,15 +1576,17 @@ select.field__control {
 
 /* ── 채팅 토큰 뱃지 ───────────────────────────────────────── */
 .chat-token-badge {
-  display: flex; align-items: center; gap: 4px;
-  margin-top: 6px; padding-top: 6px;
-  border-top: 1px solid var(--border);
-  font-size: 10px; color: var(--text-dim);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 8px; padding: 6px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 12px; color: var(--text);
 }
-.chat-token-badge__item { font-variant-numeric: tabular-nums; }
-.chat-token-badge__thinking { font-variant-numeric: tabular-nums; color: var(--warn); }
-.chat-token-badge__sep { opacity: .4; }
-.chat-token-badge__total { font-weight: 600; color: var(--text-dim); }
+.chat-token-badge__item { font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.chat-token-badge__thinking { font-variant-numeric: tabular-nums; color: var(--warn); font-weight: 600; }
+.chat-token-badge__sep { opacity: .35; }
+.chat-token-badge__total { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 
 /* ── 지식베이스 활용 태그 ──────────────────────────────────── */
 .chat-kb-tag {

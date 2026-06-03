@@ -156,18 +156,19 @@ function appendTokenBadge(msgEl, tokens) {
   const thinking = tokens.total - tokens.input - tokens.output;
   const badge = document.createElement('div');
   badge.className = 'chat-token-badge';
-  let html =
-    `<span class="chat-token-badge__item" title="입력 토큰">↑${tokens.input.toLocaleString()} 입력</span>` +
+  let html = `<span style="opacity:.5;font-size:11px">🔢 토큰</span>` +
+    `<span class="chat-token-badge__sep">|</span>` +
+    `<span class="chat-token-badge__item" title="입력 토큰">입력 ${tokens.input.toLocaleString()}</span>` +
     `<span class="chat-token-badge__sep">·</span>`;
   if (thinking > 0) {
     html +=
-      `<span class="chat-token-badge__thinking" title="추론(thinking) 토큰">💭${thinking.toLocaleString()} 추론</span>` +
+      `<span class="chat-token-badge__thinking" title="추론 토큰">추론 ${thinking.toLocaleString()}</span>` +
       `<span class="chat-token-badge__sep">·</span>`;
   }
   html +=
-    `<span class="chat-token-badge__item" title="출력 토큰">↓${tokens.output.toLocaleString()} 출력</span>` +
+    `<span class="chat-token-badge__item" title="출력 토큰">출력 ${tokens.output.toLocaleString()}</span>` +
     `<span class="chat-token-badge__sep">·</span>` +
-    `<span class="chat-token-badge__total" title="합계">합계 ${tokens.total.toLocaleString()}</span>`;
+    `<span class="chat-token-badge__total" title="합계 토큰">합계 ${tokens.total.toLocaleString()}</span>`;
   badge.innerHTML = html;
   msgEl.appendChild(badge);
 }
