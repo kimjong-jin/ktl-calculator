@@ -19,8 +19,20 @@ import { fileURLToPath } from 'node:url';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import XLSX from 'xlsx';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, '..');
+// 번들링 환경(Vercel esbuild)에서 import.meta.url이 entry 파일을 가리킬 수 있으므로
+// process.cwd()를 우선, import.meta.url 기반을 폴백으로 사용
+const _metaDir = dirname(fileURLToPath(import.meta.url));
+const _cwdRoot  = process.cwd();
+// src/ 하위에 있으면 한 단계 올라가고, 아니면 그대로 사용
+const PROJECT_ROOT = (() => {
+  // import.meta.url 기반 경로에서 실제 파일 확인
+  const fromMeta = join(_metaDir, '..');
+  for (const name of ['Version11_(2026).xlsx', 'data.xlsx']) {
+    if (existsSync(join(fromMeta, name))) return fromMeta;
+    if (existsSync(join(_cwdRoot, name))) return _cwdRoot;
+  }
+  return fromMeta; // 폴백
+})();
 
 /** 기본 DB 파일명(우선순위 순). 첫 번째로 존재하는 파일을 사용한다. */
 const DEFAULT_DATA_FILES = ['Version11_(2026).xlsx', 'data.xlsx'];
@@ -35,15 +47,20 @@ function resolveDataPath() {
   if (fromEnv) {
     const envPath = isAbsolute(fromEnv) ? fromEnv : join(PROJECT_ROOT, fromEnv);
     if (existsSync(envPath)) return envPath;
+    // cwd 기반도 시도
+    const cwdPath = isAbsolute(fromEnv) ? fromEnv : join(_cwdRoot, fromEnv);
+    if (existsSync(cwdPath)) return cwdPath;
     throw new Error(`KTL_DATA_FILE이 가리키는 파일을 찾을 수 없습니다: ${fromEnv}`);
   }
-  // 2. 기본 후보 중 존재하는 첫 파일.
-  for (const name of DEFAULT_DATA_FILES) {
-    const candidate = join(PROJECT_ROOT, name);
-    if (existsSync(candidate)) return candidate;
+  // 2. 기본 후보 중 존재하는 첫 파일 (PROJECT_ROOT, cwd 순으로 탐색).
+  for (const base of [PROJECT_ROOT, _cwdRoot]) {
+    for (const name of DEFAULT_DATA_FILES) {
+      const candidate = join(base, name);
+      if (existsSync(candidate)) return candidate;
+    }
   }
   throw new Error(
-    `엑셀 DB 파일을 찾을 수 없습니다 (${DEFAULT_DATA_FILES.join(', ')}).`,
+    `엑셀 DB 파일을 찾을 수 없습니다 (${DEFAULT_DATA_FILES.join(', ')}). cwd=${_cwdRoot}`,
   );
 }
 
