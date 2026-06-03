@@ -973,6 +973,30 @@ select.field__control {
   border-color: rgba(248,81,73,0.35);
 }
 
+/* ── 직선성 평균 요약바 ──────────────────────────────────── */
+.pv-lin-summary {
+  display: none; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 8px; padding: 7px 14px;
+  border-radius: var(--r-md); font-size: 13px; font-weight: 600;
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+}
+.pv-lin-summary:not(:empty) { display: flex; }
+.pv-lin-summary__label { color: var(--text); font-variant-numeric: tabular-nums; }
+.pv-lin-summary__range { color: var(--text-dim); font-size: 12px; }
+.pv-lin-summary__sep   { color: var(--text-dim); opacity: .4; }
+.pv-lin-summary__status { font-weight: 700; }
+.pv-lin-summary--ok {
+  background: rgba(63,185,80,0.1);
+  border-color: rgba(63,185,80,0.4);
+}
+.pv-lin-summary--ok .pv-lin-summary__status { color: var(--pass); }
+.pv-lin-summary--ng {
+  background: rgba(248,81,73,0.08);
+  border-color: rgba(248,81,73,0.35);
+}
+.pv-lin-summary--ng .pv-lin-summary__status { color: var(--fail, #f85149); }
+
 /* ── 응답시간 토글 (TU/CL) ──────────────────────────────────── */
 .pv-resp-water { display: flex; flex-direction: column; gap: 6px; }
 .pv-resp-toggle {

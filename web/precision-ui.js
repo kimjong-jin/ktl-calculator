@@ -651,11 +651,8 @@ function updateInlineHints(code) {
       setHint('s7', sRef-repTol(sRef), sRef+repTol(sRef), gv('s7'));
     }
 
-    // 직선성 M1/M2/M3: ref = range × 0.45, 각 측정값이 ref ± 5% 이내 목표
-    const ref = range * 0.45;
-    setLinHint('m1', ref, gv('m1'));
-    setLinHint('m2', ref, gv('m2'));
-    setLinHint('m3', ref, gv('m3'));
+    // 직선성: 평균(M1,M2,M3) vs ref 요약바
+    updateLinSummary(range);
     return;
   }
 
@@ -670,10 +667,31 @@ function updateInlineHints(code) {
     ['s2','s3','s4','s5'].forEach(id => {
       setHint(id, !isNaN(s1) ? s1-repT(s1) : NaN, !isNaN(s1) ? s1+repT(s1) : NaN, gv(id));
     });
-    // 직선성 M1 (먹는물은 1점)
-    const ref = range * 0.45;
-    setLinHint('m1', ref, gv('m1'));
+    // 직선성 요약바
+    updateLinSummary(range);
   }
+}
+
+function updateLinSummary(range) {
+  const el = document.getElementById('pv_lin_summary');
+  if (!el) return;
+  const ref = range * 0.45;
+  const vals = [gv('m1'), gv('m2'), gv('m3')].filter(v => !isNaN(v));
+  if (!range || vals.length === 0) { el.className = 'pv-lin-summary'; el.innerHTML = ''; return; }
+
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const error = Math.abs((avg - ref) / ref * 100);
+  const pass = error <= 5.0;
+  const f = v => Number(v).toFixed(2);
+  const lo = ref * 0.95, hi = ref * 1.05;
+
+  el.className = 'pv-lin-summary pv-lin-summary--' + (pass ? 'ok' : 'ng');
+  el.innerHTML =
+    `<span class="pv-lin-summary__label">평균 ${f(avg)}</span>` +
+    `<span class="pv-lin-summary__sep">·</span>` +
+    `<span class="pv-lin-summary__range">목표 ${f(lo)} ~ ${f(hi)}</span>` +
+    `<span class="pv-lin-summary__sep">·</span>` +
+    `<span class="pv-lin-summary__status">${pass ? '✓ 적합' : '✗ ' + f(error) + '%'}</span>`;
 }
 
 // ── 실시간 입력 가이드 ───────────────────────────────────────
@@ -784,12 +802,14 @@ function switchTab(id) {
       saveData(id);
       updateGuide(tab.code);
       updateInlineHints(tab.code);
+      if (g('range')) updateLinSummary(g('range'));
       clearTimeout(calcTimer);
       calcTimer = setTimeout(() => calculate(id), 300);
     });
   });
   updateGuide(tab.code);
   updateInlineHints(tab.code);
+  if (g('range')) updateLinSummary(g('range'));
 
   if (IS_DO(tab.code) || hasData(tab.code)) calculate(id);
 }
@@ -865,48 +885,40 @@ function buildFormBasic(code) {
   <div class="pv-section">
     <h3 class="pv-section__title">시험일지 <span class="pv-hint">드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</span></h3>
     <div class="pv-zs-table">
-      <div class="pv-zs-header">
-        <div class="pv-zs-col-n">Z (제로)</div>
-        <div class="pv-zs-col-n">S (스팬)</div>
-      </div>
-      <div class="pv-zs-section-label">드리프트 초기구간</div>
+      <div class="pv-zs-section-label">초기구간</div>
       <div class="pv-zs-row">${zsCell('z1','1','z')}${zsCell('s1','1','s')}</div>
       <div class="pv-zs-row">${zsCell('z2','2','z')}${zsCell('s2','2','s')}</div>
-      <div class="pv-zs-section-label pv-zs-section-label--sep">드리프트 최종구간 (4시간 후)</div>
+      <div class="pv-zs-section-label pv-zs-section-label--sep">최종구간 (4시간 후)</div>
       <div class="pv-zs-row">${zsCell('z3','3','z')}${zsCell('s3','3','s')}</div>
       <div class="pv-zs-row">${zsCell('z4','4','z')}${zsCell('s4','4','s')}</div>
     </div>
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">반복성 별도 측정 <span class="pv-hint">Z5·S5 필수 / Z6·S6·Z7·S7 선택 — 미입력 시 드리프트 최원거리 자동 사용</span></h3>
+    <h3 class="pv-section__title">반복성 측정 <span class="pv-hint">1차 필수 · 2·3차 선택 (미입력 시 드리프트 최원거리 자동 사용)</span></h3>
     <div class="pv-zs-table">
-      <div class="pv-zs-header">
-        <div class="pv-zs-col-n">Z (제로)</div>
-        <div class="pv-zs-col-n">S (스팬)</div>
-      </div>
-      <div class="pv-zs-section-label">반복성 1차 (필수)</div>
+      <div class="pv-zs-section-label">1차 (필수)</div>
       <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
-      <div class="pv-zs-section-label pv-zs-section-label--sep">반복성 2·3차 (선택)</div>
+      <div class="pv-zs-section-label pv-zs-section-label--sep">2·3차 (선택)</div>
       <div class="pv-zs-row">${zsCell('z6','6','z')}${zsCell('s6','6','s')}</div>
       <div class="pv-zs-row">${zsCell('z7','7','z')}${zsCell('s7','7','s')}</div>
     </div>
-    <p class="pv-zs-note" style="margin-top:6px">Z6·Z7 미입력 시 드리프트 4개 값 중 Z5와 거리가 먼 2개로 자동 계산</p>
   </div>
 
   <div id="pv-input-guide" class="pv-guide-panel" hidden></div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">직선성 <span class="pv-hint">오차 ≤ 5%</span></h3>
+    <h3 class="pv-section__title">직선성 <span class="pv-hint">평균값 오차 ≤ 5%</span></h3>
     <div class="pv-lin-wrap">
       <div class="pv-lin-header">
         <span>M1 — 저농도</span><span>M2 — 중농도</span><span>M3 — 고농도</span>
       </div>
       <div class="pv-lin-inputs">
-        <div class="pv-lin-cell">${ni('m1','')} <span class="pv-lin-hint" id="pv_hint_m1"></span></div>
-        <div class="pv-lin-cell">${ni('m2','')} <span class="pv-lin-hint" id="pv_hint_m2"></span></div>
-        <div class="pv-lin-cell">${ni('m3','')} <span class="pv-lin-hint" id="pv_hint_m3"></span></div>
+        <div class="pv-lin-cell">${ni('m1','')}</div>
+        <div class="pv-lin-cell">${ni('m2','')}</div>
+        <div class="pv-lin-cell">${ni('m3','')}</div>
       </div>
+      <div id="pv_lin_summary" class="pv-lin-summary"></div>
     </div>
   </div>
 
