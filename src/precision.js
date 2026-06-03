@@ -56,7 +56,9 @@ export function repeatability(zVals, sVals, range) {
     if (!vals || vals.length < 2) return { mean: NaN, rsd: NaN, pass: null };
     const m = mean(vals), s = sampleStd(vals);
     const rsd = (r > 0) ? s / r * 100 : pct(s, m);
-    return { mean: m, rsd, pass: rsd <= PRECISION_CRITERIA.repeatabilityRsd };
+    // 화면 표시(소수점 2자리) 기준으로 판정 — 3.0001%도 3.00%로 표시되므로 적합
+    const rsdRounded = Math.round(rsd * 100) / 100;
+    return { mean: m, rsd, pass: rsdRounded <= PRECISION_CRITERIA.repeatabilityRsd };
   };
   return { zero: calc(zVals, range), span: calc(sVals, range), limit: PRECISION_CRITERIA.repeatabilityRsd };
 }
