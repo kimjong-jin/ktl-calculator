@@ -1,6 +1,8 @@
-import { listTestItems, getSheetNames, getDataFileName } from '../../src/excelClient.js';
-import { readdirSync, existsSync } from 'node:fs';
+// node:fs / node:path 직접 import가 있어야 Vercel 번들러가
+// 파일 시스템 접근을 올바르게 처리합니다.
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { listTestItems, getSheetNames, getDataFileName } from '../../src/excelClient.js';
 
 export default function handler(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -16,15 +18,7 @@ export default function handler(req, res) {
       items,
     });
   } catch (e) {
-    const cwd = process.cwd();
-    let cwdFiles = [];
-    try { cwdFiles = readdirSync(cwd).filter(f => !f.startsWith('node_')).slice(0, 20); } catch {}
-    return res.status(503).json({
-      connected: false,
-      _cwd: cwd,
-      _cwdFiles: cwdFiles,
-      _xlsxExists: existsSync(join(cwd, 'Version11_(2026).xlsx')),
-      _err: e instanceof Error ? e.message : String(e),
-    });
+    console.error('[db/status]', e instanceof Error ? e.message : e);
+    return res.status(503).json({ connected: false });
   }
 }

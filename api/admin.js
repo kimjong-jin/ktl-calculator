@@ -6,6 +6,7 @@
  *
  * Authorization: Bearer <admin-token> 필수.
  */
+import { existsSync } from 'node:fs';
 import { verifyToken, generateInviteToken } from '../src/authService.js';
 import { listTestItems, getSheetNames, getDataFileName } from '../src/excelClient.js';
 
