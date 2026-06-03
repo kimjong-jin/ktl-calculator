@@ -1144,6 +1144,7 @@ select.field__control {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .06em; color: var(--text-dim); margin-bottom: 4px;
 }
+.pv-rep-card__vals { font-size: 10px; color: var(--text-dim); font-variant-numeric: tabular-nums; margin-bottom: 2px; }
 .pv-rep-card__mean { font-size: 11px; color: var(--text-dim); }
 .pv-rep-card__mean b { font-size: 15px; color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
 .pv-rep-card__rsd {

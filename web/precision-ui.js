@@ -151,14 +151,18 @@ function gauge(val, limit, label, lowerIsBetter = true) {
 }
 
 // 반복성 Z/S 카드 2열
-function repCards(rep) {
-  function card(label, cls, data) {
+function repCards(rep, zVals, sVals) {
+  function card(label, cls, data, vals) {
     const p = data.pass;
     const pc = p === null || p === undefined ? 'na' : p ? 'ok' : 'bad';
     const icon = p === null || p === undefined ? '' : p ? '✅' : '❌';
     const verdict = p === null || p === undefined ? '—' : p ? '적합' : '부적합';
+    const valsHtml = vals && vals.length
+      ? `<div class="pv-rep-card__vals">${vals.map(v=>fmt(v,3)).join(', ')}</div>`
+      : '';
     return `<div class="pv-rep-card pv-rep-card--${cls}">
       <div class="pv-rep-card__label">${label}</div>
+      ${valsHtml}
       <div class="pv-rep-card__mean">평균 <b>${fmt(data.mean, 3)}</b></div>
       <div class="pv-rep-card__rsd pv-rep-card__rsd--${pc}">${fmt(data.rsd, 2)}%</div>
       <div class="pv-rep-card__limit">기준 RSD ≤ ${rep.limit}%</div>
@@ -166,8 +170,8 @@ function repCards(rep) {
     </div>`;
   }
   return `<div class="pv-rep-cards">
-    ${card('Z 제로', 'z', rep.zero)}
-    ${card('S 스팬', 's', rep.span)}
+    ${card('Z 제로', 'z', rep.zero, zVals)}
+    ${card('S 스팬', 's', rep.span, sVals)}
   </div>`;
 }
 
@@ -205,18 +209,20 @@ function calcBasic(tab) {
   const driftSVals = [g('s1'),g('s2'),g('s3'),g('s4')].filter(v=>v>0);
   function repVals(a, b, c, driftVals) {
     const filled = [a,b,c].filter(v=>!isNaN(v)&&v>0);
-    if (filled.length>=3) return filled;          // Z5,Z6,Z7 모두 입력
+    if (filled.length>=3) return filled;
+    const need = 3 - filled.length;              // 드리프트에서 보충할 개수
     if (filled.length>=1) {
-      // Z5만 있으면 드리프트에서 가장 먼 2개 자동 선택
-      const sorted = driftVals.map(v=>({v,d:Math.abs(v-filled[0])})).sort((a,b)=>b.d-a.d);
-      return [filled[0], ...sorted.slice(0,2).map(x=>x.v)];
+      // 기준점(filled[0])에서 가장 먼 순으로 정렬, 동거리는 값이 큰 쪽 우선
+      const sorted = driftVals.map(v=>({v,d:Math.abs(v-filled[0])}))
+        .sort((a,b) => b.d-a.d || b.v-a.v);
+      return [...filled, ...sorted.slice(0,need).map(x=>x.v)];
     }
     return driftVals.slice(0,3); // 아무것도 없으면 드리프트 앞 3개
   }
   const zRepVals = repVals(z5v, z6v, z7v, driftZVals);
   const sRepVals = repVals(s5v, s6v, s7v, driftSVals);
   const rep = repeatability(zRepVals, sRepVals);
-  document.getElementById('pv-res-rep').innerHTML = repCards(rep);
+  document.getElementById('pv-res-rep').innerHTML = repCards(rep, zRepVals, sRepVals);
 
   // 드리프트: 초기[Z1,Z2] → 최종[Z3,Z4] / 초기[S1,S2] → 최종[S3,S4]
   const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')]);
