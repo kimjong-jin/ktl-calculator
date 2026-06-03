@@ -577,6 +577,41 @@ function renderLegal(el, d) {
     <div class="pv-legal-source">출처: ${d.출처} · ${d.조회일시} 기준</div>`;
 }
 
+// ── 반복성 Z5/S5 힌트: 드리프트 실제값 기반 RSD ≤ targetRSD% 통과 범위 수치계산 ──
+// repVals 로직 동일: Z5 + 드리프트에서 가장 먼 2개 → sampleStd/mean*100 ≤ 3%
+function computeRepZ5Range(driftVals, targetRSD) {
+  const valid = driftVals.filter(v => !isNaN(v) && v > 0);
+  if (valid.length === 0) return { lo: NaN, hi: NaN };
+
+  function rsdAt(z5) {
+    const byDist = [...valid].sort((a, b) => Math.abs(b - z5) - Math.abs(a - z5));
+    const others = byDist.slice(0, Math.min(2, byDist.length));
+    const vals = [z5, ...others];
+    const m = vals.reduce((a, b) => a + b, 0) / vals.length;
+    if (m <= 0) return Infinity;
+    const s = Math.sqrt(vals.reduce((a, v) => a + (v - m) ** 2, 0) / (vals.length - 1));
+    return s / m * 100;
+  }
+
+  const dMin = Math.min(...valid);
+  const dMax = Math.max(...valid);
+  const span = Math.max(dMax - dMin, dMin * 0.1);
+  const scanLo = Math.max(0, dMin - span);
+  const scanHi = dMax + span;
+  const steps = 500;
+  const step = (scanHi - scanLo) / steps;
+
+  let lo = NaN, hi = NaN;
+  for (let i = 0; i <= steps; i++) {
+    const x = scanLo + i * step;
+    if (rsdAt(x) <= targetRSD) {
+      if (isNaN(lo)) lo = x;
+      hi = x;
+    }
+  }
+  return { lo, hi };
+}
+
 // ── 인라인 힌트 바 ───────────────────────────────────────────
 function setHint(id, lo, hi, cur) {
   const el = document.getElementById(`pv_hint_${id}`);
@@ -635,9 +670,13 @@ function updateInlineHints(code) {
     // ── 반복성(별도): RSD = σ/mean × 100 ≤ 3% ──────────────
     const repTol = v => v * 0.03;           // ±3% of ref value (RSD ≤ 3% 목표)
 
-    // Z5: Z1 기준 ±3% (같은 제로용액)
-    if (!isNaN(z1)) setHint('z5', z1-repTol(z1), z1+repTol(z1), z5);
-    if (!isNaN(s1)) setHint('s5', s1-repTol(s1), s1+repTol(s1), s5);
+    // Z5/S5: 드리프트 실제값 기반 — [Z5 + 2개 최원거리 드리프트] RSD ≤ 3% 통과 범위
+    const zDriftVals = [z1,z2,z3,z4].filter(v => !isNaN(v) && v > 0);
+    const sDriftVals = [s1,s2,s3,s4].filter(v => !isNaN(v) && v > 0);
+    const z5Range = computeRepZ5Range(zDriftVals, 3);
+    const s5Range = computeRepZ5Range(sDriftVals, 3);
+    setHint('z5', z5Range.lo, z5Range.hi, z5);
+    setHint('s5', s5Range.lo, s5Range.hi, s5);
 
     // Z6/Z7: Z5 기준 ±3% (Z5 미입력 시 Z1 사용)
     const zRef = !isNaN(z5) ? z5 : z1;
