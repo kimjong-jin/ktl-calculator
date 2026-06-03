@@ -590,57 +590,79 @@ function setHint(id, lo, hi, cur) {
   el.textContent = `${f(lo)} ~ ${f(hi)}`;
 }
 
+// 직선성 M 힌트 (기준값 ref ± 5%)
+function setLinHint(id, ref, cur) {
+  const el = document.getElementById(`pv_hint_${id}`);
+  if (!el) return;
+  if (isNaN(ref)) { el.className = 'pv-lin-hint'; el.textContent = ''; return; }
+  const f = v => Number(v).toFixed(2).replace(/\.?0+$/, '');
+  const lo = ref * 0.95, hi = ref * 1.05;
+  const inRange = !isNaN(cur) && cur >= lo && cur <= hi;
+  const outRange = !isNaN(cur) && (cur < lo || cur > hi);
+  el.className = 'pv-lin-hint' +
+    (inRange ? ' pv-lin-hint--ok' : outRange ? ' pv-lin-hint--ng' : '');
+  el.textContent = `목표 ${f(lo)} ~ ${f(hi)}`;
+}
+
 function updateInlineHints(code) {
   const range = g('range');
 
   // ── 기본형: TOC/TN/TP/SS/COD ──────────────────────────────
   if (IS_BASIC(code) || IS_COD(code)) {
-    if (!range) {
-      ['z2','z3','z4','z5','z6','z7','s2','s3','s4','s5','s6','s7'].forEach(id => setHint(id, NaN, NaN, NaN));
-      return;
-    }
-    const tol = range * 0.05;           // 드리프트 허용: ±5% of range
-    const repTol = v => v * 0.05;       // 반복성 목표: ±5% of value (넉넉하게)
+    const clear = ids => ids.forEach(id => setHint(id, NaN, NaN, NaN));
+    if (!range) { clear(['z2','z3','z4','z5','z6','z7','s2','s3','s4','s5','s6','s7']); return; }
+
+    const tol   = range * 0.05;       // 드리프트 허용: ±5% of range
+    const repT  = v => v * 0.05;      // 반복성 목표: ±5% of ref value
 
     const z1=gv('z1'), z2=gv('z2'), z3=gv('z3'), z4=gv('z4');
     const s1=gv('s1'), s2=gv('s2'), s3=gv('s3'), s4=gv('s4');
     const z5=gv('z5'), s5=gv('s5');
-    const ziMean = (!isNaN(z1) && !isNaN(z2)) ? (z1+z2)/2 : z1;
-    const siMean = (!isNaN(s1) && !isNaN(s2)) ? (s1+s2)/2 : s1;
+    const ziMean = !isNaN(z1) && !isNaN(z2) ? (z1+z2)/2 : z1;
+    const siMean = !isNaN(s1) && !isNaN(s2) ? (s1+s2)/2 : s1;
 
     // 드리프트
-    setHint('z2', !isNaN(z1) ? z1-tol : NaN, !isNaN(z1) ? z1+tol : NaN, z2);
+    setHint('z2', !isNaN(z1) ? z1-tol : NaN,       !isNaN(z1) ? z1+tol : NaN,       z2);
     setHint('z3', !isNaN(ziMean) ? ziMean-tol : NaN, !isNaN(ziMean) ? ziMean+tol : NaN, z3);
     setHint('z4', !isNaN(ziMean) ? ziMean-tol : NaN, !isNaN(ziMean) ? ziMean+tol : NaN, z4);
-    setHint('s2', !isNaN(s1) ? s1-tol : NaN, !isNaN(s1) ? s1+tol : NaN, s2);
+    setHint('s2', !isNaN(s1) ? s1-tol : NaN,        !isNaN(s1) ? s1+tol : NaN,        s2);
     setHint('s3', !isNaN(siMean) ? siMean-tol : NaN, !isNaN(siMean) ? siMean+tol : NaN, s3);
     setHint('s4', !isNaN(siMean) ? siMean-tol : NaN, !isNaN(siMean) ? siMean+tol : NaN, s4);
 
-    // 반복성: Z5 기준점(없으면 Z1 사용), Z6/Z7은 Z5 기준
+    // 반복성 Z5/S5는 기준점 — Z6/Z7은 Z5 기준 ±5%
     const zRef = !isNaN(z5) ? z5 : z1;
     const sRef = !isNaN(s5) ? s5 : s1;
     if (!isNaN(zRef)) {
-      setHint('z6', zRef - repTol(zRef), zRef + repTol(zRef), gv('z6'));
-      setHint('z7', zRef - repTol(zRef), zRef + repTol(zRef), gv('z7'));
+      setHint('z6', zRef - repT(zRef), zRef + repT(zRef), gv('z6'));
+      setHint('z7', zRef - repT(zRef), zRef + repT(zRef), gv('z7'));
     }
     if (!isNaN(sRef)) {
-      setHint('s6', sRef - repTol(sRef), sRef + repTol(sRef), gv('s6'));
-      setHint('s7', sRef - repTol(sRef), sRef + repTol(sRef), gv('s7'));
+      setHint('s6', sRef - repT(sRef), sRef + repT(sRef), gv('s6'));
+      setHint('s7', sRef - repT(sRef), sRef + repT(sRef), gv('s7'));
     }
+
+    // 직선성 M1/M2/M3: ref = range × 0.45, 각 측정값이 ref ± 5% 이내 목표
+    const ref = range * 0.45;
+    setLinHint('m1', ref, gv('m1'));
+    setLinHint('m2', ref, gv('m2'));
+    setLinHint('m3', ref, gv('m3'));
     return;
   }
 
   // ── 먹는물: TU/CL ─────────────────────────────────────────
   if (IS_WATER(code)) {
     if (!range) return;
-    const repTol = v => v * 0.04; // 반복성 2% RSD → ±4% 목표범위
+    const repT = v => v * 0.04; // 반복성 2% RSD 기준 → ±4% 목표범위
     const z1=gv('z1'), s1=gv('s1');
     ['z2','z3','z4','z5'].forEach(id => {
-      if (!isNaN(z1)) setHint(id, z1-repTol(z1), z1+repTol(z1), gv(id));
+      setHint(id, !isNaN(z1) ? z1-repT(z1) : NaN, !isNaN(z1) ? z1+repT(z1) : NaN, gv(id));
     });
     ['s2','s3','s4','s5'].forEach(id => {
-      if (!isNaN(s1)) setHint(id, s1-repTol(s1), s1+repTol(s1), gv(id));
+      setHint(id, !isNaN(s1) ? s1-repT(s1) : NaN, !isNaN(s1) ? s1+repT(s1) : NaN, gv(id));
     });
+    // 직선성 M1 (먹는물은 1점)
+    const ref = range * 0.45;
+    setLinHint('m1', ref, gv('m1'));
   }
 }
 
@@ -803,10 +825,14 @@ function ni(id, label, placeholder='0') {
 function zsCell(id, num, type) {
   const val = stored[id] ?? '';
   const cls = type === 'z' ? 'z' : 's';
+  // 1번(Z1/S1)은 기준점 고정 라벨, 나머지는 동적 힌트
+  const hintHtml = num === '1'
+    ? `<span class="pv-zs-range-hint pv-zs-range-hint--ref">기준점</span>`
+    : `<span class="pv-zs-range-hint" id="pv_hint_${id}"></span>`;
   return `<div class="pv-zs-cell pv-zs-cell--${cls}">
     <span class="pv-zs-badge pv-zs-badge--${cls}">${type.toUpperCase()}${num}</span>
     <input class="field__control pv-zs-input" id="pv_${id}" type="number" step="any" placeholder="0" value="${val}" />
-    <span class="pv-zs-range-hint" id="pv_hint_${id}"></span>
+    ${hintHtml}
   </div>`;
 }
 
@@ -867,9 +893,9 @@ function buildFormBasic(code) {
         <span>M1 — 저농도</span><span>M2 — 중농도</span><span>M3 — 고농도</span>
       </div>
       <div class="pv-lin-inputs">
-        <div class="pv-lin-cell">${ni('m1','')}</div>
-        <div class="pv-lin-cell">${ni('m2','')}</div>
-        <div class="pv-lin-cell">${ni('m3','')}</div>
+        <div class="pv-lin-cell">${ni('m1','')} <span class="pv-lin-hint" id="pv_hint_m1"></span></div>
+        <div class="pv-lin-cell">${ni('m2','')} <span class="pv-lin-hint" id="pv_hint_m2"></span></div>
+        <div class="pv-lin-cell">${ni('m3','')} <span class="pv-lin-hint" id="pv_hint_m3"></span></div>
       </div>
     </div>
   </div>

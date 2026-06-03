@@ -938,6 +938,11 @@ select.field__control {
   transition: background .15s, color .15s, border-color .15s;
 }
 .pv-zs-range-hint:empty { display: none; }
+.pv-zs-range-hint--ref {
+  background: rgba(130,80,255,0.10);
+  color: #8a4fff;
+  border-color: rgba(130,80,255,0.3);
+}
 .pv-zs-range-hint--ok {
   background: rgba(63,185,80,0.15);
   color: var(--pass);
@@ -946,6 +951,25 @@ select.field__control {
 .pv-zs-range-hint--ng {
   background: rgba(248,81,73,0.12);
   color: var(--fail, #f85149);
+  border-color: rgba(248,81,73,0.35);
+}
+
+/* ── 직선성 인라인 힌트 ─────────────────────────────────────── */
+.pv-lin-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pv-lin-hint {
+  font-size: 10px; font-weight: 600;
+  padding: 2px 7px; border-radius: 20px; white-space: nowrap;
+  background: var(--surface-2); color: var(--text-dim);
+  border: 1px solid var(--border);
+  text-align: center; transition: background .15s, color .15s;
+}
+.pv-lin-hint:empty { display: none; }
+.pv-lin-hint--ok {
+  background: rgba(63,185,80,0.15); color: var(--pass);
+  border-color: rgba(63,185,80,0.4);
+}
+.pv-lin-hint--ng {
+  background: rgba(248,81,73,0.12); color: var(--fail, #f85149);
   border-color: rgba(248,81,73,0.35);
 }
 
