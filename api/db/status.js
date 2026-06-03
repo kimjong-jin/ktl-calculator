@@ -1,8 +1,10 @@
-// node:fs / node:path 직접 import가 있어야 Vercel 번들러가
-// 파일 시스템 접근을 올바르게 처리합니다.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { listTestItems, getSheetNames, getDataFileName } from '../../src/excelClient.js';
+
+// DB 파일 유효성 사전 확인 (번들러가 node:fs/path를 tree-shake 하지 않도록 실제 사용)
+const _dbOk = existsSync(join(process.cwd(), 'Version11_(2026).xlsx'))
+  || existsSync(join(process.cwd(), 'data.xlsx'));
 
 export default function handler(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -19,6 +21,6 @@ export default function handler(req, res) {
     });
   } catch (e) {
     console.error('[db/status]', e instanceof Error ? e.message : e);
-    return res.status(503).json({ connected: false });
+    return res.status(503).json({ connected: false, _dbOk });
   }
 }

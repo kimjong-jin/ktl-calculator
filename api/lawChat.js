@@ -2,9 +2,10 @@
  * /api/lawChat — 수질TMS 정도검사 전문 AI 챗봇 (Gemini + 지식베이스 + 국가법령정보).
  * POST { message, history? } → { reply, lawRef?, knowledgeUsed?, tokens? }
  */
-// node:fs 직접 import — Vercel 번들러 파일 시스템 처리에 필요
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { searchKnowledge } from '../src/knowledgeBase.js';
+const _fsOk = existsSync(join(process.cwd(), 'knowledge'));
 
 const MODEL = "gemini-2.5-flash";
 const TIMEOUT_MS = 30_000;

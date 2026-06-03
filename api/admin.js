@@ -7,8 +7,11 @@
  * Authorization: Bearer <admin-token> 필수.
  */
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { verifyToken, generateInviteToken } from '../src/authService.js';
 import { listTestItems, getSheetNames, getDataFileName } from '../src/excelClient.js';
+const _dbOk = existsSync(join(process.cwd(), 'Version11_(2026).xlsx'))
+  || existsSync(join(process.cwd(), 'data.xlsx'));
 
 function requireAdmin(req) {
   const auth = (req.headers && req.headers['authorization']) || '';
