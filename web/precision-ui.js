@@ -140,12 +140,14 @@ function row(k, v) { return `<div class="pv-line"><span>${k}</span><b>${v}</b></
 // 심플 1줄 게이지
 function gauge(val, limit, label, lowerIsBetter = true) {
   if (!val && val !== 0) return '';
-  const pass = lowerIsBetter ? val <= limit : val >= limit;
+  // 엑셀: ROUND(val, 1) <= limit 기준
+  const r1val = Math.round(val * 10) / 10;
+  const pass = lowerIsBetter ? r1val <= limit : r1val >= limit;
   const cls = pass ? 'ok' : 'bad';
-  const pct = Math.min((val / (limit * 2)) * 100, 100);
+  const pct = Math.min((r1val / (limit * 2)) * 100, 100);
   return `<div class="pv-sg">
     <span class="pv-sg__label">${label}</span>
-    <span class="pv-sg__val pv-sg__val--${cls}">${fmt(val,2)}%</span>
+    <span class="pv-sg__val pv-sg__val--${cls}">${r1val.toFixed(1)}%</span>
     <div class="pv-sg__bar"><div class="pv-sg__fill pv-sg__fill--${cls}" style="width:${pct}%"></div></div>
     <span class="pv-sg__limit">기준 ${limit}%</span>
     <span class="pv-sg__icon">${pass ? '✅' : '❌'}</span>
@@ -812,12 +814,14 @@ function updateDriftSummary(range) {
   const zd = hasZ ? Math.abs(((z3+z4)/2 - (z1+z2)/2) / range * 100) : null;
   const sd = hasS ? Math.abs(((s3+s4)/2 - (s1+s2)/2) / range * 100) : null;
   const limit = 5;
-  const zPass = zd !== null ? zd <= limit : null;
-  const sPass = sd !== null ? sd <= limit : null;
+  // 엑셀: ROUND(drift, 1) <= 5 기준
+  const r1 = v => Math.round(v * 10) / 10;
+  const zPass = zd !== null ? r1(zd) <= limit : null;
+  const sPass = sd !== null ? r1(sd) <= limit : null;
   const allPass = [zPass,sPass].filter(v=>v!==null).every(Boolean);
   const parts = [];
-  if (zd !== null) parts.push(`Z ${f2(zd)}%`);
-  if (sd !== null) parts.push(`S ${f2(sd)}%`);
+  if (zd !== null) parts.push(`Z ${r1(zd).toFixed(1)}%`);
+  if (sd !== null) parts.push(`S ${r1(sd).toFixed(1)}%`);
   parts.push(`기준 ≤${limit}%`);
   el.className = 'pv-lin-summary pv-lin-summary--' + (allPass ? 'ok' : 'ng');
   el.innerHTML = parts.map((t,i) => i<parts.length-1
