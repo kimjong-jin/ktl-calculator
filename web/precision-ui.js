@@ -622,7 +622,8 @@ function computeRepZ5Range(initVals, finVals, range) {
   let lo = NaN, hi = NaN;
   for (let i = 0; i <= STEPS; i++) {
     const x = scanLo + i * step;
-    if (worstStdAt(x) <= 3) {
+    // 엑셀 ROUND(x,1) 기준으로 판정 — 힌트 범위도 동일하게 적용
+    if (Math.round(worstStdAt(x) * 10) / 10 <= 3) {
       if (isNaN(lo)) lo = x;
       hi = x;
     }
