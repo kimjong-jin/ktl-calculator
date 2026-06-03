@@ -986,8 +986,8 @@ function ni(id, label, placeholder='0') {
 function zsCell(id, num, type) {
   const val = stored[id] ?? '';
   const cls = type === 'z' ? 'z' : 's';
-  // Z1/S1 = 드리프트 기준점, Z5/S5 = 반복성 기준점
-  const hintHtml = num === '1'
+  // Z1/Z2/S1/S2 = 드리프트 초기 기준점, Z5/S5 = 반복성 기준점
+  const hintHtml = (num === '1' || num === '2')
     ? `<span class="pv-zs-range-hint pv-zs-range-hint--ref">기준점</span>`
     : `<span class="pv-zs-range-hint" id="pv_hint_${id}"></span>`;
   return `<div class="pv-zs-cell pv-zs-cell--${cls}">
