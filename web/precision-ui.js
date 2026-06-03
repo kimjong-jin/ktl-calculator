@@ -201,26 +201,9 @@ function calcBasic(tab) {
   const range = g('range');
   if (!range) return;
 
-  // 반복성: 별도 측정 Z5,Z6,Z7 / S5,S6,S7
-  // Z6,Z7 미입력 시 드리프트 값에서 가장 먼 2개 자동 사용
-  const z5v=gv('z5'), z6v=gv('z6'), z7v=gv('z7');
-  const s5v=gv('s5'), s6v=gv('s6'), s7v=gv('s7');
-  const driftZVals = [g('z1'),g('z2'),g('z3'),g('z4')].filter(v=>v>0);
-  const driftSVals = [g('s1'),g('s2'),g('s3'),g('s4')].filter(v=>v>0);
-  function repVals(a, b, c, driftVals) {
-    const filled = [a,b,c].filter(v=>!isNaN(v)&&v>0);
-    if (filled.length>=3) return filled;
-    const need = 3 - filled.length;              // 드리프트에서 보충할 개수
-    if (filled.length>=1) {
-      // 기준점(filled[0])에서 가장 먼 순으로 정렬, 동거리는 값이 큰 쪽 우선
-      const sorted = driftVals.map(v=>({v,d:Math.abs(v-filled[0])}))
-        .sort((a,b) => b.d-a.d || b.v-a.v);
-      return [...filled, ...sorted.slice(0,need).map(x=>x.v)];
-    }
-    return driftVals.slice(0,3); // 아무것도 없으면 드리프트 앞 3개
-  }
-  const zRepVals = repVals(z5v, z6v, z7v, driftZVals);
-  const sRepVals = repVals(s5v, s6v, s7v, driftSVals);
+  // 반복성: 입력값만 사용 (드리프트 자동 보충 없음 — 드리프트값은 시간이 달라 반복성 불가)
+  const zRepVals = [gv('z5'),gv('z6'),gv('z7')].filter(v=>!isNaN(v)&&v>0);
+  const sRepVals = [gv('s5'),gv('s6'),gv('s7')].filter(v=>!isNaN(v)&&v>0);
   const rep = repeatability(zRepVals, sRepVals);
   document.getElementById('pv-res-rep').innerHTML = repCards(rep, zRepVals, sRepVals);
 
@@ -691,16 +674,9 @@ function updateInlineHints(code) {
     // ── 반복성(별도): RSD = σ/mean × 100 ≤ 3% ──────────────
     const repTol = v => v * 0.03;           // ±3% of ref value (RSD ≤ 3% 목표)
 
-    // Z5/S5: 드리프트 실제값 기반 — [Z5 + 2개 최원거리 드리프트] RSD ≤ 3% 통과 범위
-    // passable=false 시 드리프트 평균을 보라색 "참고" 표시 (진입해도 부적합임을 구분)
-    const zDriftVals = [z1,z2,z3,z4].filter(v => !isNaN(v) && v > 0);
-    const sDriftVals = [s1,s2,s3,s4].filter(v => !isNaN(v) && v > 0);
-    const z5Range = computeRepZ5Range(zDriftVals, 3);
-    const s5Range = computeRepZ5Range(sDriftVals, 3);
-    if (z5Range.passable) setHint('z5', z5Range.lo, z5Range.hi, z5);
-    else setHintRef('z5', z5Range.lo);
-    if (s5Range.passable) setHint('s5', s5Range.lo, s5Range.hi, s5);
-    else setHintRef('s5', s5Range.lo);
+    // Z5/S5: Z1/S1 기준 ±3% (반복성은 초기 기준점과 같은 용액)
+    if (!isNaN(z1)) setHint('z5', z1-repTol(z1), z1+repTol(z1), z5);
+    if (!isNaN(s1)) setHint('s5', s1-repTol(s1), s1+repTol(s1), s5);
 
     // Z6/Z7: Z5 기준 ±3% (Z5 미입력 시 Z1 사용)
     const zRef = !isNaN(z5) ? z5 : z1;
@@ -959,7 +935,7 @@ function buildFormBasic(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">반복성 측정 <span class="pv-hint">1차 필수 · 2·3차 선택 (미입력 시 드리프트 최원거리 자동 사용)</span></h3>
+    <h3 class="pv-section__title">반복성 측정 <span class="pv-hint">1차 필수 · 2·3차 선택</span></h3>
     <div class="pv-zs-table">
       <div class="pv-zs-section-label">1차 (필수)</div>
       <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
