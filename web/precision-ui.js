@@ -166,7 +166,7 @@ function repCards(rep, zVals, sVals) {
       <div class="pv-rep-card__label">${label}</div>
       ${valsHtml}
       <div class="pv-rep-card__mean">평균 <b>${isNaN(data.mean) ? '—' : fmt(data.mean, 3)}</b></div>
-      <div class="pv-rep-card__rsd pv-rep-card__rsd--${pc}">${isNaN(data.rsd) ? '측정값 부족' : fmt(data.rsd, 2)+'%'}</div>
+      <div class="pv-rep-card__rsd pv-rep-card__rsd--${pc}">${isNaN(data.rsd) ? '측정값 부족' : (Math.round(data.rsd*10)/10).toFixed(1)+'%'}</div>
       <div class="pv-rep-card__limit">기준 RSD ≤ ${rep.limit}%</div>
       <div class="pv-rep-card__verdict pv-rep-card__verdict--${pc}">${icon} ${verdict}</div>
     </div>`;
@@ -815,8 +815,8 @@ function updateRepSummary(range) {
   const sPass = sRsd !== null ? Math.round(sRsd * 10) / 10 <= limit : null;
   const allPass = [zPass,sPass].filter(v=>v!==null).every(Boolean);
   const parts = [];
-  if (zRsd !== null) parts.push(`Z ${f2(zRsd)}%`);
-  if (sRsd !== null) parts.push(`S ${f2(sRsd)}%`);
+  if (zRsd !== null) parts.push(`Z ${(Math.round(zRsd*10)/10).toFixed(1)}%`);
+  if (sRsd !== null) parts.push(`S ${(Math.round(sRsd*10)/10).toFixed(1)}%`);
   parts.push(`기준 ≤${limit}%`);
   el.className = 'pv-lin-summary pv-lin-summary--' + (allPass ? 'ok' : 'ng');
   el.innerHTML = parts.map((t,i) => i<parts.length-1
