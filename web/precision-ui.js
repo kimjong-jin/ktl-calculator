@@ -665,12 +665,15 @@ function setHint(id, lo, hi, cur) {
   const el = document.getElementById(`pv_hint_${id}`);
   if (!el) return;
   if (isNaN(lo) || isNaN(hi)) { el.className = 'pv-zs-range-hint'; el.textContent = ''; return; }
+  // 보수적 표시: 하한 올림(ceil), 상한 내림(floor) — 경계값 부동소수점 오차 방지
+  const loDisp = Math.ceil(lo * 1000) / 1000;
+  const hiDisp = Math.floor(hi * 1000) / 1000;
   const f = v => Number(v).toFixed(3).replace(/\.?0+$/, '');
-  const inRange = !isNaN(cur) && cur >= lo && cur <= hi;
-  const outRange = !isNaN(cur) && (cur < lo || cur > hi);
+  const inRange = !isNaN(cur) && cur >= loDisp && cur <= hiDisp;
+  const outRange = !isNaN(cur) && (cur < loDisp || cur > hiDisp);
   el.className = 'pv-zs-range-hint' +
     (inRange ? ' pv-zs-range-hint--ok' : outRange ? ' pv-zs-range-hint--ng' : '');
-  el.textContent = `${f(lo)} ~ ${f(hi)}`;
+  el.textContent = `${f(loDisp)} ~ ${f(hiDisp)}`;
 }
 
 // 통과 불가 참고점 — --ref(보라색) 고정, 녹/적 전환 없음
