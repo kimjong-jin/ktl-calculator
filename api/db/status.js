@@ -1,4 +1,9 @@
 import { listTestItems, getSheetNames, getDataFileName } from '../../src/excelClient.js';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+const _d = dirname(fileURLToPath(import.meta.url));
+const _cwd = process.cwd();
 
 export default function handler(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -15,7 +20,12 @@ export default function handler(req, res) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error('[db/status]', msg);
-    return res.status(503).json({ connected: false, _debug: msg });
+    const dbg = {
+      connected: false, _debug: msg, _dir: _d, _cwd,
+      p1: existsSync(join(_cwd, 'Version11_(2026).xlsx')),
+      p2: existsSync(join(_d, '../../Version11_(2026).xlsx')),
+      p3: existsSync(join(_d, '../../../Version11_(2026).xlsx')),
+    };
+    return res.status(503).json(dbg);
   }
 }
