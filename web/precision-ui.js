@@ -724,7 +724,7 @@ function updateInlineHints(code) {
     // Z3/Z4: 엑셀 기준 ROUND(drift,1) <= 5 통과 범위
     // drift 경계: |mean(Z3,Z4)-ziMean|/range*100 < 5.05 (ROUND 1자리)
     // Z3 입력 시 Z4 고정값 기반 정확한 경계: Z3 = 2*(ziMean±driftMax) - Z4
-    const driftMax = range * 0.05049; // ROUND(x,1)≤5 경계 (5.05% 직전)
+    const driftMax = range * 0.050499; // ROUND(5.0499,1)=5.0 → 패스 경계 (5.05 미만)
     const z3Lo = !isNaN(ziMean) ? (!isNaN(z4) ? 2*(ziMean-driftMax)-z4 : ziMean-driftMax) : NaN;
     const z3Hi = !isNaN(ziMean) ? (!isNaN(z4) ? 2*(ziMean+driftMax)-z4 : ziMean+driftMax) : NaN;
     const z4Lo = !isNaN(ziMean) ? (!isNaN(z3) ? 2*(ziMean-driftMax)-z3 : ziMean-driftMax) : NaN;
