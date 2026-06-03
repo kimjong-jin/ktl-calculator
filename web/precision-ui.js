@@ -197,14 +197,29 @@ function rt1(label, val, pass, unit='') {
 }
 
 // ── 계산: 기본형 (TOC/TN/TP/SS/COD) ─────────────────────
+// 엑셀 로직: 4콤보(초기×최종) 중 STDEV 최대 조합 자동선택 (Z6/Z7 수동 입력 시 우선)
+function pickRepVals(z5, z6, z7, initVals, finVals) {
+  if (isNaN(z5) || z5 <= 0) return [];
+  const z6ok = !isNaN(z6) && z6 > 0, z7ok = !isNaN(z7) && z7 > 0;
+  if (z6ok && z7ok) return [z5, z6, z7];
+  if (z6ok) return [z5, z6];
+  const iv = initVals.filter(v=>v>0), fv = finVals.filter(v=>v>0);
+  if (!iv.length || !fv.length) return [z5];
+  let best = {s:-1, a:null, b:null};
+  for (const a of iv) for (const b of fv) {
+    const m=(z5+a+b)/3, s=Math.sqrt(((z5-m)**2+(a-m)**2+(b-m)**2)/2);
+    if (s > best.s) best = {s, a, b};
+  }
+  return [z5, best.a, best.b];
+}
+
 function calcBasic(tab) {
   const range = g('range');
   if (!range) return;
 
-  // 반복성: 입력값만 사용 (드리프트 자동 보충 없음 — 드리프트값은 시간이 달라 반복성 불가)
-  const zRepVals = [gv('z5'),gv('z6'),gv('z7')].filter(v=>!isNaN(v)&&v>0);
-  const sRepVals = [gv('s5'),gv('s6'),gv('s7')].filter(v=>!isNaN(v)&&v>0);
-  const rep = repeatability(zRepVals, sRepVals);
+  const zRepVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
+  const sRepVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
+  const rep = repeatability(zRepVals, sRepVals, range);
   document.getElementById('pv-res-rep').innerHTML = repCards(rep, zRepVals, sRepVals);
 
   // 드리프트: 초기[Z1,Z2] → 최종[Z3,Z4] / 초기[S1,S2] → 최종[S3,S4]
@@ -1259,9 +1274,9 @@ function showCert(tabId) {
     }
   } else {
     const range = g('range');
-    const zRepVals = [gv('z5'),gv('z6'),gv('z7')].filter(v=>!isNaN(v)&&v>0);
-    const sRepVals = [gv('s5'),gv('s6'),gv('s7')].filter(v=>!isNaN(v)&&v>0);
-    const rep = repeatability(zRepVals, sRepVals);
+    const zRepVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
+    const sRepVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
+    const rep = repeatability(zRepVals, sRepVals, range);
     const dr = drift(range,[g('z1'),g('z2')],[g('z3'),g('z4')],[g('s1'),g('s2')],[g('s3'),g('s4')]);
     const lin = IS_WATER(tab.code)
       ? linearity(range,[g('m1'),g('m1'),g('m1')])

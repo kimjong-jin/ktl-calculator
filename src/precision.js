@@ -50,13 +50,15 @@ const pct = (numer, denom) => (denom !== 0 ? Math.abs(numer / denom) * 100 : 0);
  * TOC/TN/TP/SS/COD: [Z1,Z3,Z5] / [S1,S3,S5]
  * pH: zVals=[7측정값×3], sVals=[4측정값×3]
  * DO: zVals 무시, sVals=[S1,S3,S5] (Span 기준) */
-export function repeatability(zVals, sVals) {
-  const calc = vals => {
+// range 있으면 std/range×100 (수질TMS: 측정범위 기준), 없으면 std/mean×100 (pH 등)
+export function repeatability(zVals, sVals, range) {
+  const calc = (vals, r) => {
     if (!vals || vals.length < 2) return { mean: NaN, rsd: NaN, pass: null };
-    const m = mean(vals), r = pct(sampleStd(vals), m);
-    return { mean: m, rsd: r, pass: r <= PRECISION_CRITERIA.repeatabilityRsd };
+    const m = mean(vals), s = sampleStd(vals);
+    const rsd = (r > 0) ? s / r * 100 : pct(s, m);
+    return { mean: m, rsd, pass: rsd <= PRECISION_CRITERIA.repeatabilityRsd };
   };
-  return { zero: calc(zVals), span: calc(sVals), limit: PRECISION_CRITERIA.repeatabilityRsd };
+  return { zero: calc(zVals, range), span: calc(sVals, range), limit: PRECISION_CRITERIA.repeatabilityRsd };
 }
 
 /* ── ② 드리프트 ────────────────────────────────────────────
