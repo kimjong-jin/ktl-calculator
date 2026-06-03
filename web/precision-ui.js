@@ -692,7 +692,7 @@ function updateInlineHints(code) {
     const clamp = (v, r) => isNaN(v) ? NaN : Math.max(0, Math.min(r, v));
     const sh = (id, lo, hi, cur) => setHint(id, clamp(lo, range), clamp(hi, range), cur);
 
-    // Z2/S2: 초기구간 독립 측정값 — 별도 기준 없음(기준점 표시)
+    // Z2/S2: 초기구간 독립 측정값 — 별도 기준 없음(기준값 표시)
     // Z1과 가깝지 않아도 드리프트 계산에는 영향 없음
     // Z3/Z4: 최종구간 → mean(Z1,Z2) ± range×5% (드리프트 합격 범위)
     sh('z3', !isNaN(ziMean) ? ziMean-driftTol : NaN, !isNaN(ziMean) ? ziMean+driftTol : NaN, z3);
@@ -986,9 +986,9 @@ function ni(id, label, placeholder='0') {
 function zsCell(id, num, type) {
   const val = stored[id] ?? '';
   const cls = type === 'z' ? 'z' : 's';
-  // Z1/Z2/S1/S2 = 드리프트 초기 기준점, Z5/S5 = 반복성 기준점
+  // Z1/Z2/S1/S2 = 드리프트 초기 기준값, Z5/S5 = 반복성 기준값
   const hintHtml = (num === '1' || num === '2')
-    ? `<span class="pv-zs-range-hint pv-zs-range-hint--ref">기준점</span>`
+    ? `<span class="pv-zs-range-hint pv-zs-range-hint--ref">기준값</span>`
     : `<span class="pv-zs-range-hint" id="pv_hint_${id}"></span>`;
   return `<div class="pv-zs-cell pv-zs-cell--${cls}">
     <span class="pv-zs-badge pv-zs-badge--${cls}">${type.toUpperCase()}${num}</span>
