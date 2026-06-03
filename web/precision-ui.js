@@ -692,13 +692,12 @@ function updateInlineHints(code) {
     const clamp = (v, r) => isNaN(v) ? NaN : Math.max(0, Math.min(r, v));
     const sh = (id, lo, hi, cur) => setHint(id, clamp(lo, range), clamp(hi, range), cur);
 
-    // Z2: Z1과 같은 초기구간 — Z1 기준 ±range×2%
-    sh('z2', !isNaN(z1) ? z1-range*0.02 : NaN, !isNaN(z1) ? z1+range*0.02 : NaN, z2);
+    // Z2/S2: 초기구간 독립 측정값 — 별도 기준 없음(기준점 표시)
+    // Z1과 가깝지 않아도 드리프트 계산에는 영향 없음
     // Z3/Z4: 최종구간 → mean(Z1,Z2) ± range×5% (드리프트 합격 범위)
     sh('z3', !isNaN(ziMean) ? ziMean-driftTol : NaN, !isNaN(ziMean) ? ziMean+driftTol : NaN, z3);
     sh('z4', !isNaN(ziMean) ? ziMean-driftTol : NaN, !isNaN(ziMean) ? ziMean+driftTol : NaN, z4);
 
-    sh('s2', !isNaN(s1) ? s1-range*0.02 : NaN, !isNaN(s1) ? s1+range*0.02 : NaN, s2);
     sh('s3', !isNaN(siMean) ? siMean-driftTol : NaN, !isNaN(siMean) ? siMean+driftTol : NaN, s3);
     sh('s4', !isNaN(siMean) ? siMean-driftTol : NaN, !isNaN(siMean) ? siMean+driftTol : NaN, s4);
 
@@ -987,7 +986,8 @@ function ni(id, label, placeholder='0') {
 function zsCell(id, num, type) {
   const val = stored[id] ?? '';
   const cls = type === 'z' ? 'z' : 's';
-  const hintHtml = num === '1'
+  // Z1/S1, Z2/S2는 초기 기준점 — 별도 범위 기준 없음
+  const hintHtml = (num === '1' || num === '2')
     ? `<span class="pv-zs-range-hint pv-zs-range-hint--ref">기준점</span>`
     : `<span class="pv-zs-range-hint" id="pv_hint_${id}"></span>`;
   return `<div class="pv-zs-cell pv-zs-cell--${cls}">
