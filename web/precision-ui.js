@@ -609,6 +609,12 @@ function computeRepZ5Range(driftVals, targetRSD) {
       hi = x;
     }
   }
+
+  if (isNaN(lo)) {
+    // 어떤 Z5도 통과 불가 — 드리프트 평균 ±3% 참고 표시
+    const dm = valid.reduce((a, b) => a + b, 0) / valid.length;
+    return { lo: dm * 0.97, hi: dm * 1.03 };
+  }
   return { lo, hi };
 }
 
@@ -733,10 +739,11 @@ function updateLinSummary(range) {
     `<span class="pv-lin-summary__status">${pass ? '✓ 적합' : '✗ ' + f(error) + '%'}</span>`;
 }
 
-// ── 실시간 입력 가이드 ───────────────────────────────────────
+// ── 실시간 입력 가이드 (비활성: 인라인 힌트로 대체) ──────────
 function updateGuide(code) {
   const el = document.getElementById('pv-input-guide');
-  if (!el) return;
+  if (el) el.hidden = true;
+  return;
   if (!['TOC','TN','TP','SS','COD','TU','CL'].includes(code)) { el.hidden = true; return; }
 
   const range = g('range');
