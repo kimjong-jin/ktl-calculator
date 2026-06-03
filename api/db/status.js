@@ -14,7 +14,8 @@ export default function handler(req, res) {
       items,
     });
   } catch (e) {
-    console.error('[db/status]', e instanceof Error ? e.message : e);
-    return res.status(503).json({ connected: false });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[db/status]', msg);
+    return res.status(503).json({ connected: false, _debug: msg });
   }
 }
