@@ -241,24 +241,32 @@ function calcBasic(tab) {
     </div>` +
     gauge(lin.error, PRECISION_CRITERIA.linearity, '직선성');
 
-  // 측정범위 초과 체크: S값, M값이 range를 초과하면 부적합
+  // 측정범위 검사: 초과 체크 + 표준용액 0값 체크 (0은 측정 불가 → 부적합)
+  const stdFields = ['z1','z2','z3','z4','s1','s2','s3','s4','z5','z6','z7','s5','s6','s7','m1','m2','m3'];
+  const zeroEntered = stdFields.filter(id => { const v=gv(id); return !isNaN(v) && v===0; });
   const allMeasured = [g('s1'),g('s2'),g('s3'),g('s4'),g('s5'),g('m1'),g('m2'),g('m3')].filter(v=>v>0);
   const rangeExceeded = allMeasured.some(v => v > range);
-  // 측정범위 초과 → 전용 블록에 표시
   const rangeBlock = document.getElementById('pv-res-range-block');
   const rangeEl = document.getElementById('pv-res-range');
   if (rangeEl && rangeBlock) {
+    let html = '';
+    if (zeroEntered.length > 0) {
+      html += `<div class="pv-lines">${row('0값 입력', zeroEntered.map(id=>id.toUpperCase()).join(', '))}</div>
+        <div class="pv-badges">${badge('표준용액 0값 — 측정 오류 확인 필요', false)}</div>`;
+    }
     if (rangeExceeded) {
       const exceeded = allMeasured.filter(v => v > range);
-      rangeEl.innerHTML = `<div class="pv-lines">${row('측정범위', fmt(range,3))} ${row('초과 값', exceeded.map(v=>fmt(v,3)).join(', '))}</div>
+      html += `<div class="pv-lines">${row('측정범위', fmt(range,3))} ${row('초과 값', exceeded.map(v=>fmt(v,3)).join(', '))}</div>
         <div class="pv-badges">${badge(`측정값이 측정범위(${range})를 초과함`, false)}</div>`;
-      rangeBlock.hidden = false;
-    } else {
-      rangeEl.innerHTML = `<div class="pv-badges">${badge(`모든 측정값 ≤ 측정범위(${range})`, true)}</div>`;
-      rangeBlock.hidden = false;
     }
+    if (!html) {
+      html = `<div class="pv-badges">${badge(`모든 측정값 ≤ 측정범위(${range})`, true)}</div>`;
+    }
+    rangeEl.innerHTML = html;
+    rangeBlock.hidden = false;
   }
-  const passes = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass, rangeExceeded ? false : null].filter(v => v !== null);
+  const rangePass = !rangeExceeded && zeroEntered.length === 0;
+  const passes = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass, rangePass ? null : false].filter(v => v !== null);
 
 
   // 현장적용계수
