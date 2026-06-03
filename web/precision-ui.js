@@ -616,10 +616,11 @@ function computeRepZ5Range(initVals, finVals, range) {
   const dMin = Math.min(...all), dMax = Math.max(...all);
   const span = Math.max(dMax - dMin, dMin * 0.1);
   const scanLo = Math.max(0, dMin - span), scanHi = dMax + span;
-  const step = (scanHi - scanLo) / 500;
+  const STEPS = 2000;
+  const step = (scanHi - scanLo) / STEPS;
 
   let lo = NaN, hi = NaN;
-  for (let i = 0; i <= 500; i++) {
+  for (let i = 0; i <= STEPS; i++) {
     const x = scanLo + i * step;
     if (worstStdAt(x) <= 3) {
       if (isNaN(lo)) lo = x;
