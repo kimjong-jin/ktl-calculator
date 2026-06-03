@@ -10,12 +10,17 @@ import { put, head, del } from '@vercel/blob';
 
 const BLOB_KEY = 'access-codes.json';
 
-/** Blob에서 코드 맵 읽기 */
+/** Blob에서 코드 맵 읽기 (private 스토어) */
 async function readCodes() {
   try {
-    const blobMeta = await head(BLOB_KEY).catch(() => null);
-    if (!blobMeta) return {};
-    const res = await fetch(blobMeta.url);
+    const meta = await head(BLOB_KEY).catch(() => null);
+    if (!meta) return {};
+    // private 스토어: downloadUrl (signed) 또는 BLOB 토큰으로 직접 fetch
+    const url = meta.downloadUrl || meta.url;
+    const token = process.env.BLOB_READ_WRITE_TOKEN || '';
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     if (!res.ok) return {};
     return await res.json();
   } catch {
@@ -26,7 +31,7 @@ async function readCodes() {
 /** 코드 맵을 Blob에 쓰기 */
 async function writeCodes(map) {
   await put(BLOB_KEY, JSON.stringify(map), {
-    access: 'public',   // Blob URL로만 읽힘, 키 없이는 URL 모름
+    access: 'private',
     contentType: 'application/json',
     addRandomSuffix: false,
   });
