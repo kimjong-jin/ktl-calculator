@@ -1048,7 +1048,7 @@ function buildFormBasic(code) {
 <div class="card pv-form-card">
   <div class="pv-section">
     <h3 class="pv-section__title">측정범위</h3>
-    <div class="pv-row1">${ni('range','측정범위')}</div>
+    <div class="pv-row1">${ni('range','')}</div>
   </div>
 
   <div class="pv-section">
@@ -1250,7 +1250,7 @@ function buildFormWater(code) {
 <div class="card pv-form-card">
   <div class="pv-section">
     <h3 class="pv-section__title">측정범위</h3>
-    <div class="pv-row1">${ni('range','측정범위')}</div>
+    <div class="pv-row1">${ni('range','')}</div>
   </div>
 
   <div class="pv-section">
