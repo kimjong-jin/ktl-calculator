@@ -809,9 +809,9 @@ function updateRepSummary(range) {
   };
   const zRsd = stdDiv(zVals, range), sRsd = stdDiv(sVals, range);
   const limit = 3;
-  // 화면 표시(소수점 2자리) 기준으로 판정
-  const zPass = zRsd !== null ? Math.round(zRsd * 100) / 100 <= limit : null;
-  const sPass = sRsd !== null ? Math.round(sRsd * 100) / 100 <= limit : null;
+  // 엑셀 기준: ROUND(rsd, 1) 후 > 3 비교 (소수점 1자리)
+  const zPass = zRsd !== null ? Math.round(zRsd * 10) / 10 <= limit : null;
+  const sPass = sRsd !== null ? Math.round(sRsd * 10) / 10 <= limit : null;
   const allPass = [zPass,sPass].filter(v=>v!==null).every(Boolean);
   const parts = [];
   if (zRsd !== null) parts.push(`Z ${f2(zRsd)}%`);
