@@ -51,14 +51,12 @@ const pct = (numer, denom) => (denom !== 0 ? Math.abs(numer / denom) * 100 : 0);
  * pH: zVals=[7측정값×3], sVals=[4측정값×3]
  * DO: zVals 무시, sVals=[S1,S3,S5] (Span 기준) */
 export function repeatability(zVals, sVals) {
-  const zMean = mean(zVals), zRsd = pct(sampleStd(zVals), zMean);
-  const sMean = mean(sVals), sRsd = pct(sampleStd(sVals), sMean);
-  const limit = PRECISION_CRITERIA.repeatabilityRsd;
-  return {
-    zero: { mean: zMean, rsd: zRsd, pass: zRsd <= limit },
-    span: { mean: sMean, rsd: sRsd, pass: sRsd <= limit },
-    limit,
+  const calc = vals => {
+    if (!vals || vals.length < 2) return { mean: NaN, rsd: NaN, pass: null };
+    const m = mean(vals), r = pct(sampleStd(vals), m);
+    return { mean: m, rsd: r, pass: r <= PRECISION_CRITERIA.repeatabilityRsd };
   };
+  return { zero: calc(zVals), span: calc(sVals), limit: PRECISION_CRITERIA.repeatabilityRsd };
 }
 
 /* ── ② 드리프트 ────────────────────────────────────────────

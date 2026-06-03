@@ -163,8 +163,8 @@ function repCards(rep, zVals, sVals) {
     return `<div class="pv-rep-card pv-rep-card--${cls}">
       <div class="pv-rep-card__label">${label}</div>
       ${valsHtml}
-      <div class="pv-rep-card__mean">평균 <b>${fmt(data.mean, 3)}</b></div>
-      <div class="pv-rep-card__rsd pv-rep-card__rsd--${pc}">${fmt(data.rsd, 2)}%</div>
+      <div class="pv-rep-card__mean">평균 <b>${isNaN(data.mean) ? '—' : fmt(data.mean, 3)}</b></div>
+      <div class="pv-rep-card__rsd pv-rep-card__rsd--${pc}">${isNaN(data.rsd) ? '측정값 부족' : fmt(data.rsd, 2)+'%'}</div>
       <div class="pv-rep-card__limit">기준 RSD ≤ ${rep.limit}%</div>
       <div class="pv-rep-card__verdict pv-rep-card__verdict--${pc}">${icon} ${verdict}</div>
     </div>`;
