@@ -15,11 +15,8 @@
  */
 
 import { readFileSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { basename, dirname, isAbsolute, join } from 'node:path';
+import { basename, isAbsolute, join } from 'node:path';
 import XLSX from 'xlsx';
-
-const _metaDir = dirname(fileURLToPath(import.meta.url));
 
 /** 기본 DB 파일명(우선순위 순). 첫 번째로 존재하는 파일을 사용한다. */
 const DEFAULT_DATA_FILES = ['Version11_(2026).xlsx', 'data.xlsx'];
@@ -36,23 +33,14 @@ function resolveDataPath() {
     if (existsSync(p)) return p;
     throw new Error(`KTL_DATA_FILE 경로를 찾을 수 없습니다: ${fromEnv}`);
   }
-  // 2. 후보 경로 순서대로 탐색:
-  //    ① import.meta.url 기준 (로컬/개발: src/ → 프로젝트 루트)
-  //    ② process.cwd() 기준 (Vercel 번들링: /var/task)
-  const bases = [
-    join(_metaDir, '..'),   // src/ 기준 → 프로젝트 루트
-    join(_metaDir, '../..'), // 혹시 중첩 번들인 경우
-    process.cwd(),           // Vercel: /var/task
-  ];
-  for (const base of bases) {
-    for (const name of DEFAULT_DATA_FILES) {
-      const candidate = join(base, name);
-      if (existsSync(candidate)) return candidate;
-    }
+  // 2. process.cwd() 기준으로 탐색 (Vercel: /var/task, 로컬: 프로젝트 루트)
+  const cwd = process.cwd();
+  for (const name of DEFAULT_DATA_FILES) {
+    const candidate = join(cwd, name);
+    if (existsSync(candidate)) return candidate;
   }
   throw new Error(
-    `엑셀 DB 파일을 찾을 수 없습니다 (${DEFAULT_DATA_FILES.join(', ')}). ` +
-    `검색 경로: ${bases.join(', ')}`,
+    `엑셀 DB 파일을 찾을 수 없습니다 (${DEFAULT_DATA_FILES.join(', ')}). cwd=${cwd}`,
   );
 }
 
