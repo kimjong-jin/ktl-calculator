@@ -71,13 +71,15 @@ export function repeatability(zVals, sVals, range) {
  * pH/DO: 각 1개값 배열로 전달 */
 export function drift(range, zeroBefore, zeroAfter, spanBefore, spanAfter, limits) {
   const zeroDrift = pct(mean(zeroAfter) - mean(zeroBefore), range);
-  const spanDrift = pct(mean(spanAfter) - mean(spanBefore), range);
+  const spanDrift  = pct(mean(spanAfter)  - mean(spanBefore),  range);
   const zeroLim = limits?.zero ?? PRECISION_CRITERIA.zeroDrift;
   const spanLim = limits?.span ?? PRECISION_CRITERIA.spanDrift;
+  // 엑셀: ROUND(drift, 1) <= 5 기준
+  const r1 = v => Math.round(v * 10) / 10;
   return {
     zeroDrift, spanDrift, zeroLim, spanLim,
-    zeroPass: zeroDrift <= zeroLim,
-    spanPass: spanDrift <= spanLim,
+    zeroPass: r1(zeroDrift) <= zeroLim,
+    spanPass: r1(spanDrift) <= spanLim,
   };
 }
 

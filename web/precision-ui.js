@@ -716,14 +716,23 @@ function updateInlineHints(code) {
     const clamp = (v, r) => isNaN(v) ? NaN : Math.max(0, Math.min(r, v));
     const sh = (id, lo, hi, cur) => setHint(id, clamp(lo, range), clamp(hi, range), cur);
 
-    // Z2/S2: 초기구간 독립 측정값 — 별도 기준 없음(기준값 표시)
-    // Z1과 가깝지 않아도 드리프트 계산에는 영향 없음
-    // Z3/Z4: 최종구간 → mean(Z1,Z2) ± range×5% (드리프트 합격 범위)
-    sh('z3', !isNaN(ziMean) ? ziMean-driftTol : NaN, !isNaN(ziMean) ? ziMean+driftTol : NaN, z3);
-    sh('z4', !isNaN(ziMean) ? ziMean-driftTol : NaN, !isNaN(ziMean) ? ziMean+driftTol : NaN, z4);
+    // Z3/Z4: 엑셀 기준 ROUND(drift,1) <= 5 통과 범위
+    // drift 경계: |mean(Z3,Z4)-ziMean|/range*100 < 5.05 (ROUND 1자리)
+    // Z3 입력 시 Z4 고정값 기반 정확한 경계: Z3 = 2*(ziMean±driftMax) - Z4
+    const driftMax = range * 0.05049; // ROUND(x,1)≤5 경계 (5.05% 직전)
+    const z3Lo = !isNaN(ziMean) ? (!isNaN(z4) ? 2*(ziMean-driftMax)-z4 : ziMean-driftMax) : NaN;
+    const z3Hi = !isNaN(ziMean) ? (!isNaN(z4) ? 2*(ziMean+driftMax)-z4 : ziMean+driftMax) : NaN;
+    const z4Lo = !isNaN(ziMean) ? (!isNaN(z3) ? 2*(ziMean-driftMax)-z3 : ziMean-driftMax) : NaN;
+    const z4Hi = !isNaN(ziMean) ? (!isNaN(z3) ? 2*(ziMean+driftMax)-z3 : ziMean+driftMax) : NaN;
+    sh('z3', z3Lo, z3Hi, z3);
+    sh('z4', z4Lo, z4Hi, z4);
 
-    sh('s3', !isNaN(siMean) ? siMean-driftTol : NaN, !isNaN(siMean) ? siMean+driftTol : NaN, s3);
-    sh('s4', !isNaN(siMean) ? siMean-driftTol : NaN, !isNaN(siMean) ? siMean+driftTol : NaN, s4);
+    const s3Lo = !isNaN(siMean) ? (!isNaN(s4) ? 2*(siMean-driftMax)-s4 : siMean-driftMax) : NaN;
+    const s3Hi = !isNaN(siMean) ? (!isNaN(s4) ? 2*(siMean+driftMax)-s4 : siMean+driftMax) : NaN;
+    const s4Lo = !isNaN(siMean) ? (!isNaN(s3) ? 2*(siMean-driftMax)-s3 : siMean-driftMax) : NaN;
+    const s4Hi = !isNaN(siMean) ? (!isNaN(s3) ? 2*(siMean+driftMax)-s3 : siMean+driftMax) : NaN;
+    sh('s3', s3Lo, s3Hi, s3);
+    sh('s4', s4Lo, s4Hi, s4);
 
     // Z5/S5: 4콤보 std/range ≤ 3% 실제 통과 범위
     const z5r = computeRepZ5Range([z1,z2],[z3,z4], range);
