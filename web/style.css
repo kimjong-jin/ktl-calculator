@@ -928,6 +928,27 @@ select.field__control {
 
 .pv-zs-input { flex: 1; min-width: 0; padding: 8px 10px; font-size: 15px; font-weight: 600; }
 
+/* ── 인라인 범위 힌트 바 ─────────────────────────────────────── */
+.pv-zs-range-hint {
+  font-size: 10px; font-weight: 600; letter-spacing: -0.01em;
+  padding: 2px 7px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+  background: var(--surface-2); color: var(--text-dim);
+  border: 1px solid var(--border);
+  min-width: 60px; text-align: center;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.pv-zs-range-hint:empty { display: none; }
+.pv-zs-range-hint--ok {
+  background: rgba(63,185,80,0.15);
+  color: var(--pass);
+  border-color: rgba(63,185,80,0.4);
+}
+.pv-zs-range-hint--ng {
+  background: rgba(248,81,73,0.12);
+  color: var(--fail, #f85149);
+  border-color: rgba(248,81,73,0.35);
+}
+
 /* ── 응답시간 토글 (TU/CL) ──────────────────────────────────── */
 .pv-resp-water { display: flex; flex-direction: column; gap: 6px; }
 .pv-resp-toggle {
