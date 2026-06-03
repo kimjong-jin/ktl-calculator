@@ -1132,6 +1132,7 @@ select.field__control {
 
 /* ── 반복성 카드 (Z/S 2열) ──────────────────────────────────── */
 .pv-rep-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pv-rep-cards--single { grid-template-columns: 1fr; max-width: 320px; }
 .pv-rep-card {
   display: flex; flex-direction: column; gap: 2px;
   padding: 12px 14px; border-radius: var(--r-md);

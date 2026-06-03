@@ -169,10 +169,11 @@ function repCards(rep, zVals, sVals) {
       <div class="pv-rep-card__verdict pv-rep-card__verdict--${pc}">${icon} ${verdict}</div>
     </div>`;
   }
-  return `<div class="pv-rep-cards">
-    ${card('Z 제로', 'z', rep.zero, zVals)}
-    ${card('S 스팬', 's', rep.span, sVals)}
-  </div>`;
+  // zVals===null 이면 Z카드 숨김 (DO 등 Span 전용 항목)
+  const zCard = zVals !== null ? card('Z 제로', 'z', rep.zero, zVals) : '';
+  const sCard = card('S 스팬', 's', rep.span, sVals);
+  const single = !zCard;
+  return `<div class="pv-rep-cards${single?' pv-rep-cards--single':''}">${zCard}${sCard}</div>`;
 }
 
 // 결과 테이블 단일열 행 (직선성 등 소형 테이블용)
@@ -231,10 +232,11 @@ function calcBasic(tab) {
   // 직선성: M1,M2,M3
   const lin = linearity(range, [g('m1'),g('m2'),g('m3')]);
   document.getElementById('pv-res-lin').innerHTML =
-    `<table class="pv-rt">
-      <tr><th>기준값</th><th>평균</th><th>오차</th></tr>
-      <tr><td colspan="1">${fmt(lin.ref,3)}</td><td>${fmt(lin.avg,3)}</td><td class="val--${lin.pass?'ok':'bad'}">${fmt(lin.error,2)}%</td></tr>
-    </table>` +
+    `<div class="pv-lines">
+      ${row('기준값', fmt(lin.ref,3))}
+      ${row('평균', fmt(lin.avg,3))}
+      ${row('오차', `${fmt(lin.error,2)}%`)}
+    </div>` +
     gauge(lin.error, PRECISION_CRITERIA.linearity, '직선성');
 
   // 측정범위 초과 체크: S값, M값이 range를 초과하면 부적합
@@ -336,12 +338,10 @@ function calcPH(tab) {
   const dr = drift(14, [g('phdi')], [g('phdf')], [g('phdi')], [g('phdf')]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
-      ${row('드리프트 초기', fmt(g('phdi'),3))}
-      ${row('드리프트 2시간후', fmt(g('phdf'),3))}
-      ${row('드리프트', `${fmt(dr.zeroDrift)}%`)}
-    </div><div class="pv-badges">
-      ${badge(`드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, dr.zeroPass)}
-    </div>`;
+      ${row('초기', fmt(g('phdi'),3))}
+      ${row('2시간후', fmt(g('phdf'),3))}
+    </div>` +
+    gauge(dr.zeroDrift, PRECISION_CRITERIA.zeroDrift, '드리프트');
 
   const lin = phLinearity([g('phm4'),g('phm7'),g('phm10')]);
   document.getElementById('pv-res-lin').innerHTML =
@@ -401,22 +401,22 @@ function calcDO(tab) {
   const range = 20; 
   const span = DO_SPAN_TABLE[25]; 
 
-  const rep = repeatability([span,span,span], [g('dos1'),g('dos2'),g('dos3')]);
-  document.getElementById('pv-res-rep').innerHTML = repCards({
-    zero: { mean: DO_SPAN_TABLE[25], rsd: 0, pass: null },
-    span: { mean: rep.span.mean, rsd: rep.span.rsd, pass: rep.span.pass },
-    limit: rep.limit,
-  });
+  const sRepVals = [g('dos1'),g('dos2'),g('dos3')].filter(v=>v>0);
+  const rep = repeatability([], sRepVals, range);
+  document.getElementById('pv-res-rep').innerHTML = repCards(
+    { zero: rep.zero, span: rep.span, limit: rep.limit },
+    null,                       // Z카드 숨김 — DO는 Span(S) 기준
+    sRepVals
+  );
 
   const dr = drift(range, [g('dozi')], [g('dozf')], [g('dosi')], [g('dosf')]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
-      ${row('Z초기', fmt(g('dozi'),3))} ${row('Z2시간', fmt(g('dozf'),3))} ${row('제로드리프트', `${fmt(dr.zeroDrift)}%`)}
-      ${row('S초기', fmt(g('dosi'),3))} ${row('S2시간', fmt(g('dosf'),3))} ${row('스팬드리프트', `${fmt(dr.spanDrift)}%`)}
-    </div><div class="pv-badges">
-      ${badge(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, dr.zeroPass)}
-      ${badge(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, dr.spanPass)}
-    </div>`;
+      ${row('Z초기', fmt(g('dozi'),3))} ${row('Z2시간', fmt(g('dozf'),3))}
+      ${row('S초기', fmt(g('dosi'),3))} ${row('S2시간', fmt(g('dosf'),3))}
+    </div>` +
+    gauge(dr.zeroDrift, PRECISION_CRITERIA.zeroDrift, '제로드리프트') +
+    gauge(dr.spanDrift, PRECISION_CRITERIA.spanDrift, '스팬드리프트');
 
   const lin = doLinearity(g('domax'), g('domin'), range);
   document.getElementById('pv-res-lin').innerHTML =
@@ -482,12 +482,8 @@ function calcWater(tab) {
   const WATER_DRIFT_LIMIT = 3;
   const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')], { zero: WATER_DRIFT_LIMIT, span: WATER_DRIFT_LIMIT });
   document.getElementById('pv-res-drift').innerHTML =
-    `<div class="pv-lines">
-      ${row('제로드리프트', `${fmt(dr.zeroDrift)}%`)} ${row('스팬드리프트', `${fmt(dr.spanDrift)}%`)}
-    </div><div class="pv-badges">
-      ${badge(`제로드리프트 ≤ ${WATER_DRIFT_LIMIT}%`, dr.zeroPass)}
-      ${badge(`스팬드리프트 ≤ ${WATER_DRIFT_LIMIT}%`, dr.spanPass)}
-    </div>`;
+    gauge(dr.zeroDrift, WATER_DRIFT_LIMIT, '제로드리프트') +
+    gauge(dr.spanDrift, WATER_DRIFT_LIMIT, '스팬드리프트');
 
   // 직선성: 기준값 = S1/2 (TMS는 range×0.45)
   const linRef = g('s1') > 0 ? g('s1') / 2 : undefined;
