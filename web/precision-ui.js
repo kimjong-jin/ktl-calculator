@@ -688,7 +688,7 @@ function setHintRef(id, ref, cur) {
   }
   if (isNaN(ref)) { el.className = 'pv-zs-range-hint'; el.textContent = ''; return; }
   el.className = 'pv-zs-range-hint pv-zs-range-hint--ref';
-  el.textContent = `어떤값도 부적합 (참고 ${Number(ref).toFixed(3).replace(/\.?0+$/, '')})`;
+  el.textContent = '어떤값도 부적합';
 }
 
 // 직선성 M 힌트 (기준값 ref ± 5%)
