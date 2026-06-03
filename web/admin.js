@@ -382,8 +382,22 @@ function bindEvents(wrap, access) {
         setTimeout(() => { e.target.textContent = orig; }, 1500);
       }
     }
-    if (delId && confirm('이 접속 코드를 목록에서 삭제할까요?')) {
-      removeFromList(delId); refreshTokenList();
+    if (delId && confirm('이 접속 코드를 삭제할까요?\n삭제하면 해당 고객은 즉시 접속이 차단됩니다.')) {
+      const entry = loadTokenList().find(t => t.id === delId);
+      removeFromList(delId);
+      refreshTokenList();
+      // Blob에서도 즉시 제거 (서버사이드 차단)
+      if (entry?.token) {
+        const tokenKey = entry.token.split('.')[0];
+        fetch('/api/admin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${adminToken}`,
+          },
+          body: JSON.stringify({ action: 'revoke_token', tokenId: tokenKey }),
+        }).catch(() => {});
+      }
     }
   });
 
