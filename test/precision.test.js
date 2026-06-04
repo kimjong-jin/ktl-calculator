@@ -52,9 +52,9 @@ check('TOC 수분석2 → 허용 0.45, 동일값 적합', () => {
   const f = fieldApplication('TOC', [2, 2], [2, 2]);
   assert.ok(near(f.limit, 0.45)); assert.equal(f.pass, true);
 });
-check('TN 수분석≥10 → 자동 적합', () => {
-  const f = fieldApplication('TN', [12, 12], [0, 0]);
-  assert.equal(f.auto, true); assert.equal(f.pass, true);
+check('TN 수분석≥10 → 상대오차 15% 기준 (오차0 → 적합)', () => {
+  const f = fieldApplication('TN', [12, 12, 12, 12], [12, 12]);
+  assert.equal(f.useRate, true); assert.equal(f.pass, true);
 });
 check('TP 수분석0.2 site0.5 → 0.3>0.06 부적합', () => {
   const f = fieldApplication('TP', [0.2, 0.2], [0.5, 0.5]);

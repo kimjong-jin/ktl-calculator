@@ -167,12 +167,15 @@ export function codGlucoseVariability(maxVal, minVal, range) {
 
 /* ── ⑦ 현장적용계수 ─────────────────────────────────────────
  * labVals=[Ai1,Ai2,Ai3,Ai4], siteVals=[Ci1,Ci2]
- * 허용 기준: TOC=배출기준or0.45, TN/TP/SS/COD=파라미터별 */
+ * 엑셀 Sheet2 행20 수식 기준:
+ *   labMean < threshold → 절대오차(mg/L) ≤ absLimit
+ *   labMean ≥ threshold → 상대오차(%)   ≤ rateLimit
+ * 오차는 회차별(round) 계산: round1=mean(Ai1,Ai2) vs Ci1, round2=mean(Ai3,Ai4) vs Ci2 */
 const FIELD_RULES = {
-  TN:  { auto: 10,  limit: 1.5  },
-  TP:  { auto: 0.4, limit: 0.06 },
-  SS:  { auto: 5,   limit: 1.5  },
-  COD: { auto: 20,  limit: 3.0  },
+  TN:  { threshold: 10,  absLimit: 1.5,  rateLimit: 15 },
+  TP:  { threshold: 0.4, absLimit: 0.06, rateLimit: 15 },
+  SS:  { threshold: 5,   absLimit: 1.0,  rateLimit: 20 },
+  COD: { threshold: 20,  absLimit: 3.0,  rateLimit: 15 },
 };
 
 export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
@@ -180,32 +183,46 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
   const labMean  = mean(labVals.filter(v => v !== 0));
   const siteMean = mean(siteVals.filter(v => v !== 0));
 
+  // 회차별 Ai 평균 및 오차 계산
+  const r1Ai = mean([labVals[0], labVals[1]].filter(v => v != null && v !== 0));
+  const r2Ai = mean([labVals[2], labVals[3]].filter(v => v != null && v !== 0));
+  const ci1  = siteVals[0] || 0;
+  const ci2  = siteVals[1] || 0;
+  const fi1  = Math.abs(r1Ai - ci1);
+  const fi2  = Math.abs(r2Ai - ci2);
+  const meanFi   = (fi1 + fi2) / 2;
+  const rate1    = r1Ai > 0 ? fi1 / r1Ai * 100 : Infinity;
+  const rate2    = r2Ai > 0 ? fi2 / r2Ai * 100 : Infinity;
+  const meanRate = (rate1 + rate2) / 2;
+
   if (param === 'TOC') {
+    // 엑셀: labMean<discharge/2 → 15%, labMean<3 → 0.45mg/L, else → 15%
     const discharge = Number(opts.discharge) || 0;
-    let limit;
-    if (discharge > 0)
-      limit = labMean < discharge * 0.5 ? discharge * 0.15 : labMean * 0.15;
-    else
-      limit = labMean <= 3 ? 0.45 : labMean * 0.15;
-    return { parameter: param, labMean, siteMean, limit, auto: false,
-      pass: Math.abs(labMean - siteMean) <= limit };
+    let limit, useRate, pass;
+    if (discharge > 0 && labMean < discharge * 0.5) {
+      limit = 15; useRate = true;  pass = meanRate <= 15;
+    } else if (labMean < 3) {
+      limit = 0.45; useRate = false; pass = meanFi <= 0.45;
+    } else {
+      limit = 15; useRate = true;  pass = meanRate <= 15;
+    }
+    return { parameter: param, labMean, siteMean, limit, useRate, meanFi, meanRate, auto: false, pass };
   }
 
   if (param === 'PH') {
-    // pH 현장적용: |Ai평균 - Ci평균| ≤ 0.3 pH (엑셀 Fi 오차 기준)
     const limit = 0.3;
-    return { parameter: param, labMean, siteMean, limit, auto: false,
+    return { parameter: param, labMean, siteMean, limit, useRate: false, meanFi, meanRate, auto: false,
       pass: Math.abs(labMean - siteMean) <= limit };
   }
 
   const rule = FIELD_RULES[param];
-  if (!rule) return { parameter: param, labMean, siteMean, limit: null, auto: false, pass: null,
-    note: '현장적용계수 기준 미정의' };
+  if (!rule) return { parameter: param, labMean, siteMean, limit: null, useRate: false, meanFi, meanRate,
+    auto: false, pass: null, note: '현장적용계수 기준 미정의' };
 
-  if (labMean >= rule.auto)
-    return { parameter: param, labMean, siteMean, limit: 0, auto: true, pass: true };
-  return { parameter: param, labMean, siteMean, limit: rule.limit, auto: false,
-    pass: Math.abs(labMean - siteMean) <= rule.limit };
+  const useRate = labMean >= rule.threshold;
+  const limit   = useRate ? rule.rateLimit : rule.absLimit;
+  const pass    = useRate ? meanRate <= rule.rateLimit : meanFi <= rule.absLimit;
+  return { parameter: param, labMean, siteMean, limit, useRate, meanFi, meanRate, auto: false, pass };
 }
 
 /* ── ⑧ 통합 계산기 (기존 호환) ──────────────────────────── */

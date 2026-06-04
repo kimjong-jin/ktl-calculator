@@ -281,8 +281,9 @@ function calcBasic(tab) {
       `<div class="pv-lines">
         ${row('수분석 평균 (Ai)', fmt(fRes.labMean,3))}
         ${row('현장측정 평균 (Ci)', fmt(fRes.siteMean,3))}
-        ${fRes.limit!=null ? row('허용오차', `±${fmt(fRes.limit,3)}`) : ''}
-        ${fRes.auto ? row('자동 적합', '수분석 평균 ≥ 기준') : ''}
+        ${fRes.useRate
+          ? row('오차율 (Fi/Ai)', `${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`)
+          : row('절대오차 (Fi)', `${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`)}
       </div><div class="pv-badges">${badge(`${tab.code} 현장적용계수`, fRes.pass)}</div>`;
     fieldPass = fRes.pass;
     if (fieldBlock) fieldBlock.hidden = false;
@@ -1105,7 +1106,7 @@ function buildFormBasic(code) {
     <h3 class="pv-section__title">직선성 <span class="pv-hint">평균값 오차 ≤ 5%</span></h3>
     <div class="pv-lin-wrap">
       <div class="pv-lin-header">
-        <span>M1 — 저농도</span><span>M2 — 중농도</span><span>M3 — 고농도</span>
+        <span>M1</span><span>M2</span><span>M3</span>
       </div>
       <div class="pv-lin-inputs">
         <div class="pv-lin-cell">${ni('m1','')}</div>
@@ -1428,7 +1429,10 @@ function showCert(tabId) {
     const ci1=g('ci1'),ci2=g('ci2'),ai1=g('ai1'),ai2=g('ai2'),ai3=g('ai3'),ai4=g('ai4');
     if (ci1||ci2||ai1||ai2||ai3||ai4) {
       const fRes = fieldApplication(tab.code,[ai1,ai2,ai3,ai4],[ci1,ci2],{discharge:g('fdis')});
-      addRow(`${tab.code} 현장적용계수`, `|Ai-Ci|=${fmt(Math.abs(fRes.labMean-fRes.siteMean),3)}`, fRes.pass);
+      const fieldVal = fRes.useRate
+        ? `오차율 ${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`
+        : `절대오차 ${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`;
+      addRow(`${tab.code} 현장적용계수`, fieldVal, fRes.pass);
     }
     if (IS_COD(tab.code) && (g('codmax')||g('codmin'))) {
       const gRes = codGlucoseVariability(g('codmax'),g('codmin'),range);
