@@ -21,7 +21,7 @@
  *   DO 온도보상 ≤ 5.0% (측정범위 기준)
  */
 
-import _criteria from './precision-criteria.json';
+import _criteria from './precision-criteria.json' with { type: 'json' };
 
 // 엑셀 DB (Version11_(2026).xlsx) 에서 sync-excel.py 가 자동 추출한 기준값
 // 변경 시: npm run sync-excel → git commit → Vercel 자동 배포
@@ -184,16 +184,20 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
   const siteMean = mean(siteVals.filter(v => v !== 0));
 
   // 회차별 Ai 평균 및 오차 계산
+  // labVals 4개: [Ai1,Ai2,Ai3,Ai4] → round1=mean(Ai1,Ai2), round2=mean(Ai3,Ai4)
+  // labVals 2개 이하: round1만 사용 (하위 호환)
   const r1Ai = mean([labVals[0], labVals[1]].filter(v => v != null && v !== 0));
-  const r2Ai = mean([labVals[2], labVals[3]].filter(v => v != null && v !== 0));
+  const r2Raw = mean([labVals[2], labVals[3]].filter(v => v != null && v !== 0));
+  const hasTwoRounds = labVals.length >= 3 && !isNaN(r2Raw);
+  const r2Ai = hasTwoRounds ? r2Raw : r1Ai;
   const ci1  = siteVals[0] || 0;
-  const ci2  = siteVals[1] || 0;
+  const ci2  = hasTwoRounds ? (siteVals[1] || 0) : ci1;
   const fi1  = Math.abs(r1Ai - ci1);
   const fi2  = Math.abs(r2Ai - ci2);
-  const meanFi   = (fi1 + fi2) / 2;
+  const meanFi   = hasTwoRounds ? (fi1 + fi2) / 2 : fi1;
   const rate1    = r1Ai > 0 ? fi1 / r1Ai * 100 : Infinity;
   const rate2    = r2Ai > 0 ? fi2 / r2Ai * 100 : Infinity;
-  const meanRate = (rate1 + rate2) / 2;
+  const meanRate = hasTwoRounds ? (rate1 + rate2) / 2 : rate1;
 
   if (param === 'TOC') {
     // 엑셀: labMean<discharge/2 → 15%, labMean<3 → 0.45mg/L, else → 15%
