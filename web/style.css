@@ -591,6 +591,23 @@ select.field__control {
 /* ── 정도검사 한페이지 레이아웃 ────────────────────────────────── */
 .pv-page { display: flex; flex-direction: column; gap: 14px; }
 
+/* 저장/불러오기 카드 */
+.pv-save-card { padding: 12px 16px; }
+.pv-save-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.pv-save-input {
+  flex: 1; min-width: 150px; max-width: 240px;
+  padding: 7px 10px; font-size: 13px;
+}
+.pv-save-status {
+  margin-top: 6px; font-size: 12px; min-height: 18px;
+}
+.pv-ss-ok      { color: #22c55e; }
+.pv-ss-warn    { color: #f59e0b; }
+.pv-ss-error   { color: #ef4444; }
+.pv-ss-loading { color: #94a3b8; }
+
 .pv-tab-card { padding: 14px 16px; }
 .pv-tab-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .pv-item-tabs { display: flex; flex-wrap: wrap; gap: 5px; }

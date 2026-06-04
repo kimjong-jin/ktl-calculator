@@ -83,6 +83,95 @@ let activeId = null;
 let calcTimer = null;
 let stored = {}; // switchTab에서 loadData(id)로 갱신 — ni(), zsCell()에서 사용
 
+// ── 저장/불러오기 상태 ──────────────────────────────────
+let calcReceiptNo  = '';
+let calcUserName   = '';
+let autoSaveTimer  = null;
+
+function bundleState() {
+  if (activeId) saveData(activeId);
+  const fields = {};
+  tabs.forEach(t => { fields[t.id] = loadData(t.id); });
+  return { tabs: tabs.map(({id,code,label,pass}) => ({id,code,label,pass})), activeId, fields };
+}
+
+function restoreBundle(bundle) {
+  tabs.forEach(t => { try { localStorage.removeItem(`ktl-pv-${t.id}`); } catch {} });
+  tabs = (bundle.tabs || []);
+  activeId = bundle.activeId || (tabs.length ? tabs[0].id : null);
+  Object.entries(bundle.fields || {}).forEach(([id, f]) => {
+    try { localStorage.setItem(`ktl-pv-${id}`, JSON.stringify(f)); } catch {}
+  });
+  saveMeta();
+  renderTabs();
+  if (activeId) switchTab(activeId);
+  else renderEmpty();
+}
+
+function setSaveStatus(msg, type = 'ok') {
+  const el = document.getElementById('pv-save-status');
+  if (el) el.innerHTML = `<span class="pv-ss-${type}">${msg}</span>`;
+}
+
+async function saveToServer() {
+  if (!calcReceiptNo || !calcUserName) {
+    setSaveStatus('⚠️ 접수번호와 사용자 이름을 입력하세요.', 'warn'); return;
+  }
+  setSaveStatus('💾 저장 중…', 'loading');
+  const bundle = bundleState();
+  try {
+    const res = await fetch('/api/calcData', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, data: bundle, ttlDays: 30 }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
+    const { expiresAt } = await res.json();
+    const exp = new Date(expiresAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'});
+    const time = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'});
+    setSaveStatus(`✅ 서버 저장됨 ${time} (만료: ${exp})`);
+    try { localStorage.setItem('ktl-calc-last-save', JSON.stringify({receiptNo:calcReceiptNo,userName:calcUserName,at:Date.now()})); } catch {}
+  } catch {
+    // 오프라인 폴백: localStorage에 저장
+    try { localStorage.setItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`, JSON.stringify(bundle)); } catch {}
+    setSaveStatus('💾 로컬 저장됨 (서버 연결 실패)', 'warn');
+  }
+}
+
+async function loadFromServer() {
+  if (!calcReceiptNo || !calcUserName) {
+    setSaveStatus('⚠️ 접수번호와 사용자 이름을 입력하세요.', 'warn'); return;
+  }
+  setSaveStatus('🔄 불러오는 중…', 'loading');
+  try {
+    const res = await fetch(`/api/calcData?receiptNo=${encodeURIComponent(calcReceiptNo)}&userName=${encodeURIComponent(calcUserName)}`);
+    if (res.status === 404) {
+      // 오프라인 폴백 확인
+      const local = localStorage.getItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`);
+      if (local) {
+        restoreBundle(JSON.parse(local));
+        setSaveStatus('💾 로컬 데이터 복원됨 (서버에 없음)', 'warn');
+      } else {
+        setSaveStatus('❌ 저장된 데이터가 없습니다.', 'error');
+      }
+      return;
+    }
+    if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
+    const { data, updatedAt } = await res.json();
+    restoreBundle(data);
+    const time = new Date(updatedAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    setSaveStatus(`✅ 불러오기 완료 (마지막 저장: ${time})`);
+  } catch (e) {
+    setSaveStatus(`❌ 불러오기 실패: ${e.message}`, 'error');
+  }
+}
+
+function scheduleAutoSave() {
+  if (!calcReceiptNo || !calcUserName) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(saveToServer, 30_000);
+}
+
 function saveMeta() {
   try { localStorage.setItem('ktl-tabs', JSON.stringify(tabs.map(({id,code,label,pass})=>({id,code,label,pass})))); } catch {}
   try { localStorage.setItem('ktl-tab-active', activeId||''); } catch {}
@@ -1484,8 +1573,23 @@ function init() {
     activeId = tabs.length ? tabs[0].id : null;
   }
 
+  // 저장된 접수번호·사용자 이름 복원
+  calcReceiptNo = localStorage.getItem('ktl-calc-receipt') || '';
+  calcUserName  = localStorage.getItem('ktl-calc-username') || '';
+
   panel.innerHTML = `
 <div class="pv-page">
+  <div class="card pv-save-card">
+    <div class="pv-save-bar">
+      <input id="pv-receipt-no" class="field__control pv-save-input" type="text"
+             placeholder="접수번호 (예: 26-031078-01-1)" value="${calcReceiptNo}" autocomplete="off" />
+      <input id="pv-user-name" class="field__control pv-save-input" type="text"
+             placeholder="사용자 이름" value="${calcUserName}" autocomplete="off" />
+      <button id="pv-load-btn" class="btn btn--ghost btn--mini" type="button">📂 불러오기</button>
+      <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
+    </div>
+    <div id="pv-save-status" class="pv-save-status"></div>
+  </div>
   <div class="card pv-tab-card">
     <div class="pv-tab-bar">
       <div id="pv-tab-list" class="pv-item-tabs"></div>
@@ -1519,6 +1623,21 @@ function init() {
 
   if (activeId) switchTab(activeId);
   else renderEmpty();
+
+  // ── 저장/불러오기 이벤트 ───────────────────────────────
+  document.getElementById('pv-receipt-no')?.addEventListener('input', e => {
+    calcReceiptNo = e.target.value.trim();
+    try { localStorage.setItem('ktl-calc-receipt', calcReceiptNo); } catch {}
+    scheduleAutoSave();
+  });
+  document.getElementById('pv-user-name')?.addEventListener('input', e => {
+    calcUserName = e.target.value.trim();
+    try { localStorage.setItem('ktl-calc-username', calcUserName); } catch {}
+    scheduleAutoSave();
+  });
+  document.getElementById('pv-save-btn')?.addEventListener('click', saveToServer);
+  document.getElementById('pv-load-btn')?.addEventListener('click', loadFromServer);
+  document.getElementById('pv-form-area')?.addEventListener('input', scheduleAutoSave);
 }
 
 if (document.readyState === 'loading') {

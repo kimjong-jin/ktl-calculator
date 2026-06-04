@@ -8,6 +8,51 @@ const SKILLS_KEY   = 'ktl-admin-skills';   // 스킬 라이브러리 (배열)
 const CHAT_KEY     = 'ktl-chat-mode';      // AI 법령 모드: 'active'|'maintenance'|'inactive'
 let adminToken = '';
 
+// ── 계산 데이터 관리 ──────────────────────────────────────
+async function loadCalcDataList(token) {
+  const listEl = document.getElementById('calc-data-list');
+  if (!listEl) return;
+  try {
+    const res = await fetch(`/api/calcData?action=list&token=${encodeURIComponent(token)}`);
+    if (!res.ok) {
+      listEl.innerHTML = '<p class="admin-card__sub">❌ Mac Studio 연결 실패 (MAC_STUDIO_URL 환경변수 확인)</p>';
+      return;
+    }
+    const data = await res.json();
+    if (!data.length) {
+      listEl.innerHTML = '<p class="admin-card__sub" style="color:#64748b">저장된 계산 데이터 없음</p>';
+      return;
+    }
+    const rows = data.map(d => {
+      const updated = new Date(d.updatedAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+      const expires = new Date(d.expiresAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'});
+      const expiredTag = d.expired ? ' <span style="color:#ef4444">(만료)</span>' : '';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #1e293b;flex-wrap:wrap">
+        <span style="font-family:monospace;color:#38bdf8;min-width:160px">${d.receiptNo}</span>
+        <span style="color:#94a3b8;min-width:80px">${d.userName}</span>
+        <span style="color:#64748b;font-size:12px;flex:1">저장 ${updated}${expiredTag} | 만료 ${expires}</span>
+        <button class="btn btn--mini" style="background:#dc2626;color:#fff;border:none"
+          data-no="${d.receiptNo}" data-user="${d.userName}">삭제</button>
+      </div>`;
+    }).join('');
+    listEl.innerHTML = `<div>${rows}</div>`;
+    listEl.querySelectorAll('button[data-no]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const no = btn.dataset.no, user = btn.dataset.user;
+        if (!confirm(`[${no}] ${user} 데이터를 삭제하시겠습니까?`)) return;
+        const r = await fetch(
+          `/api/calcData?receiptNo=${encodeURIComponent(no)}&userName=${encodeURIComponent(user)}&token=${encodeURIComponent(token)}`,
+          { method: 'DELETE' }
+        );
+        if (r.ok) btn.closest('div[style]').remove();
+        else alert('삭제 실패');
+      });
+    });
+  } catch (e) {
+    listEl.innerHTML = `<p class="admin-card__sub">❌ 오류: ${e.message}</p>`;
+  }
+}
+
 // ── AI 법령 3단계 모드 ────────────────────────────────────────
 function getChatMode() {
   const v = localStorage.getItem(CHAT_KEY);
@@ -262,6 +307,15 @@ function render(wrap, d) {
     ${chatToggleSectionHTML()}
     ${skillSectionHTML(skill)}
 
+    <!-- 계산 데이터 관리 -->
+    <div class="admin-section" id="calc-data-section">
+      <h3 class="admin-section__title">📊 계산 데이터 관리</h3>
+      <p class="admin-card__sub" style="margin:0 0 12px">Mac Studio에 저장된 정도검사 계산 데이터 (30일 자동 만료)</p>
+      <div id="calc-data-list" style="font-size:13px">
+        <p class="admin-loading">불러오는 중…</p>
+      </div>
+    </div>
+
     <!-- 고객 접속 코드 발급 -->
     <div class="admin-section">
       <h3 class="admin-section__title">고객 접속 코드 발급</h3>
@@ -374,6 +428,9 @@ function bindEvents(wrap, access) {
       });
     });
   });
+
+  // 계산 데이터 목록 로드
+  loadCalcDataList(adminToken);
 
   // 새로고침
   document.getElementById('admin-refresh')?.addEventListener('click', () => {
