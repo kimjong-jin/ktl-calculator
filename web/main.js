@@ -163,8 +163,10 @@ function initSvcTabs(role) {
   // 관리자: 항상 표시 (테스트 목적)
   // 일반 사용자: ktl-chat-enabled = 'true' 일 때만 표시
   if (fab) {
-    const enabled = localStorage.getItem('ktl-chat-enabled') === 'true';
-    fab.hidden = !(role === 'admin' || enabled);
+    const mode = localStorage.getItem('ktl-chat-mode')
+      || (localStorage.getItem('ktl-chat-enabled') === 'true' ? 'active' : 'maintenance');
+    fab.hidden = !(mode === 'active' || (mode === 'maintenance' && role === 'admin'));
+    document.body.dataset.role = role; // setChatMode에서 FAB 즉시 반영에 사용
   }
 
   if (role === 'admin') {
@@ -178,16 +180,7 @@ function initSvcTabs(role) {
   $('chat-close-bottom')?.addEventListener('click', closeChat);
   $('chat-overlay')?.addEventListener('click', closeChat);
 
-  // 스와이프 다운 닫기 (모바일)
-  const panel = $('chat-panel');
-  let touchStartY = 0;
-  panel?.addEventListener('touchstart', e => {
-    touchStartY = e.touches[0].clientY;
-  }, { passive: true });
-  panel?.addEventListener('touchend', e => {
-    const dy = e.changedTouches[0].clientY - touchStartY;
-    if (dy > 80) closeChat(); // 80px 이상 아래로 스와이프하면 닫기
-  }, { passive: true });
+  // 스와이프 닫기 제거 — 닫기 버튼으로만 닫음 (엄지 스와이프 오작동 방지)
 
   // 서비스 탭 (calc / admin 만)
   document.querySelectorAll('.svc-tab').forEach(tab => {

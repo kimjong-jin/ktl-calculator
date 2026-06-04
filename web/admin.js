@@ -5,18 +5,24 @@
 
 const STORE_KEY    = 'ktl-issued-tokens';
 const SKILLS_KEY   = 'ktl-admin-skills';   // 스킬 라이브러리 (배열)
-const CHAT_KEY     = 'ktl-chat-enabled';   // AI 법령 기능 활성화 여부
+const CHAT_KEY     = 'ktl-chat-mode';      // AI 법령 모드: 'active'|'maintenance'|'inactive'
 let adminToken = '';
 
-// ── AI 법령 활성 상태 ────────────────────────────────────────
-function isChatEnabled() {
-  return localStorage.getItem(CHAT_KEY) === 'true';
+// ── AI 법령 3단계 모드 ────────────────────────────────────────
+function getChatMode() {
+  const v = localStorage.getItem(CHAT_KEY);
+  if (v === 'active' || v === 'maintenance' || v === 'inactive') return v;
+  // 구 버전 마이그레이션 (ktl-chat-enabled)
+  return localStorage.getItem('ktl-chat-enabled') === 'true' ? 'active' : 'maintenance';
 }
-function setChatEnabled(val) {
-  localStorage.setItem(CHAT_KEY, val ? 'true' : 'false');
-  // 즉시 FAB 반영
+function setChatMode(mode) {
+  localStorage.setItem(CHAT_KEY, mode);
+  // 즉시 FAB 반영 (role 확인)
+  const role = document.body.dataset.role || 'user';
   const fab = document.getElementById('chat-fab');
-  if (fab) fab.hidden = !val;
+  if (fab) {
+    fab.hidden = !(mode === 'active' || (mode === 'maintenance' && role === 'admin'));
+  }
 }
 
 // ── 스킬 라이브러리 ─────────────────────────────────────────
@@ -225,25 +231,26 @@ function skillSectionHTML(serverSkill) {
 
 // ── AI 법령 기능 잠금/해제 섹션 ──────────────────────────────
 function chatToggleSectionHTML() {
-  const enabled = isChatEnabled();
+  const mode = getChatMode();
+  const modeDesc = {
+    active:      '🟢 <strong>활성</strong> — 모든 사용자에게 AI 법령 버튼이 표시됩니다.',
+    maintenance: '🔧 <strong>관리</strong> — 관리자만 접근 가능. 유지관리·테스트 중.',
+    inactive:    '⛔ <strong>비활성</strong> — 전체 비활성화. 버튼이 모두에게 숨겨집니다.',
+  };
+  const btnStyle = (m) => m === mode
+    ? 'padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;border:2px solid transparent;' +
+      (m === 'active' ? 'background:#22c55e;color:#fff;border-color:#16a34a;'
+      : m === 'maintenance' ? 'background:#f59e0b;color:#fff;border-color:#d97706;'
+      : 'background:#ef4444;color:#fff;border-color:#dc2626;')
+    : 'padding:8px 18px;border-radius:8px;font-weight:600;cursor:pointer;background:#334155;color:#94a3b8;border:2px solid #475569;';
   return `
     <div class="admin-section" id="chat-toggle-section">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
-        <div>
-          <h3 class="admin-section__title" style="margin:0 0 4px">AI 법령 기능</h3>
-          <p class="admin-card__sub" style="margin:0">
-            ${enabled
-              ? '🟢 현재 <strong>사용 가능</strong> — 로그인한 사용자에게 AI 법령 버튼이 표시됩니다.'
-              : '🔴 현재 <strong>잠금</strong> — 관리자만 테스트 가능, 일반 사용자에게는 숨겨집니다.'}
-          </p>
-        </div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <label class="skill-toggle" title="${enabled ? '클릭하면 잠금' : '클릭하면 배포(활성화)'}">
-            <input type="checkbox" class="skill-toggle__input" id="chat-enabled-toggle" ${enabled ? 'checked' : ''} />
-            <span class="skill-toggle__track"></span>
-            <span class="skill-toggle__label">${enabled ? '배포 중' : '잠금'}</span>
-          </label>
-        </div>
+      <h3 class="admin-section__title" style="margin:0 0 8px">AI 법령 기능</h3>
+      <p class="admin-card__sub" style="margin:0 0 14px" id="chat-mode-desc">${modeDesc[mode]}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="chat-mode-active"      style="${btnStyle('active')}"      data-mode="active">🟢 활성</button>
+        <button id="chat-mode-maintenance" style="${btnStyle('maintenance')}" data-mode="maintenance">🔧 관리</button>
+        <button id="chat-mode-inactive"    style="${btnStyle('inactive')}"    data-mode="inactive">⛔ 비활성</button>
       </div>
     </div>`;
 }
@@ -340,20 +347,32 @@ function render(wrap, d) {
 
 // ── 이벤트 바인딩 ────────────────────────────────────────────
 function bindEvents(wrap, access) {
-  // AI 법령 잠금/해제 토글
-  document.getElementById('chat-enabled-toggle')?.addEventListener('change', (e) => {
-    const enabled = e.target.checked;
-    setChatEnabled(enabled);
-    // 섹션 상태 문구 즉시 갱신
-    const section = document.getElementById('chat-toggle-section');
-    if (section) {
-      const desc = section.querySelector('.admin-card__sub');
-      const label = section.querySelector('.skill-toggle__label');
-      if (desc) desc.innerHTML = enabled
-        ? '🟢 현재 <strong>사용 가능</strong> — 로그인한 사용자에게 AI 법령 버튼이 표시됩니다.'
-        : '🔴 현재 <strong>잠금</strong> — 관리자만 테스트 가능, 일반 사용자에게는 숨겨집니다.';
-      if (label) label.textContent = enabled ? '배포 중' : '잠금';
-    }
+  // AI 법령 3단계 모드 버튼
+  const modeDesc = {
+    active:      '🟢 <strong>활성</strong> — 모든 사용자에게 AI 법령 버튼이 표시됩니다.',
+    maintenance: '🔧 <strong>관리</strong> — 관리자만 접근 가능. 유지관리·테스트 중.',
+    inactive:    '⛔ <strong>비활성</strong> — 전체 비활성화. 버튼이 모두에게 숨겨집니다.',
+  };
+  ['active', 'maintenance', 'inactive'].forEach(m => {
+    document.getElementById(`chat-mode-${m}`)?.addEventListener('click', () => {
+      setChatMode(m);
+      // 설명 갱신
+      const desc = document.getElementById('chat-mode-desc');
+      if (desc) desc.innerHTML = modeDesc[m];
+      // 버튼 스타일 갱신
+      ['active', 'maintenance', 'inactive'].forEach(btn => {
+        const el = document.getElementById(`chat-mode-${btn}`);
+        if (!el) return;
+        if (btn === m) {
+          el.style.cssText = 'padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;border:2px solid transparent;' +
+            (btn === 'active' ? 'background:#22c55e;color:#fff;border-color:#16a34a;'
+            : btn === 'maintenance' ? 'background:#f59e0b;color:#fff;border-color:#d97706;'
+            : 'background:#ef4444;color:#fff;border-color:#dc2626;');
+        } else {
+          el.style.cssText = 'padding:8px 18px;border-radius:8px;font-weight:600;cursor:pointer;background:#334155;color:#94a3b8;border:2px solid #475569;';
+        }
+      });
+    });
   });
 
   // 새로고침
