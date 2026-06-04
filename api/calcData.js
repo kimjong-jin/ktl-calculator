@@ -8,9 +8,9 @@
  * DELETE /api/calcData?receiptNo=xxx&userName=yyy&token → 삭제 (관리자)
  */
 
-const BASE         = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || '').replace(/\/$/, '');
+const BASE          = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || '').replace(/\/$/, '');
 const STUDIO_SECRET = process.env.STUDIO_SECRET || '';
-const ADMIN_TOKEN  = process.env.ADMIN_TOKEN    || '';
+const ADMIN_TOKEN   = process.env.AUTH_SECRET    || '';  // Vercel 환경변수 AUTH_SECRET 사용
 
 function requireAdmin(req, res) {
   const token = req.query.token || req.headers['x-admin-token'] || '';
