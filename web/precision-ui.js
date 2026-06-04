@@ -173,12 +173,26 @@ function scheduleAutoSave() {
 }
 
 function saveMeta() {
-  try { localStorage.setItem('ktl-tabs', JSON.stringify(tabs.map(({id,code,label,pass})=>({id,code,label,pass})))); } catch {}
+  try { localStorage.setItem('ktl-tabs', JSON.stringify(tabs.map(({id,code,label,pass,subNo})=>({id,code,label,pass,subNo})))); } catch {}
   try { localStorage.setItem('ktl-tab-active', activeId||''); } catch {}
 }
 function loadMeta() {
   try { const r = localStorage.getItem('ktl-tabs'); if (r) tabs = JSON.parse(r); } catch {}
   try { activeId = localStorage.getItem('ktl-tab-active') || null; } catch {}
+  // 구버전 탭(subNo 없음) 마이그레이션
+  tabs.forEach((t, i) => {
+    if (!t.subNo) t.subNo = i + 1;
+    if (!t.label || !t.label.includes('-')) t.label = makeLabel(t.code, t.subNo);
+  });
+}
+
+// 다음 subNo 계산 (전체 탭 통틀어 순번)
+function nextSubNo() {
+  return tabs.length === 0 ? 1 : Math.max(...tabs.map(t => t.subNo || 0)) + 1;
+}
+// 탭의 전체 접수번호 (예: 25-000000-01-2)
+function fullReceiptNo(tab) {
+  return calcReceiptNo ? `${calcReceiptNo}-${tab.subNo}` : `(${tab.label})`;
 }
 function saveData(id) {
   const tab = tabs.find(t => t.id === id);
@@ -192,13 +206,13 @@ function loadData(id) {
   try { const r = localStorage.getItem(`ktl-pv-${id}`); return r ? JSON.parse(r) : {}; } catch { return {}; }
 }
 
-function makeLabel(code) {
-  const n = tabs.filter(t => t.code === code).length;
-  return n === 0 ? code : `${code}-${n+1}`;
+function makeLabel(code, subNo) {
+  return `${code}-${subNo}`;
 }
 function addTab(code) {
+  const subNo = nextSubNo();
   const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2,5)}`;
-  tabs.push({ id, code, label: makeLabel(code), pass: null });
+  tabs.push({ id, code, label: makeLabel(code, subNo), pass: null, subNo });
   saveMeta();
   renderTabs();
   switchTab(id);
@@ -1104,12 +1118,16 @@ function hasData(code) {
 function renderTabs() {
   const bar = document.getElementById('pv-tab-list');
   if (!bar) return;
-  bar.innerHTML = tabs.map(t => `
+  bar.innerHTML = tabs.map(t => {
+    const full = fullReceiptNo(t);
+    return `
     <div class="pv-tab-item">
       <button class="pv-item-tab${t.id===activeId?' is-active':''}"
-        data-id="${t.id}" data-pass="${t.pass||''}" type="button">${t.label}</button>
+        data-id="${t.id}" data-pass="${t.pass||''}" type="button"
+        title="${full}">${t.label}</button>
       <button class="pv-tab-del" data-id="${t.id}" type="button" title="삭제">×</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   bar.querySelectorAll('.pv-item-tab').forEach(b =>
     b.addEventListener('click', () => switchTab(b.dataset.id)));
   bar.querySelectorAll('.pv-tab-del').forEach(b =>
@@ -1541,7 +1559,8 @@ function showCert(tabId) {
         <p style="margin:4px 0 0;font-size:12px;color:#666">KTL 전문 계측 서비스</p>
       </div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:13px">
-        <tr><td style="padding:4px 0;width:90px;color:#666">검사 항목</td><td style="font-weight:600">${tab.label}</td></tr>
+        <tr><td style="padding:4px 0;width:90px;color:#666">접수번호</td><td style="font-weight:600;font-family:monospace">${fullReceiptNo(tab)}</td></tr>
+        <tr><td style="padding:4px 0;color:#666">검사 항목</td><td style="font-weight:600">${tab.label}</td></tr>
         <tr><td style="padding:4px 0;color:#666">검사일</td><td>${date}</td></tr>
       </table>
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px">
