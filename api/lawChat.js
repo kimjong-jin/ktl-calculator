@@ -54,7 +54,7 @@ async function getLawText(mst) {
     if (!res.ok) return "";
     const xml = await res.text();
     const texts = [...xml.matchAll(/<조문내용><!\[CDATA\[([^\]]+)\]\]><\/조문내용>/g)].map(m => m[1]);
-    return texts.slice(0, 4).join("\n").slice(0, 1500);
+    return texts.slice(0, 3).join("\n").slice(0, 800);
   } catch { return ""; }
 }
 
@@ -77,7 +77,14 @@ export default async function handler(req, res) {
 
   const body = await readBody(req);
   const message = String(body?.message || "").trim();
-  const history = Array.isArray(body?.history) ? body.history.slice(-10) : [];
+  // 히스토리: 최근 6개만, AI 답변은 300자로 압축 (토큰 절감)
+  const history = Array.isArray(body?.history)
+    ? body.history.slice(-6).map(h =>
+        h.role === 'assistant' && h.content.length > 300
+          ? { ...h, content: h.content.slice(0, 300) + '…' }
+          : h
+      )
+    : [];
   if (!message) return res.status(400).json({ error: "message 파라미터가 필요합니다." });
 
   // 관리자 등록 전문 지식 — 서버 env var(영구) + 요청 페이로드(세션)
@@ -91,7 +98,7 @@ export default async function handler(req, res) {
   // 1. 지식 베이스 검색 (로컬 Obsidian 노드)
   let knowledgeCtx = "", knowledgeUsed = false, knowledgeVersion = "";
   try {
-    const knNodes = searchKnowledge(message, 3);
+    const knNodes = searchKnowledge(message, 2);
     if (knNodes.length > 0) {
       knowledgeUsed = true;
       // 노드에서 시행일 추출 (가장 최신 날짜)
@@ -135,7 +142,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: { maxOutputTokens: 8192, temperature: 0.2 },
+          generationConfig: { maxOutputTokens: 2048, temperature: 0.2 },
         }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       }

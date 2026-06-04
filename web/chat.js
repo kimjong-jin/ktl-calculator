@@ -3,7 +3,7 @@
  * initChat() 최초 1회 호출. 이후 동일 DOM에서 동작.
  */
 
-const MAX_HISTORY = 10;
+const MAX_HISTORY = 6;
 const SKILLS_KEY = 'ktl-admin-skills';
 let history = [];
 let sending = false;
