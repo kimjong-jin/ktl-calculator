@@ -70,9 +70,11 @@ async function handleApi(req, res, next) {
       }
       if (req.method === 'POST') {
         const body = await readJsonBody(req);
-        const result = verifyAccess(String(body.password ?? ''));
+        // verifyAccess(password, now, id) — Vercel api/auth.js 와 동일 시그니처
+        const result = verifyAccess(String(body.password ?? ''), Date.now(), String(body.id ?? ''));
         if (!result.ok) return sendJson(res, result.code || 401, { error: result.error });
-        return sendJson(res, 200, { token: result.token, exp: result.exp });
+        // role 포함 (Vercel 프로덕션과 동일)
+        return sendJson(res, 200, { token: result.token, exp: result.exp, role: result.role });
       }
     }
 
@@ -135,6 +137,85 @@ async function handleApi(req, res, next) {
     if (req.method === 'POST' && url.pathname === '/api/claydox/payload') {
       const body = await readJsonBody(req);
       return sendJson(res, 200, buildClaydoxPayload(body.param, body.values ?? {}));
+    }
+
+    // /api/lawSearch — law.go.kr DRF 프록시 (DEV 전용)
+    // Vercel api/lawSearch.js 와 동일 로직으로 채팅 패널 법령 연결 상태가 정상 표시됨
+    if (req.method === 'GET' && url.pathname === '/api/lawSearch') {
+      const LAW_BASE = 'https://www.law.go.kr/DRF';
+      const LAW_OC = process.env.LAW_OC || 'kbisss_2026';
+      const query = url.searchParams.get('query') || url.searchParams.get('q') || '';
+      const mst = url.searchParams.get('mst') || url.searchParams.get('MST') || '';
+      const target = url.searchParams.get('target') || 'law';
+      if (!query && !mst) return sendJson(res, 400, { error: 'query 또는 mst 파라미터가 필요합니다.' });
+      try {
+        const params = new URLSearchParams({ OC: LAW_OC, type: 'XML', target, ...(mst ? { MST: mst } : { query }) });
+        const endpoint = mst ? 'lawService.do' : 'lawSearch.do';
+        const upRes = await fetch(`${LAW_BASE}/${endpoint}?${params}`, { signal: AbortSignal.timeout(10_000) });
+        const xml = await upRes.text();
+        res.statusCode = upRes.status;
+        res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+        res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+        return res.end(xml);
+      } catch (e) {
+        console.error('[ktl-calculator-web] lawSearch 오류:', e instanceof Error ? e.message : e);
+        return sendJson(res, 502, { error: '법령 정보를 불러오지 못했습니다.' });
+      }
+    }
+
+    // /api/calcData — Mac Studio 서버 프록시 (DEV 전용)
+    // Vercel api/calcData.js 와 동일 로직으로 정도검사 데이터 저장/불러오기 연동
+    if (url.pathname === '/api/calcData') {
+      const STUDIO_BASE = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || '').replace(/\/$/, '');
+      const STUDIO_SECRET = process.env.STUDIO_SECRET || '';
+      const ADMIN_TOKEN = process.env.AUTH_SECRET || '';
+
+      if (!STUDIO_BASE) {
+        return sendJson(res, 503, { error: 'MAC_STUDIO_URL 환경변수가 설정되지 않았습니다. .env.local을 확인하세요.' });
+      }
+      try {
+        let upUrl;
+        const fetchOpts = {
+          method: req.method === 'DELETE' ? 'DELETE' : req.method,
+          headers: { 'Content-Type': 'application/json' },
+        };
+        if (req.method === 'GET') {
+          const action = url.searchParams.get('action');
+          const receiptNo = url.searchParams.get('receiptNo');
+          const userName = url.searchParams.get('userName');
+          if (action === 'list') {
+            const token = url.searchParams.get('token') || '';
+            if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) return sendJson(res, 401, { error: '관리자 인증 필요' });
+            upUrl = `${STUDIO_BASE}/api/calc/list`;
+            fetchOpts.headers['x-studio-secret'] = STUDIO_SECRET;
+          } else {
+            if (!receiptNo || !userName) return sendJson(res, 400, { error: 'receiptNo, userName 필수' });
+            upUrl = `${STUDIO_BASE}/api/calc?receiptNo=${encodeURIComponent(receiptNo)}&userName=${encodeURIComponent(userName)}`;
+          }
+        } else if (req.method === 'POST') {
+          const body = await readJsonBody(req);
+          if (!body.receiptNo || !body.userName) return sendJson(res, 400, { error: 'receiptNo, userName 필수' });
+          upUrl = `${STUDIO_BASE}/api/calc`;
+          fetchOpts.body = JSON.stringify(body);
+        } else if (req.method === 'DELETE') {
+          const receiptNo = url.searchParams.get('receiptNo');
+          const userName = url.searchParams.get('userName');
+          const token = url.searchParams.get('token') || '';
+          if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) return sendJson(res, 401, { error: '관리자 인증 필요' });
+          if (!receiptNo) return sendJson(res, 400, { error: 'receiptNo 필수' });
+          const qs = userName ? `?userName=${encodeURIComponent(userName)}` : '';
+          upUrl = `${STUDIO_BASE}/api/calc/${encodeURIComponent(receiptNo)}${qs}`;
+          fetchOpts.headers['x-studio-secret'] = STUDIO_SECRET;
+        } else {
+          return sendJson(res, 405, { error: 'Method Not Allowed' });
+        }
+        const upRes = await fetch(upUrl, { ...fetchOpts, signal: AbortSignal.timeout(8000) });
+        const data = await upRes.json().catch(() => ({}));
+        return sendJson(res, upRes.status, data);
+      } catch (e) {
+        console.error('[ktl-calculator-web] calcData 오류:', e instanceof Error ? e.message : e);
+        return sendJson(res, 502, { error: `Mac Studio 연결 실패: ${e instanceof Error ? e.message : e}` });
+      }
     }
 
     return sendJson(res, 404, { error: '존재하지 않는 API 경로입니다.' });
