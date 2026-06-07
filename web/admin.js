@@ -486,7 +486,7 @@ function bindEvents(wrap, access) {
       if (!users.length) { wrap2.innerHTML = '<p class="admin-card__sub">등록된 사용자 없음</p>'; return; }
       wrap2.innerHTML = users.map(u => `
         <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #1e293b;flex-wrap:wrap">
-          <span style="color:#f1f5f9;font-weight:600;min-width:80px">${escH(u.name)}</span>
+          <span style="color:var(--text,#1e293b);font-weight:600;min-width:80px">${escH(u.name)}</span>
           <span style="font-size:11px;color:${u.must_change_password ? '#fbbf24' : '#4ade80'}">
             ${u.must_change_password ? '⚠ 초기PW' : '✓ 변경완료'}
           </span>
