@@ -888,7 +888,20 @@ function updateInlineHints(code) {
     ['s2','s3','s4','s5'].forEach(id => {
       setHint(id, !isNaN(s1) ? s1-repT(s1) : NaN, !isNaN(s1) ? s1+repT(s1) : NaN, gv(id));
     });
-    // 직선성 요약바: TU/CL은 S1÷2 기준
+    // Z6/Z7, S6/S7: Z5/S5 기준 ±range×2%×√3 (3회 STDEV 허용 범위)
+    const z5=gv('z5'), s5=gv('s5');
+    const repAbs = range * 0.02 * Math.sqrt(3);
+    const clamp = (v, r) => isNaN(v) ? NaN : Math.max(0, Math.min(r, v));
+    if (!isNaN(z5) && z5 > 0) {
+      setHint('z6', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z6'));
+      setHint('z7', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z7'));
+    }
+    if (!isNaN(s5) && s5 > 0) {
+      setHint('s6', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s6'));
+      setHint('s7', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s7'));
+    }
+    // 반복성 요약바(TU/CL 기준 2%) + 직선성 요약바
+    updateRepSummary(range, 2);
     updateLinSummary(range, gv('s1'));
   }
 }
@@ -943,7 +956,7 @@ function updateDriftSummary(range) {
   ).join('');
 }
 
-function updateRepSummary(range) {
+function updateRepSummary(range, repLimit = 3) {
   const el = document.getElementById('pv_rep_summary');
   if (!el) return;
   const zVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
@@ -970,7 +983,7 @@ function updateRepSummary(range) {
     return r > 0 ? s/r*100 : s/m*100;
   };
   const zRsd = stdDiv(zVals, range), sRsd = stdDiv(sVals, range);
-  const limit = 3;
+  const limit = repLimit;
   const r1 = v => Math.round(v * 10) / 10;
   // 통과불가 또는 음수 → 강제 부적합
   const zPass = (zImpossible || zNeg) ? false : (zRsd !== null ? r1(zRsd) <= limit : null);
@@ -1398,7 +1411,8 @@ function buildFormWater(code) {
         <div class="pv-zs-row">${zsCell('z6','6','z')}${zsCell('s6','6','s')}</div>
         <div class="pv-zs-row">${zsCell('z7','7','z')}${zsCell('s7','7','s')}</div>
       </div>
-      <p class="pv-zs-note">드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 3% | 반복성: 4콤보 MAX STDEV / 범위 ≤ 3%</p>
+      <p class="pv-zs-note">드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 3% | 반복성: Z5+Z6+Z7 직접입력 시 3회차 계산, 미입력 시 4콤보 자동선택 / 범위 ≤ 2%</p>
+      <div id="pv_rep_summary" class="pv-lin-summary"></div>
     </div>
   </div>
 
