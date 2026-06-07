@@ -587,10 +587,10 @@ function calcWater(tab) {
   const range = g('range');
   if (!range) return;
 
-  // 반복성: 4콤보 pickRepVals (TMS와 동일 엑셀 로직)
+  // 반복성: 4콤보 pickRepVals (TMS와 동일 엑셀 로직) — TU/CL 기준 2.0%
   const zRepVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
   const sRepVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
-  const rep = repeatability(zRepVals, sRepVals, range);
+  const rep = repeatability(zRepVals, sRepVals, range, 2.0);
   document.getElementById('pv-res-rep').innerHTML = repCards(rep, zRepVals, sRepVals);
 
   // 드리프트: TU/CL 기준 ≤ 3% (TMS는 5%)

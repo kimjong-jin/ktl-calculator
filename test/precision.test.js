@@ -79,9 +79,18 @@ console.log('⑥ 먹는물 TU/CL 전용');
 // ── 반복성: 공식은 TMS와 동일 (RSD ≤ 3%, range 기준) ────────
 check('TU 반복성 — Z [5.0,5.1,4.9] RSD 1% 적합', () => {
   // std=0.1, range=10 → rsd=1%
-  const r = repeatability([5.0, 5.1, 4.9], [8.0, 8.1, 7.9], 10);
+  const r = repeatability([5.0, 5.1, 4.9], [8.0, 8.1, 7.9], 10, 2.0);
   assert.ok(near(r.zero.rsd, 1));
   assert.equal(r.zero.pass, true);
+  assert.equal(r.limit, 2.0);
+});
+check('TU 반복성 — RSD 2.5% 는 2% 기준 부적합 (수질TMS 3%는 적합)', () => {
+  // [49, 51.5, 46.5]: std=2.5, range=100 → rsd=2.5%
+  const rTU  = repeatability([49, 51.5, 46.5], [89, 89, 89], 100, 2.0);
+  const rTMS = repeatability([49, 51.5, 46.5], [89, 89, 89], 100, 3.0);
+  assert.ok(near(rTU.zero.rsd, 2.5));
+  assert.equal(rTU.zero.pass,  false); // TU/CL 2% 기준 → 부적합
+  assert.equal(rTMS.zero.pass, true);  // 수질TMS 3% 기준 → 적합
 });
 check('TU 반복성 — Z RSD 3.5% 부적합', () => {
   // std=0.35, range=10 → rsd=3.5% > 3%

@@ -59,16 +59,15 @@ const pct = (numer, denom) => (denom !== 0 ? Math.abs(numer / denom) * 100 : 0);
  * pH: zVals=[7측정값×3], sVals=[4측정값×3]
  * DO: zVals 무시, sVals=[S1,S3,S5] (Span 기준) */
 // range 있으면 std/range×100 (수질TMS: 측정범위 기준), 없으면 std/mean×100 (pH 등)
-export function repeatability(zVals, sVals, range) {
+export function repeatability(zVals, sVals, range, limit = PRECISION_CRITERIA.repeatabilityRsd) {
   const calc = (vals, r) => {
     if (!vals || vals.length < 2) return { mean: NaN, rsd: NaN, pass: null };
     const m = mean(vals), s = sampleStd(vals);
     const rsd = (r > 0) ? s / r * 100 : pct(s, m);
-    // 엑셀 기준: ROUND(rsd, 1) 후 > 3 비교 (소수점 1자리)
     const rsdRounded = Math.round(rsd * 10) / 10;
-    return { mean: m, rsd, pass: rsdRounded <= PRECISION_CRITERIA.repeatabilityRsd };
+    return { mean: m, rsd, pass: rsdRounded <= limit };
   };
-  return { zero: calc(zVals, range), span: calc(sVals, range), limit: PRECISION_CRITERIA.repeatabilityRsd };
+  return { zero: calc(zVals, range), span: calc(sVals, range), limit };
 }
 
 /* ── ② 드리프트 ────────────────────────────────────────────
@@ -214,9 +213,9 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
   }
 
   if (param === 'PH') {
-    const limit = 0.3;
+    const limit = 0.20;
     return { parameter: param, labMean, siteMean, limit, useRate: false, meanFi, meanRate, auto: false,
-      pass: Math.abs(labMean - siteMean) <= limit };
+      pass: meanFi <= limit };
   }
 
   const rule = FIELD_RULES[param];
