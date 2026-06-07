@@ -339,6 +339,20 @@ function render(wrap, d) {
     ${chatToggleSectionHTML()}
     ${skillSectionHTML(skill)}
 
+    <!-- 사용자 관리 -->
+    <div class="admin-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h3 class="admin-section__title" style="margin:0">👤 사용자 관리</h3>
+        <button class="btn btn--mini" id="user-refresh-btn">새로고침</button>
+      </div>
+      <div id="user-list-wrap" style="font-size:13px"><p class="admin-loading">불러오는 중…</p></div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <input id="new-user-name" class="field__control" type="text" placeholder="새 사용자 이름" style="flex:1;min-width:120px" />
+        <button class="btn btn--primary btn--mini" id="add-user-btn">+ 추가</button>
+      </div>
+      <p id="user-msg" style="font-size:12px;margin-top:6px;display:none"></p>
+    </div>
+
     <!-- 계산 데이터 관리 -->
     <div class="admin-section" id="calc-data-section">
       <h3 class="admin-section__title">📊 계산 데이터 관리</h3>
@@ -460,6 +474,75 @@ function bindEvents(wrap, access) {
       });
     });
   });
+
+  // ── 사용자 관리 ─────────────────────────────────────────────
+  async function loadUserList() {
+    const wrap2 = document.getElementById('user-list-wrap');
+    if (!wrap2) return;
+    try {
+      const r = await fetch('/api/manageUsers', { headers: { Authorization: `Bearer ${adminToken}` } });
+      const users = await r.json();
+      if (!r.ok) { wrap2.innerHTML = `<p class="error">${users.error || '로드 실패'}</p>`; return; }
+      if (!users.length) { wrap2.innerHTML = '<p class="admin-card__sub">등록된 사용자 없음</p>'; return; }
+      wrap2.innerHTML = users.map(u => `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #1e293b;flex-wrap:wrap">
+          <span style="color:#f1f5f9;font-weight:600;min-width:80px">${escH(u.name)}</span>
+          <span style="font-size:11px;color:${u.must_change_password ? '#fbbf24' : '#4ade80'}">
+            ${u.must_change_password ? '⚠ 초기PW' : '✓ 변경완료'}
+          </span>
+          <span style="color:#64748b;font-size:12px;flex:1">${escH(u.contact || '')}</span>
+          <button class="btn btn--mini" data-reset-user="${escH(u.name)}" style="background:#f59e0b;color:#000;border:none">초기화</button>
+          <button class="btn btn--mini" data-del-user="${escH(u.name)}" style="background:#dc2626;color:#fff;border:none">삭제</button>
+        </div>`).join('');
+    } catch { wrap2.innerHTML = '<p class="error">연결 실패</p>'; }
+  }
+
+  function showUserMsg(txt, ok = false) {
+    const el = document.getElementById('user-msg');
+    if (!el) return;
+    el.textContent = txt; el.style.color = ok ? '#4ade80' : '#f87171'; el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 3000);
+  }
+
+  document.getElementById('user-refresh-btn')?.addEventListener('click', loadUserList);
+
+  document.getElementById('add-user-btn')?.addEventListener('click', async () => {
+    const name = document.getElementById('new-user-name')?.value.trim();
+    if (!name) return showUserMsg('이름을 입력하세요');
+    const r = await fetch('/api/manageUsers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ action: 'add', name }),
+    });
+    const d = await r.json();
+    if (r.ok) { showUserMsg(`✅ ${name} 추가됨 (초기PW: ktl1234)`, true); document.getElementById('new-user-name').value = ''; loadUserList(); }
+    else showUserMsg('❌ ' + (d.error || '추가 실패'));
+  });
+
+  document.getElementById('user-list-wrap')?.addEventListener('click', async (e) => {
+    const resetName = e.target.dataset.resetUser;
+    const delName   = e.target.dataset.delUser;
+    if (resetName) {
+      if (!confirm(`${resetName}의 비밀번호를 ktl1234로 초기화할까요?`)) return;
+      const r = await fetch('/api/manageUsers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ action: 'reset', name: resetName }),
+      });
+      const d = await r.json();
+      r.ok ? (showUserMsg(`✅ ${resetName} 초기화됨`, true), loadUserList()) : showUserMsg('❌ ' + (d.error || '실패'));
+    }
+    if (delName && confirm(`${delName}을(를) 삭제하시겠습니까?`)) {
+      const r = await fetch(`/api/manageUsers?name=${encodeURIComponent(delName)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const d = await r.json();
+      r.ok ? (showUserMsg(`✅ ${delName} 삭제됨`, true), loadUserList()) : showUserMsg('❌ ' + (d.error || '실패'));
+    }
+  });
+
+  loadUserList();
 
   // 계산 데이터 목록 로드
   loadCalcDataList(adminToken);
