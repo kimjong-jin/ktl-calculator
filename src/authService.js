@@ -36,7 +36,7 @@ export function accessDays() {
   return Number.isFinite(d) && d > 0 ? d : 10;
 }
 
-function sign(payloadObj, secret) {
+export function sign(payloadObj, secret) {
   const payload = b64url(JSON.stringify(payloadObj));
   const mac = b64url(crypto.createHmac('sha256', secret).update(payload).digest());
   return `${payload}.${mac}`;

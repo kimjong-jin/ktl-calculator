@@ -60,32 +60,104 @@ function showAuthError(msg) {
   el.textContent = msg ?? '';
 }
 
+// 비밀번호 변경 모달 (첫 로그인 강제)
+function setupPwChangeModal(userName, onDone) {
+  const modal = $('pw-change-modal');
+  const curEl  = $('pwc-cur');
+  const newEl  = $('pwc-new');
+  const new2El = $('pwc-new2');
+  const msgEl  = $('pwc-msg');
+  const btn    = $('pwc-btn');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  curEl.value = ''; newEl.value = ''; new2El.value = ''; msgEl.style.display = 'none';
+  curEl.focus();
+
+  const showMsg = (txt, ok=false) => {
+    msgEl.textContent = txt;
+    msgEl.style.color = ok ? '#4ade80' : '#f87171';
+    msgEl.style.display = 'block';
+  };
+
+  async function submit() {
+    const cur = curEl.value, nw = newEl.value, nw2 = new2El.value;
+    if (!cur || !nw || !nw2) return showMsg('모두 입력하세요');
+    if (nw !== nw2) return showMsg('새 비밀번호가 일치하지 않습니다');
+    if (nw.length < 4) return showMsg('4자 이상 입력하세요');
+    if (nw === cur) return showMsg('현재 비밀번호와 동일합니다');
+    btn.disabled = true; btn.textContent = '변경 중…';
+    try {
+      const r = await fetch('/api/changePassword', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: userName, currentPassword: cur, newPassword: nw }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        showMsg('✅ 변경되었습니다. 다시 로그인해주세요.', true);
+        setTimeout(() => { modal.style.display = 'none'; onDone(); }, 1500);
+      } else {
+        showMsg('❌ ' + (d.error || '오류가 발생했습니다'));
+      }
+    } catch { showMsg('서버에 연결할 수 없습니다'); }
+    finally { btn.disabled = false; btn.textContent = '비밀번호 변경'; }
+  }
+  btn.addEventListener('click', submit);
+  new2El.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+}
+
 function setupAuthGate(onSuccess) {
   const idEl   = $('auth-id');
   const passEl = $('auth-pass');
   const btn    = $('auth-btn');
   if (!passEl || !btn) return;
-  (idEl || passEl).focus();
+  idEl ? idEl.focus() : passEl.focus();
 
   async function attempt() {
     btn.disabled = true;
     btn.textContent = '확인 중…';
     showAuthError('');
+    const name = idEl?.value.trim() || '';
+    const password = passEl.value;
+
     try {
-      const body = { password: passEl.value };
-      if (idEl && idEl.value.trim()) body.id = idEl.value.trim();
+      // 1순위: 개인 ID/PW (Mac Studio 사용자)
+      if (name) {
+        const r = await fetch('/api/userAuth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, password }),
+        });
+        const data = await r.json();
+        if (r.ok) {
+          if (data.mustChange) {
+            // 비밀번호 변경 필수 → 모달 표시 후 로그아웃 상태 유지
+            setupPwChangeModal(data.name, () => {
+              idEl.value = ''; passEl.value = '';
+              btn.disabled = false; btn.textContent = '접속하기';
+            });
+            return;
+          }
+          storeToken(data.token);
+          onSuccess(data.role || 'admin');
+          return;
+        }
+        showAuthError(data.error || '아이디 또는 비밀번호가 올바르지 않습니다.');
+        return;
+      }
+
+      // 2순위: 접속 코드 / 관리자 비밀번호 (기존 방식)
+      const body = { password };
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       if (res.status === 500 && import.meta.env.DEV) {
-        console.warn('[auth] DEV: 인증 우회');
-        onSuccess('user');
-        return;
+        onSuccess('user'); return;
       }
       const data = await res.json();
-      if (!res.ok) { showAuthError(data.error || '아이디 또는 비밀번호가 올바르지 않습니다.'); return; }
+      if (!res.ok) { showAuthError(data.error || '비밀번호가 올바르지 않습니다.'); return; }
       storeToken(data.token);
       onSuccess(data.role || 'user');
     } catch {
