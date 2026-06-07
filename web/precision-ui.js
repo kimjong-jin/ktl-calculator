@@ -305,12 +305,11 @@ function rt1(label, val, pass, unit='') {
 }
 
 // ── 계산: 기본형 (TOC/TN/TP/SS/COD) ─────────────────────
-// 엑셀 로직: 4콤보(초기×최종) 중 STDEV 최대 조합 자동선택 (Z6/Z7 수동 입력 시 우선)
+// Z6/Z7 모두 입력 시 [Z5,Z6,Z7] 사용, 그 외 4콤보 자동선택 (Z6만 입력은 무시)
 function pickRepVals(z5, z6, z7, initVals, finVals) {
   if (isNaN(z5) || z5 <= 0) return [];
   const z6ok = !isNaN(z6) && z6 > 0, z7ok = !isNaN(z7) && z7 > 0;
   if (z6ok && z7ok) return [z5, z6, z7];
-  if (z6ok) return [z5, z6];
   const iv = initVals.filter(v=>v>0), fv = finVals.filter(v=>v>0);
   if (!iv.length || !fv.length) return [z5];
   let best = {s:-1, a:null, b:null};
@@ -1209,11 +1208,11 @@ function buildFormBasic(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">반복성 측정 <span class="pv-hint">1차 필수 · 2·3차 선택</span></h3>
+    <h3 class="pv-section__title">반복성 측정 <span class="pv-hint">1차 필수 · 2·3차 모두 입력 시 직접 계산</span></h3>
     <div class="pv-zs-table">
       <div class="pv-zs-section-label">1차 (필수)</div>
       <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
-      <div class="pv-zs-section-label pv-zs-section-label--sep">2·3차 (선택)</div>
+      <div class="pv-zs-section-label pv-zs-section-label--sep">2·3차 (둘 다 입력해야 적용)</div>
       <div class="pv-zs-row">${zsCell('z6','6','z')}${zsCell('s6','6','s')}</div>
       <div class="pv-zs-row">${zsCell('z7','7','z')}${zsCell('s7','7','s')}</div>
     </div>
@@ -1406,12 +1405,13 @@ function buildFormWater(code) {
         <div class="pv-zs-section-label pv-zs-section-label--sep">드리프트 최종구간</div>
         <div class="pv-zs-row">${zsCell('z3','3','z')}${zsCell('s3','3','s')}</div>
         <div class="pv-zs-row">${zsCell('z4','4','z')}${zsCell('s4','4','s')}</div>
-        <div class="pv-zs-section-label pv-zs-section-label--sep">반복성 (1차 필수·2·3차 선택)</div>
+        <div class="pv-zs-section-label pv-zs-section-label--sep">반복성 1차 (필수)</div>
         <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
+        <div class="pv-zs-section-label pv-zs-section-label--sep">반복성 2·3차 (둘 다 입력해야 적용)</div>
         <div class="pv-zs-row">${zsCell('z6','6','z')}${zsCell('s6','6','s')}</div>
         <div class="pv-zs-row">${zsCell('z7','7','z')}${zsCell('s7','7','s')}</div>
       </div>
-      <p class="pv-zs-note">드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 3% | 반복성: Z5+Z6+Z7 직접입력 시 3회차 계산, 미입력 시 4콤보 자동선택 / 범위 ≤ 2%</p>
+      <p class="pv-zs-note">드리프트: |평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 3% | 반복성: Z5+Z6+Z7 모두 입력 시 3회 직접계산, 미입력 시 4콤보 자동선택 / 범위 ≤ 2%</p>
       <div id="pv_rep_summary" class="pv-lin-summary"></div>
     </div>
   </div>
