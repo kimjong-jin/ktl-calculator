@@ -888,15 +888,15 @@ function updateInlineHints(code) {
     ['s2','s3','s4','s5'].forEach(id => {
       setHint(id, !isNaN(s1) ? s1-repT(s1) : NaN, !isNaN(s1) ? s1+repT(s1) : NaN, gv(id));
     });
-    // 직선성 요약바
-    updateLinSummary(range);
+    // 직선성 요약바: TU/CL은 S1÷2 기준
+    updateLinSummary(range, gv('s1'));
   }
 }
 
-function updateLinSummary(range) {
+function updateLinSummary(range, s1ForWater) {
   const el = document.getElementById('pv_lin_summary');
   if (!el) return;
-  const ref = range * 0.45;
+  const ref = (s1ForWater > 0) ? s1ForWater / 2 : range * 0.45;
   const vals = [gv('m1'), gv('m2'), gv('m3')].filter(v => !isNaN(v));
   if (!range || vals.length === 0) { el.className = 'pv-lin-summary'; el.innerHTML = ''; return; }
 
@@ -1096,14 +1096,14 @@ function switchTab(id) {
       saveData(id);
       updateGuide(tab.code);
       updateInlineHints(tab.code);
-      if (g('range')) updateLinSummary(g('range'));
+      if (g('range')) updateLinSummary(g('range'), IS_WATER(tab.code) ? gv('s1') : undefined);
       clearTimeout(calcTimer);
       calcTimer = setTimeout(() => calculate(id), 300);
     });
   });
   updateGuide(tab.code);
   updateInlineHints(tab.code);
-  if (g('range')) updateLinSummary(g('range'));
+  if (g('range')) updateLinSummary(g('range'), IS_WATER(tab.code) ? gv('s1') : undefined);
 
   if (IS_DO(tab.code) || hasData(tab.code)) calculate(id);
 }
@@ -1656,7 +1656,11 @@ function init() {
   });
   document.getElementById('pv-save-btn')?.addEventListener('click', saveToServer);
   document.getElementById('pv-load-btn')?.addEventListener('click', loadFromServer);
-  document.getElementById('pv-form-area')?.addEventListener('input', scheduleAutoSave);
+  document.getElementById('pv-form-area')?.addEventListener('input', e => {
+    if (e.target.type === 'number' && e.target.value !== '' && parseFloat(e.target.value) < 0)
+      e.target.value = '';
+    scheduleAutoSave();
+  });
 }
 
 if (document.readyState === 'loading') {

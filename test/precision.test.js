@@ -74,4 +74,78 @@ check('통합: 드리프트/최종반복성/직선성 구조 반환', () => {
   assert.equal(typeof t.finalRepeatability.zero.pass, 'boolean');
 });
 
+console.log('⑥ 먹는물 TU/CL 전용');
+
+// ── 반복성: 공식은 TMS와 동일 (RSD ≤ 3%, range 기준) ────────
+check('TU 반복성 — Z [5.0,5.1,4.9] RSD 1% 적합', () => {
+  // std=0.1, range=10 → rsd=1%
+  const r = repeatability([5.0, 5.1, 4.9], [8.0, 8.1, 7.9], 10);
+  assert.ok(near(r.zero.rsd, 1));
+  assert.equal(r.zero.pass, true);
+});
+check('TU 반복성 — Z RSD 3.5% 부적합', () => {
+  // std=0.35, range=10 → rsd=3.5% > 3%
+  const r = repeatability([5.0, 5.35, 4.65], [10, 10, 10], 10);
+  assert.ok(near(r.zero.rsd, 3.5));
+  assert.equal(r.zero.pass, false);
+});
+
+// ── 드리프트: TU/CL 기준 ≤ 3% (TMS 5%와 구분) ──────────────
+check('TU 드리프트 — 제로 2% 적합 (3% 기준)', () => {
+  // |mean([3,3]) - mean([1,1])| / 100 * 100 = 2%
+  const d = drift(100, [1, 1], [3, 3], [50, 50], [50, 50], { zero: 3, span: 3 });
+  assert.ok(near(d.zeroDrift, 2));
+  assert.equal(d.zeroPass, true);
+});
+check('TU 드리프트 — 경계값 3.0% 적합 (ROUND 3.0 ≤ 3)', () => {
+  const d = drift(100, [1, 1], [4, 4], [50, 50], [50, 50], { zero: 3, span: 3 });
+  assert.ok(near(d.zeroDrift, 3));
+  assert.equal(d.zeroPass, true);
+});
+check('TU 드리프트 — 3.1% 부적합', () => {
+  const d = drift(100, [1, 1], [4.1, 4.1], [50, 50], [50, 50], { zero: 3, span: 3 });
+  assert.ok(near(d.zeroDrift, 3.1));
+  assert.equal(d.zeroPass, false);
+});
+check('TU 드리프트 — 4% TMS기준(5%)이면 적합이나 먹는물(3%) 부적합', () => {
+  const d = drift(100, [1, 1], [5, 5], [50, 50], [50, 50], { zero: 3, span: 3 });
+  assert.ok(near(d.zeroDrift, 4));
+  assert.equal(d.zeroPass, false);
+  // 비교: TMS 5% 기준이면 통과했을 케이스임을 확인
+  const dTms = drift(100, [1, 1], [5, 5], [50, 50], [50, 50]);
+  assert.equal(dTms.zeroPass, true);
+});
+
+// ── 직선성: 기준값 = S1 ÷ 2 (TMS range×0.45와 구분) ─────────
+check('TU 직선성 — S1=100, M=50 → 오차 0% 적합', () => {
+  // ref = S1/2 = 50, error = |50-50|/50*100 = 0%
+  const l = linearity(10, [50], 50);
+  assert.ok(near(l.ref, 50));
+  assert.ok(near(l.error, 0));
+  assert.equal(l.pass, true);
+});
+check('TU 직선성 — 경계값 오차 5% 적합', () => {
+  // M=52.5 → error = |52.5-50|/50*100 = 5.0% ≤ 5 → 적합
+  const l = linearity(10, [52.5], 50);
+  assert.ok(near(l.error, 5));
+  assert.equal(l.pass, true);
+});
+check('TU 직선성 — 오차 5.1% 부적합', () => {
+  const l = linearity(10, [52.55], 50);
+  assert.ok(l.error > 5);
+  assert.equal(l.pass, false);
+});
+check('TU 직선성 — S1=100, M=55 → 오차 10% 부적합', () => {
+  const l = linearity(10, [55], 50);
+  assert.ok(near(l.error, 10));
+  assert.equal(l.pass, false);
+});
+check('TU 직선성 — ref 미지정 시 TMS 대체공식(range×0.45) 적용', () => {
+  // linRef=undefined → reference = 0.9*10/2 = 4.5
+  const l = linearity(10, [4.5]);
+  assert.ok(near(l.ref, 4.5));
+  assert.ok(near(l.error, 0));
+  assert.equal(l.pass, true);
+});
+
 console.log(`\n✅ precision.test.js — ${passed}개 통과`);

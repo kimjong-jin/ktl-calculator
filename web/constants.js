@@ -27,8 +27,8 @@ export const CRITERIA_HINT = {
   COD: '오차율 ±10% 이내 → 적합',
   PH: '절대 편차 ±0.3 이내 → 적합',
   DO: '절대 편차 ±0.5 이내 → 적합',
-  TU: '판정 기준 미정의 · 수치만 계산',
-  CL: '판정 기준 미정의 · 수치만 계산',
+  TU: '반복성·드리프트·직선성·응답시간 ≤ 기준 → 적합 (먹는물)',
+  CL: '반복성·드리프트·직선성·응답시간 ≤ 기준 → 적합 (먹는물)',
 };
 
 /** 파라미터별 액센트 색 (02_ktl_domain.md). data-param/--accent 에 사용. */
@@ -45,7 +45,7 @@ export const PARAM_COLOR = {
 };
 
 /** 판정 기준이 정의되지 않은(판정 비대상) 항목. */
-export const UNJUDGED = new Set(['TU', 'CL']);
+export const UNJUDGED = new Set();
 
 /** code 로 항목 메타를 찾는다 (없으면 첫 항목). */
 export function itemByCode(code) {
