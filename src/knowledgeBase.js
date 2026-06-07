@@ -41,9 +41,9 @@ function loadNodes() {
   });
 }
 
-// 노드 → AI 전달용 텍스트 (앞부분 위주, 최대 3000자)
-function excerpt(node) {
-  return node.content.replace(/^---[\s\S]*?---\n/m, '').slice(0, 3000);
+// 노드 → AI 전달용 텍스트 (앞부분 위주)
+function excerpt(node, maxLen = 3000) {
+  return node.content.replace(/^---[\s\S]*?---\n/m, '').slice(0, maxLen);
 }
 
 // 관련도 점수 — 태그·제목·파일명·본문 매칭
@@ -66,7 +66,8 @@ function resolveLink(linkName, nodeMap) {
   return nodeMap.get(norm(linkName)) ?? null;
 }
 
-export function searchKnowledge(query, topK = 3) {
+// maxLinked: 상위 노드의 링크/역링크 중 포함할 최대 수 (기본 5)
+export function searchKnowledge(query, topK = 3, maxLinked = 5) {
   const nodes = loadNodes();
   if (!nodes.length) return [];
 
@@ -82,50 +83,59 @@ export function searchKnowledge(query, topK = 3) {
     .filter((t, i, a) => t.length > 1 && a.indexOf(t) === i);
 
   const nodeMap = new Map(nodes.map(n => [n.file.toLowerCase().replace(/[\s-]/g, ''), n]));
+  const scoreMap = new Map(nodes.map(n => [n.file, scoreNode(n, terms)]));
   const scored = nodes
-    .map(n => ({ ...n, score: scoreNode(n, terms) }))
+    .map(n => ({ ...n, score: scoreMap.get(n.file) }))
     .filter(n => n.score > 0)
     .sort((a, b) => b.score - a.score);
 
   const top = scored.slice(0, topK);
-
-  // 링크 해석 — top 노드들이 [[참조]]하는 노드도 포함
   const included = new Set(top.map(n => n.file));
-  const linked = [];
+
+  // 후보 수집 — 순방향·역방향 링크를 합쳐서 관련도 순 정렬 후 maxLinked로 제한
+  const candidateMap = new Map(); // file → { node, score, via }
 
   for (const node of top) {
     for (const linkName of node.links) {
       const target = resolveLink(linkName, nodeMap);
-      if (target && !included.has(target.file)) {
-        included.add(target.file);
-        linked.push({ ...target, score: 0, via: node.file });
+      if (!target || included.has(target.file)) continue;
+      const score = scoreMap.get(target.file) ?? 0;
+      const prev = candidateMap.get(target.file);
+      if (!prev || prev.score < score) {
+        candidateMap.set(target.file, { node: target, score, via: node.file });
       }
     }
   }
 
-  // 역방향 링크 — top 노드를 [[참조]]하는 노드도 포함
   const topFiles = new Set(top.map(n => n.file));
-  for (const node of nodes) {
-    if (included.has(node.file)) continue;
+  for (const node of scored) {
+    if (included.has(node.file) || candidateMap.has(node.file)) continue;
     const hasBacklink = node.links.some(l => {
       const t = resolveLink(l, nodeMap);
       return t && topFiles.has(t.file);
     });
-    if (hasBacklink && scored.find(s => s.file === node.file)?.score > 0) {
-      included.add(node.file);
-      linked.push({ ...node, score: 0, via: '←backlink' });
+    if (hasBacklink) {
+      candidateMap.set(node.file, { node, score: node.score, via: '←backlink' });
     }
   }
 
-  const result = [...top, ...linked];
+  const linked = [...candidateMap.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxLinked);
 
-  return result.map(({ file, title, tags, links, score: s, via }) => ({
+  const result = [
+    ...top,
+    ...linked.map(c => ({ ...c.node, score: c.score, via: c.via })),
+  ];
+
+  return result.map(({ file, title, tags, links, score: s, via }, i) => ({
     file,
     title,
     tags,
     links,
     via: via ?? null,
-    excerpt: excerpt(nodes.find(n => n.file === file) ?? { content: '' }),
+    // top 노드 3000자, 링크 노드 1500자 (토큰 절감)
+    excerpt: excerpt(nodes.find(n => n.file === file) ?? { content: '' }, i < topK ? 3000 : 1500),
     score: s,
   }));
 }
