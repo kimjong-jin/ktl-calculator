@@ -24,8 +24,11 @@ function getAllMdFiles(dir) {
   return files;
 }
 
+let _nodeCache = null;
+
 function loadNodes() {
-  return getAllMdFiles(KB_DIR).map(filePath => {
+  if (_nodeCache) return _nodeCache;
+  _nodeCache = getAllMdFiles(KB_DIR).map(filePath => {
     const raw = readFileSync(filePath, 'utf8');
     const f = basename(filePath, '.md');
     const titleMatch = raw.match(/^#\s+(.+)/m);
@@ -39,6 +42,7 @@ function loadNodes() {
       content: raw,
     };
   });
+  return _nodeCache;
 }
 
 // 노드 → AI 전달용 텍스트 (앞부분 위주)

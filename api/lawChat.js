@@ -156,7 +156,7 @@ export default async function handler(req, res) {
   // 1. 지식 베이스 검색 (로컬 Obsidian 노드)
   let knowledgeCtx = "", knowledgeUsed = false, knowledgeVersion = "";
   try {
-    const knNodes = searchKnowledge(message, 3);
+    const knNodes = searchKnowledge(message, 5, 3);
     if (knNodes.length > 0) {
       knowledgeUsed = true;
       // 노드에서 시행일 추출 (가장 최신 날짜)
