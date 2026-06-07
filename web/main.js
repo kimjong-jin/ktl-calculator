@@ -133,8 +133,9 @@ function setupAuthGate(onSuccess) {
           if (data.mustChange) {
             // 비밀번호 변경 필수 → 모달 표시 후 로그아웃 상태 유지
             setupPwChangeModal(data.name, () => {
-              idEl.value = ''; passEl.value = '';
+              passEl.value = '';
               btn.disabled = false; btn.textContent = '접속하기';
+              passEl.focus();
             });
             return;
           }
