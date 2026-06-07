@@ -67,6 +67,27 @@ function resolveLink(linkName, nodeMap) {
 }
 
 // maxLinked: 상위 노드의 링크/역링크 중 포함할 최대 수 (기본 5)
+// 항목명 한국어↔영문 동의어 (검색 정확도 향상)
+const ITEM_SYNONYMS = {
+  'toc': ['총유기탄소'], '총유기탄소': ['toc'],
+  'tn': ['총질소'], '총질소': ['tn'],
+  'tp': ['총인'], '총인': ['tp'],
+  'ss': ['부유물질'], '부유물질': ['ss'],
+  'cod': ['화학적산소요구량'], '화학적산소요구량': ['cod'],
+  'do': ['용존산소'], '용존산소': ['do'],
+  'ph': ['수소이온농도'], '수소이온농도': ['ph'],
+  'bod': ['생물화학적산소요구량'], '생물화학적산소요구량': ['bod'],
+  'tu': ['탁도'], '탁도': ['tu'],
+  'cl': ['잔류염소'], '잔류염소': ['cl'],
+  // 업무 용어 동의어
+  '성능인증': ['형식승인', '간이측정기'],
+  '드리프트': ['drift', '제로드리프트', '스팬드리프트'],
+  '반복성': ['rsd', '정밀도'],
+  '직선성': ['linearity', '선형성'],
+  '현장적용계수': ['field', '상대정확도'],
+  '수수료': ['비용', '금액', '요금'],
+};
+
 export function searchKnowledge(query, topK = 3, maxLinked = 5) {
   const nodes = loadNodes();
   if (!nodes.length) return [];
@@ -75,11 +96,20 @@ export function searchKnowledge(query, topK = 3, maxLinked = 5) {
   const stripParticles = t => t
     .replace(/(이랑|으로|에서|까지|이가|이는|이를|이도|이만|이와|이과|이서|이에서|이에|이로)$/, '')
     .replace(/(랑|가|을|를|은|는|의|에|로|도|만|서|와|과|이)$/, '');
+
+  // 동의어 확장 — 영문↔한국어 양방향
+  const expandWithSynonyms = t => {
+    const tl = t.toLowerCase();
+    const syns = ITEM_SYNONYMS[tl] || [];
+    return [t, ...syns];
+  };
+
   const terms = query
     .replace(/[?？]/g, '')
     .split(/\s+/)
     .filter(t => t.length > 1)
     .flatMap(t => [t, stripParticles(t)])
+    .flatMap(expandWithSynonyms)
     .filter((t, i, a) => t.length > 1 && a.indexOf(t) === i);
 
   const nodeMap = new Map(nodes.map(n => [n.file.toLowerCase().replace(/[\s-]/g, ''), n]));
