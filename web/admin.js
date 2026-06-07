@@ -138,11 +138,27 @@ function statusBadge(expiresAt) {
   return `<span class="admin-chip admin-chip--ok">유효 D-${d}</span>`;
 }
 
+/** 초대 토큰 문자열에서 hex16 userId 추출 */
+function decodeTokenUserId(inviteToken) {
+  try {
+    const payload = inviteToken.split('.')[0];
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json).id || null;
+  } catch { return null; }
+}
+
 // ── 토큰 목록 HTML ───────────────────────────────────────────
-function renderTokenTable() {
+function renderTokenTable(chatLimits, chatUsage) {
   const list = loadTokenList();
   if (!list.length) return '<p class="admin-empty">발급된 접속 코드가 없습니다.</p>';
-  const rows = list.map(t => `
+  const defaultLimit = chatLimits?.default ?? 20;
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = list.map(t => {
+    const userId = decodeTokenUserId(t.token);
+    const usage  = userId ? (chatUsage?.[userId]) : null;
+    const todayCount = (usage?.date === today) ? usage.count : 0;
+    const limit  = userId ? (chatLimits?.keys?.[userId] ?? defaultLimit) : defaultLimit;
+    return `
     <tr class="token-row${isExpired(t.expiresAt) ? ' token-row--expired' : ''}">
       <td class="token-col--no">${t.no || '–'}</td>
       <td class="token-col--date">${new Date(t.createdAt).toLocaleDateString('ko-KR')}</td>
@@ -152,14 +168,30 @@ function renderTokenTable() {
       <td class="token-col--code">
         <input class="field__control token-code-input" value="${t.token}" readonly />
       </td>
+      <td class="token-col--chat" style="white-space:nowrap">
+        ${userId
+          ? `<span style="font-size:12px;color:#64748b">오늘 ${todayCount}회</span>
+             <input class="field__control" type="number" min="0" max="9999" value="${limit}"
+               style="width:64px;margin-left:6px;padding:2px 6px;font-size:13px"
+               data-limit-uid="${userId}" title="일일 한도 설정 후 Enter" />
+             <button class="btn btn--mini btn--ghost" data-reset-uid="${userId}" title="오늘 사용량 초기화" style="margin-left:4px">↺</button>`
+          : `<span style="font-size:12px;color:#94a3b8">–</span>`}
+      </td>
       <td class="token-col--actions">
         <button class="btn btn--mini" data-copy="${t.id}">복사</button>
         <button class="btn btn--mini btn--danger" data-del="${t.id}">삭제</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   return `
+    <div style="margin-bottom:10px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:13px;color:#94a3b8">기본 일일 한도</span>
+      <input class="field__control" type="number" min="0" max="9999" value="${defaultLimit}"
+        id="default-limit-input" style="width:80px;padding:4px 8px;font-size:13px" />
+      <button class="btn btn--mini" id="default-limit-save">저장</button>
+    </div>
     <table class="token-table">
-      <thead><tr><th>#</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>접속 코드</th><th>관리</th></tr></thead>
+      <thead><tr><th>#</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>접속 코드</th><th>챗봇 한도</th><th>관리</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -301,7 +333,7 @@ function chatToggleSectionHTML() {
 }
 
 function render(wrap, d) {
-  const { db, gemini, skill, access, server, ts } = d;
+  const { db, gemini, skill, access, chatLimits, chatUsage, server, ts } = d;
 
   wrap.innerHTML = `
     ${chatToggleSectionHTML()}
@@ -348,7 +380,7 @@ function render(wrap, d) {
         <h3 class="admin-section__title" style="margin:0">발급된 접속 코드 목록</h3>
         <button class="btn btn--mini btn--ghost" id="clear-expired-btn">만료 코드 정리</button>
       </div>
-      <div id="token-list-wrap">${renderTokenTable()}</div>
+      <div id="token-list-wrap">${renderTokenTable(chatLimits, chatUsage)}</div>
     </div>
 
     <!-- 서비스 상태 -->
@@ -447,8 +479,9 @@ function bindEvents(wrap, access) {
     refreshTokenList();
   });
   document.getElementById('token-list-wrap')?.addEventListener('click', async (e) => {
-    const copyId = e.target.dataset.copy;
-    const delId  = e.target.dataset.del;
+    const copyId    = e.target.dataset.copy;
+    const delId     = e.target.dataset.del;
+    const resetUid  = e.target.dataset.resetUid;
     if (copyId) {
       const t = loadTokenList().find(t => t.id === copyId);
       if (t) {
@@ -462,19 +495,50 @@ function bindEvents(wrap, access) {
       const entry = loadTokenList().find(t => t.id === delId);
       removeFromList(delId);
       refreshTokenList();
-      // Blob에서도 즉시 제거 (서버사이드 차단)
       if (entry?.token) {
         const tokenKey = entry.token.split('.')[0];
         fetch('/api/admin', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${adminToken}`,
-          },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
           body: JSON.stringify({ action: 'revoke_token', tokenId: tokenKey }),
         }).catch(() => {});
       }
     }
+    // 오늘 사용량 초기화
+    if (resetUid && confirm('오늘 사용량을 초기화할까요?')) {
+      await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+        body: JSON.stringify({ action: 'reset_chat_usage', userId: resetUid }),
+      }).catch(() => {});
+      loadAndRender(document.getElementById('admin-wrap'));
+    }
+  });
+
+  // 한도 입력 — Enter 또는 blur 시 저장
+  document.getElementById('token-list-wrap')?.addEventListener('change', async (e) => {
+    const uid = e.target.dataset.limitUid;
+    if (!uid) return;
+    const limit = parseInt(e.target.value, 10);
+    if (!Number.isFinite(limit) || limit < 0) return;
+    await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+      body: JSON.stringify({ action: 'set_chat_limit', userId: uid, limit }),
+    }).catch(() => {});
+  });
+
+  // 기본 한도 저장
+  document.getElementById('default-limit-save')?.addEventListener('click', async () => {
+    const val = parseInt(document.getElementById('default-limit-input')?.value || '', 10);
+    if (!Number.isFinite(val) || val < 0) return;
+    await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+      body: JSON.stringify({ action: 'set_chat_limit', userId: 'default', limit: val }),
+    }).catch(() => {});
+    const btn = document.getElementById('default-limit-save');
+    if (btn) { btn.textContent = '저장됨'; setTimeout(() => { btn.textContent = '저장'; }, 1500); }
   });
 
   // ── 스킬 라이브러리 이벤트 ──────────────────────────────────
@@ -597,6 +661,7 @@ function updateCountBadge() {
 function refreshTokenList() {
   const wrap = document.getElementById('token-list-wrap');
   if (wrap) wrap.innerHTML = renderTokenTable();
+  // chatLimits/chatUsage 없이 호출 시 한도칸은 기본값으로 렌더됨 — 무방
 }
 
 function escH(s) {

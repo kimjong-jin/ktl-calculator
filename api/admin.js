@@ -9,8 +9,9 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { verifyToken, generateInviteToken } from '../src/authService.js';
-import { registerToken, revokeToken } from '../src/tokenStore.js';
+import { registerToken, revokeToken, listTokens } from '../src/tokenStore.js';
 import { listTestItems, getSheetNames, getDataFileName } from '../src/excelClient.js';
+import { getLimits, setLimit, getUsage, resetUsage } from '../src/chatRateLimit.js';
 const _dbOk = existsSync(join(process.cwd(), 'Version11_(2026).xlsx'))
   || existsSync(join(process.cwd(), 'data.xlsx'));
 
@@ -67,6 +68,32 @@ export default async function handler(req, res) {
       }
     }
 
+    // 챗봇 한도 설정
+    if (body?.action === 'set_chat_limit') {
+      const { userId, limit } = body;
+      if (!userId) return res.status(400).json({ error: 'userId 필수' });
+      if (limit !== null && (typeof limit !== 'number' || limit < 0))
+        return res.status(400).json({ error: 'limit은 0 이상 숫자 또는 null' });
+      try {
+        const cfg = await setLimit(userId, limit);
+        return res.status(200).json({ ok: true, cfg });
+      } catch (e) {
+        return res.status(500).json({ error: e instanceof Error ? e.message : '실패' });
+      }
+    }
+
+    // 챗봇 사용량 초기화
+    if (body?.action === 'reset_chat_usage') {
+      const { userId } = body;
+      if (!userId) return res.status(400).json({ error: 'userId 필수' });
+      try {
+        await resetUsage(userId);
+        return res.status(200).json({ ok: true });
+      } catch (e) {
+        return res.status(500).json({ error: e instanceof Error ? e.message : '실패' });
+      }
+    }
+
     return res.status(400).json({ error: '알 수 없는 action' });
   }
 
@@ -92,6 +119,8 @@ export default async function handler(req, res) {
 
   const skillCtx = process.env.ADMIN_SKILL_CONTEXT || '';
 
+  const [chatLimits, chatUsage] = await Promise.all([getLimits(), getUsage()]);
+
   return res.status(200).json({
     db,
     gemini: { configured: !!geminiKey, status: geminiKey ? 'ok' : 'unconfigured' },
@@ -106,6 +135,8 @@ export default async function handler(req, res) {
       userPwSet: !!process.env.ACCESS_PASSWORD,
       adminPwSet: !!process.env.ADMIN_PASSWORD,
     },
+    chatLimits,
+    chatUsage,
     server: { node: process.version, env: process.env.NODE_ENV || 'production' },
     ts: new Date().toISOString(),
   });

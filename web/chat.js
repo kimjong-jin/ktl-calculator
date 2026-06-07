@@ -44,13 +44,21 @@ export function initChat() {
       const body = { message: msg, history: history.slice(-MAX_HISTORY) };
       if (adminSkill) body.adminSkill = adminSkill;
 
+      const authToken = (() => { try { return localStorage.getItem('ktl-auth') || ''; } catch { return ''; } })();
       const res = await fetch('/api/lawChat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'x-auth-token': authToken } : {}),
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      const reply = res.ok ? (data.reply || '응답 없음') : (data.error || '오류가 발생했습니다.');
+      const reply = res.ok
+        ? (data.reply || '응답 없음')
+        : res.status === 429
+          ? `⚠️ ${data.error || '오늘 AI 응답 한도를 초과했습니다.'}`
+          : (data.error || '오류가 발생했습니다.');
       loader.classList.remove('chat-msg--loading');
       loader.innerHTML = formatReply(reply);
       if (res.ok) {

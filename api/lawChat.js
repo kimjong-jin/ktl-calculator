@@ -5,6 +5,8 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { searchKnowledge } from '../src/knowledgeBase.js';
+import { verifyToken } from '../src/authService.js';
+import { checkAndIncrement } from '../src/chatRateLimit.js';
 const _fsOk = existsSync(join(process.cwd(), 'knowledge'));
 
 const MODEL = "gemini-2.5-flash";
@@ -77,6 +79,28 @@ export default async function handler(req, res) {
 
   const body = await readBody(req);
   const message = String(body?.message || "").trim();
+
+  // ── Rate limit 체크 ───────────────────────────────────────
+  const rawToken = (req.headers && req.headers['x-auth-token']) || '';
+  if (rawToken) {
+    const tv = verifyToken(rawToken);
+    // 관리자: 제한 없음 / 일반 사용자: id로 식별
+    if (!(tv.valid && tv.role === 'admin')) {
+      const userId = tv.valid && tv.id ? tv.id : null;
+      if (userId) {
+        const rl = await checkAndIncrement(userId);
+        res.setHeader('X-RateLimit-Limit',     String(rl.limit));
+        res.setHeader('X-RateLimit-Remaining', String(rl.remaining));
+        if (!rl.allowed) {
+          return res.status(429).json({
+            error: `오늘 AI 응답 한도(${rl.limit}회)를 초과했습니다. 내일 다시 이용하세요.`,
+            limit: rl.limit, count: rl.count, remaining: 0,
+          });
+        }
+      }
+    }
+  }
+
   // 히스토리: 최근 6개만, AI 답변은 300자로 압축 (토큰 절감)
   const history = Array.isArray(body?.history)
     ? body.history.slice(-6).map(h =>

@@ -94,8 +94,8 @@ export function verifyAccess(password, now = Date.now(), id = '') {
   if (typeof password === 'string' && password.includes('.')) {
     const v = verifyToken(password, now);
     if (v.valid && v.role === 'user') {
-      // 초대 토큰 → 동일 만료의 세션 토큰 재발급
-      return { ok: true, token: sign({ exp: v.exp, role: 'user' }, secret), exp: v.exp, role: 'user' };
+      // 초대 토큰 → 동일 만료의 세션 토큰 재발급 (id 포함 → rate limit 식별용)
+      return { ok: true, token: sign({ id: v.id, exp: v.exp, role: 'user' }, secret), exp: v.exp, role: 'user' };
     }
     if (v.expired) return { ok: false, code: 403, error: '접속 코드가 만료되었습니다.' };
     // HMAC 실패 → 아래 레거시로 넘어가지 않고 바로 401
