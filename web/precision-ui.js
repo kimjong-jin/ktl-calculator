@@ -1122,6 +1122,26 @@ function calculate(tabId) {
 }
 
 // ── 탭 전환 ───────────────────────────────────────────────
+function alignMeasureInputs(formArea) {
+  const inputs = [...formArea.querySelectorAll('.pv-measure-input')];
+  // 채워진 값들 중 최대 소수 자리 감지
+  let maxDp = 0;
+  inputs.forEach(el => {
+    const v = el.value.trim();
+    if (!v || !v.includes('.')) return;
+    const dp = v.split('.')[1].length;
+    if (dp > maxDp) maxDp = dp;
+  });
+  if (maxDp === 0) return;
+  // 전체 정렬
+  inputs.forEach(el => {
+    const v = el.value.trim();
+    if (!v) return;
+    const n = parseFloat(v);
+    if (Number.isFinite(n)) el.value = n.toFixed(maxDp);
+  });
+}
+
 function switchTab(id) {
   if (activeId && activeId !== id) saveData(activeId);
   activeId = id;
@@ -1137,7 +1157,7 @@ function switchTab(id) {
   stored = loadData(id);
   formArea.innerHTML = buildForm(tab.code);
 
-  // 측정값 입력칸: type="number" → type="text", 4자리 소수 통일
+  // 측정값 입력칸: type="number" → type="text", 소수 자리 자동 정렬
   const INTEGER_FIELDS = new Set(['range', 'fdis', 'resp']);
   formArea.querySelectorAll('input.field__control[type="number"], input.pv-zs-input[type="number"]').forEach(el => {
     const fieldId = (el.id || '').replace('pv_', '');
@@ -1145,11 +1165,8 @@ function switchTab(id) {
     el.type = 'text';
     el.inputMode = 'decimal';
     el.classList.add('pv-measure-input');
-    if (el.value !== '') {
-      const n = parseFloat(el.value);
-      if (Number.isFinite(n) && n % 1 !== 0) el.value = n.toFixed(4);
-    }
   });
+  alignMeasureInputs(formArea);
 
   const fields = getFields(tab.code);
   fields.forEach(f => {
@@ -1724,13 +1741,11 @@ function init() {
       e.target.value = '';
     scheduleAutoSave();
   });
-  // 측정값 입력칸: 포커스 해제 시 4자리 소수로 통일
+  // 측정값 입력칸: 포커스 해제 시 입력값 중 최대 소수 자리로 전체 정렬
   document.getElementById('pv-form-area')?.addEventListener('focusout', e => {
     if (!e.target.classList.contains('pv-measure-input')) return;
-    const v = e.target.value.trim();
-    if (v === '') return;
-    const n = parseFloat(v);
-    if (Number.isFinite(n) && n % 1 !== 0) e.target.value = n.toFixed(4);
+    const formArea = document.getElementById('pv-form-area');
+    if (formArea) alignMeasureInputs(formArea);
   });
 }
 
