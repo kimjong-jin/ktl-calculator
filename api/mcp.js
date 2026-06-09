@@ -287,10 +287,10 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // API 키 인증
+  // API 키 인증 (MCP_KEY 전용 — AUTH_SECRET과 분리)
   const apiKey = req.headers['x-api-key'];
-  const secret = process.env.AUTH_SECRET;
-  if (!secret || apiKey !== secret) {
+  const mcpKey = process.env.MCP_KEY;
+  if (!mcpKey || apiKey !== mcpKey) {
     return res.status(401).json({ error: 'x-api-key 헤더가 필요합니다.' });
   }
 
