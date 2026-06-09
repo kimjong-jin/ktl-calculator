@@ -86,6 +86,7 @@ let stored = {}; // switchTab에서 loadData(id)로 갱신 — ni(), zsCell()에
 // ── 저장/불러오기 상태 ──────────────────────────────────
 let calcReceiptNo  = '';
 let calcUserName   = '';
+let calcSiteName   = '';
 let autoSaveTimer  = null;
 
 function bundleState() {
@@ -1717,8 +1718,9 @@ function buildCertPageHTML(tab, date) {
     </div>
     <table class="cert-meta">
       <tr><td>접수번호</td><td style="font-family:monospace;font-weight:600">${fullReceiptNo(tab)}</td></tr>
+      ${calcSiteName ? `<tr><td>현장명</td><td style="font-weight:600">${calcSiteName}</td></tr>` : ''}
       <tr><td>검사 항목</td><td style="font-weight:600">${tab.label}</td></tr>
-      <tr><td>검사일</td><td>${date}</td></tr>
+      <tr><td>검사년도</td><td>${date}</td></tr>
     </table>
     <div class="cert-section-title">▶ 검사 결과</div>
     <table class="cert-table">
@@ -1767,7 +1769,7 @@ function openCertPrintWindow(pagesHTML) {
 function showCert(tabId) {
   const tab = tabs.find(t => t.id === tabId);
   if (!tab) return;
-  const date = new Date().toLocaleDateString('ko-KR');
+  const date = new Date().getFullYear() + '년';
 
   // 기존 오버레이 제거
   document.getElementById('cert-overlay')?.remove();
@@ -1787,8 +1789,9 @@ function showCert(tabId) {
       </div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:13px">
         <tr><td style="padding:4px 0;width:90px;color:#666">접수번호</td><td style="font-weight:600;font-family:monospace">${fullReceiptNo(tab)}</td></tr>
+        ${calcSiteName ? `<tr><td style="padding:4px 0;color:#666">현장명</td><td style="font-weight:600">${calcSiteName}</td></tr>` : ''}
         <tr><td style="padding:4px 0;color:#666">검사 항목</td><td style="font-weight:600">${tab.label}</td></tr>
-        <tr><td style="padding:4px 0;color:#666">검사일</td><td>${date}</td></tr>
+        <tr><td style="padding:4px 0;color:#666">검사년도</td><td>${date}</td></tr>
       </table>
       <div style="font-size:13px;font-weight:700;margin:0 0 6px">▶ 검사 결과</div>
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px">
@@ -1841,6 +1844,7 @@ function init() {
   // 저장된 접수번호·사용자 이름 복원
   calcReceiptNo = localStorage.getItem('ktl-calc-receipt') || '';
   calcUserName  = localStorage.getItem('ktl-calc-username') || '';
+  calcSiteName  = localStorage.getItem('ktl-site-name') || '';
 
   panel.innerHTML = `
 <div class="pv-page">
@@ -1850,6 +1854,8 @@ function init() {
              placeholder="접수번호 (예: 26-031078-01-1)" value="${calcReceiptNo}" autocomplete="off" />
       <input id="pv-user-name" class="field__control pv-save-input" type="text"
              placeholder="사용자 이름" value="${calcUserName}" autocomplete="off" />
+      <input id="pv-site-name" class="field__control pv-save-input" type="text"
+             placeholder="현장명" value="${calcSiteName}" autocomplete="off" />
       <button id="pv-load-btn" class="btn btn--ghost btn--mini" type="button">📂 불러오기</button>
       <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
     </div>
@@ -1899,6 +1905,10 @@ function init() {
     calcUserName = e.target.value.trim();
     try { localStorage.setItem('ktl-calc-username', calcUserName); } catch {}
     scheduleAutoSave();
+  });
+  document.getElementById('pv-site-name')?.addEventListener('input', e => {
+    calcSiteName = e.target.value.trim();
+    try { localStorage.setItem('ktl-site-name', calcSiteName); } catch {}
   });
   document.getElementById('pv-save-btn')?.addEventListener('click', saveToServer);
   document.getElementById('pv-load-btn')?.addEventListener('click', loadFromServer);

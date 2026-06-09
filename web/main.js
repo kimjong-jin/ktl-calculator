@@ -30,7 +30,7 @@ async function tryInviteLogin(onSuccess) {
       storeToken(data.token);
       window.history.replaceState(null, '', location.pathname);
       if (data.applicantName) {
-        showNameConfirmModal(data.applicantName, data.receiptNo || '', () => onSuccess(data.role || 'user'));
+        showNameConfirmModal(data.applicantName, data.receiptNo || '', data.siteName || '', () => onSuccess(data.role || 'user'));
       } else {
         onSuccess(data.role || 'user');
       }
@@ -113,7 +113,7 @@ function setupPwChangeModal(userName, onDone) {
   new2El.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
 }
 
-function showNameConfirmModal(applicantName, receiptNo, onConfirmed) {
+function showNameConfirmModal(applicantName, receiptNo, siteName, onConfirmed) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
 
@@ -127,6 +127,10 @@ function showNameConfirmModal(applicantName, receiptNo, onConfirmed) {
   const sub = document.createElement('div');
   sub.style.cssText = 'font-size:14px;color:#94a3b8;margin-bottom:6px';
   sub.textContent = '유지관리담당자 맞습니까?';
+
+  const siteEl = document.createElement('div');
+  siteEl.style.cssText = 'font-size:13px;color:#7dd3fc;margin-bottom:4px';
+  siteEl.textContent = siteName ? `현장: ${siteName}` : '';
 
   const receiptEl = document.createElement('div');
   receiptEl.style.cssText = 'font-size:12px;color:#64748b;margin-bottom:16px';
@@ -161,6 +165,7 @@ function showNameConfirmModal(applicantName, receiptNo, onConfirmed) {
   btnRow.appendChild(noBtn);
   box.appendChild(nameDisplay);
   box.appendChild(sub);
+  box.appendChild(siteEl);
   box.appendChild(receiptEl);
   box.appendChild(btnRow);
   box.appendChild(changeRow);
@@ -174,9 +179,11 @@ function showNameConfirmModal(applicantName, receiptNo, onConfirmed) {
       // 계산기 UI(precision-ui.js)가 읽는 키도 함께 저장
       localStorage.setItem('ktl-calc-username', name);
       if (receiptNo) localStorage.setItem('ktl-calc-receipt', receiptNo);
+      if (siteName) localStorage.setItem('ktl-site-name', siteName);
       // DOM 직접 업데이트 (precision-ui init()이 이미 실행된 후라 localStorage만으론 부족)
       const receiptEl = document.getElementById('pv-receipt-no');
       const userEl = document.getElementById('pv-user-name');
+      const siteEl = document.getElementById('pv-site-name');
       if (receiptEl && receiptNo) {
         receiptEl.value = receiptNo;
         receiptEl.dispatchEvent(new Event('input'));
@@ -184,6 +191,10 @@ function showNameConfirmModal(applicantName, receiptNo, onConfirmed) {
       if (userEl) {
         userEl.value = name;
         userEl.dispatchEvent(new Event('input'));
+      }
+      if (siteEl && siteName) {
+        siteEl.value = siteName;
+        siteEl.dispatchEvent(new Event('input'));
       }
     } catch { /* 무시 */ }
     document.body.removeChild(overlay);
@@ -258,7 +269,7 @@ function setupAuthGate(onSuccess) {
       if (!res.ok) { showAuthError(data.error || '비밀번호가 올바르지 않습니다.'); return; }
       storeToken(data.token);
       if (data.applicantName) {
-        showNameConfirmModal(data.applicantName, data.receiptNo || '', () => onSuccess(data.role || 'user'));
+        showNameConfirmModal(data.applicantName, data.receiptNo || '', data.siteName || '', () => onSuccess(data.role || 'user'));
       } else {
         onSuccess(data.role || 'user');
       }

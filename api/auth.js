@@ -46,6 +46,7 @@ export default async function handler(req, res) {
         token: result.token, exp: result.exp, role: result.role,
         applicantName: entry.applicantName || '',
         receiptNo: entry.receiptNo || '',
+        siteName: entry.siteName || '',
       });
     }
   }
