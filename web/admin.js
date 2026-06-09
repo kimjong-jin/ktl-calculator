@@ -152,12 +152,19 @@ export async function initAdmin(token) {
         const issuedMs = e.issuedAt ? e.issuedAt * 1000 : Date.now();
         const createdAt = new Date(issuedMs).toISOString();
         const days = Math.round((e.exp * 1000 - issuedMs) / 86400000);
-        const existing = local.find(t => (t.id || t.token?.split('.')[0]) === tokenId);
+        // id 직접 일치 OR token payload 부분 일치 OR pw 일치 (id 불일치 fallback)
+        const existing = local.find(t =>
+          t.id === tokenId ||
+          t.token?.split('.')[0] === tokenId ||
+          (e.pw && t.pw === e.pw)
+        );
         if (existing) {
-          // 이미 있어도 메타 필드 보강
+          // id를 Blob tokenId로 통일 (다음 sync부터 정확히 매칭되도록)
+          if (existing.id !== tokenId) { existing.id = tokenId; changed = true; }
           if (!existing.receiptNo && e.receiptNo) { existing.receiptNo = e.receiptNo; changed = true; }
           if (!existing.siteName && e.siteName)   { existing.siteName  = e.siteName;  changed = true; }
           if (!existing.applicantName && e.applicantName) { existing.applicantName = e.applicantName; changed = true; }
+          if (!existing.label && e.label)         { existing.label = e.label; changed = true; }
           if (!existing.createdAt) { existing.createdAt = createdAt; existing.days = days; changed = true; }
           return;
         }
@@ -177,7 +184,15 @@ export async function initAdmin(token) {
         });
         changed = true;
       });
-      if (changed) saveTokenList(local);
+      // pw 중복 제거 — 동일 pw 항목 중 id가 Blob tokenId인 것(최신)만 유지
+      const pwSeen = new Set();
+      const deduped = local.filter(t => {
+        if (!t.pw) return true;
+        if (pwSeen.has(t.pw)) { changed = true; return false; }
+        pwSeen.add(t.pw);
+        return true;
+      });
+      if (changed) saveTokenList(deduped);
     }
   } catch (e) {
     console.warn('[admin] Blob 토큰 동기화 실패:', e);
