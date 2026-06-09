@@ -887,7 +887,8 @@ select.field__control {
 .admin-chip--warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
 
 /* ── 토큰 관리 테이블 ───────────────────────────────────────── */
-.token-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.token-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.token-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 480px; }
 .token-table th { background: var(--surface-2); border: 1px solid var(--border); padding: 8px 10px; font-weight: 600; color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .token-table td { border: 1px solid var(--border); padding: 7px 10px; vertical-align: middle; }
 .token-row--expired td { color: var(--text-muted); opacity: 0.7; }
@@ -896,9 +897,13 @@ select.field__control {
 .btn--copied { background: #15803d !important; color: #fff !important; border-color: #166534 !important; }
 .token-col--no { width: 32px; text-align: center; color: var(--text-dim); }
 .token-col--label { min-width: 60px; }
+.token-col--pw { white-space: nowrap; }
 .token-col--date, .token-col--exp, .token-col--days { white-space: nowrap; }
-.token-col--code input { font-size: 11px; font-family: ui-monospace,monospace; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; width: 180px; color: var(--text-dim); }
 .token-col--actions { white-space: nowrap; display: flex; gap: 4px; }
+@media (max-width: 600px) {
+  .token-table { font-size: 12px; min-width: 400px; }
+  .token-table th, .token-table td { padding: 6px 8px; }
+}
 
 /* ── 담당자 탭 ─────────────────────────────────────────────── */
 .staff-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }

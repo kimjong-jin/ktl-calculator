@@ -221,6 +221,24 @@ export default async function handler(req, res) {
       output: usage.candidatesTokenCount ?? 0,
       total: usage.totalTokenCount ?? 0,
     } : null;
+
+    // ── Mac Studio에 채팅 로그 저장 (fire-and-forget) ────────────
+    const studioBase = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || '').replace(/\/$/, '');
+    const studioSecret = process.env.STUDIO_SECRET || '';
+    if (studioBase) {
+      const tv = rawToken ? verifyToken(rawToken) : { valid: false };
+      // 클라이언트가 입력한 이름 우선, 없으면 토큰 id 사용
+      const clientUserName = typeof body?.userName === 'string' ? body.userName.trim() : '';
+      const clientReceiptNo = typeof body?.receiptNo === 'string' ? body.receiptNo.trim() : '';
+      const logUserName = clientUserName || (tv.valid && tv.id ? tv.id.slice(0, 8) : '익명');
+      fetch(`${studioBase}/api/chat-log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-studio-secret': studioSecret },
+        body: JSON.stringify({ userName: logUserName, receiptNo: clientReceiptNo, question: message, answer: reply, lawRef: lawRef || '' }),
+        signal: AbortSignal.timeout(5000),
+      }).catch(() => {}); // 실패해도 무시
+    }
+
     return res.status(200).json({ reply, lawRef, lawConnected, knowledgeUsed, knowledgeVersion, skillActive, tokens });
   } catch (e) {
     console.error("[lawChat]", e instanceof Error ? e.message : e);

@@ -8,6 +8,7 @@ const SKILLS_KEY   = 'ktl-admin-skills';
 const CHAT_KEY     = 'ktl-chat-mode';
 const COPIED_KEY   = 'ktl-copied-tokens';  // {tokenId: true} — 복사된 토큰 영구 기록
 const TAB_KEY      = 'ktl-admin-tab';      // 마지막 선택 탭
+const USER_KEY     = 'ktl-admin-user';     // 현재 접속자 이름
 let adminToken = '';
 
 const STAFF_NAMES = ['김종진','권민경','김성대','김수철','정슬기','강준','정진욱'];
@@ -24,6 +25,9 @@ function isCopied(tokenId) { return !!loadCopied()[tokenId]; }
 
 function getActiveTab() { return localStorage.getItem(TAB_KEY) || '전체'; }
 function setActiveTab(name) { localStorage.setItem(TAB_KEY, name); }
+
+function getAdminUser() { return localStorage.getItem(USER_KEY) || '김종진'; }
+function setAdminUser(name) { localStorage.setItem(USER_KEY, name); }
 
 // ── 계산 데이터 관리 ──────────────────────────────────────
 async function loadCalcDataList(token) {
@@ -128,6 +132,39 @@ function daysLeft(expiresAt) {
 // ── 초기화 ──────────────────────────────────────────────────
 export async function initAdmin(token) {
   adminToken = token;
+  // 만료된 토큰 localStorage에서 자동 정리
+  saveTokenList(loadTokenList().filter(t => !isExpired(t.expiresAt)));
+
+  // Blob에서 전체 토큰 목록 동기화 (parser.work 발급 토큰 포함)
+  try {
+    const res = await fetch('/api/admin?action=list_tokens', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const { tokens } = await res.json();
+      const now = Math.floor(Date.now() / 1000);
+      const local = loadTokenList();
+      const localIds = new Set(local.map(t => t.id || t.token?.split('.')[0]));
+      // Blob에만 있는 토큰(parser.work 발급)을 localStorage에 추가
+      let changed = false;
+      Object.entries(tokens).forEach(([tokenId, e]) => {
+        if (e.exp <= now) return; // 만료 제외
+        if (localIds.has(tokenId)) return; // 이미 있으면 skip
+        local.unshift({
+          id: tokenId,
+          token: tokenId, // 합성 token (pw 로그인 방식이라 full token 불필요)
+          label: e.label || '',
+          pw: e.pw || '',
+          issuedAt: e.issuedAt ? new Date(e.issuedAt * 1000).toISOString() : new Date().toISOString(),
+          expiresAt: new Date(e.exp * 1000).toISOString(),
+          no: local.length + 1,
+        });
+        changed = true;
+      });
+      if (changed) saveTokenList(local);
+    }
+  } catch (e) {
+    console.warn('[admin] Blob 토큰 동기화 실패:', e);
+  }
+
   const wrap = document.getElementById('admin-wrap');
   if (!wrap) return;
   wrap.innerHTML = '<p class="admin-loading">관리자 데이터 로드 중…</p>';
@@ -166,32 +203,51 @@ function decodeTokenUserId(inviteToken) {
 
 // ── 담당자 탭 HTML ──────────────────────────────────────────
 function renderStaffTabs() {
-  const active = getActiveTab();
-  const tabs = ['전체', ...STAFF_NAMES];
+  const user = getAdminUser();
+  const fullAdmin = user === '김종진';
+  if (!fullAdmin) setActiveTab(user);
+  let active = getActiveTab();
+  // '전체' 탭 없음 — 김종진 탭이 전체 역할
+  if (fullAdmin && (active === '전체' || !STAFF_NAMES.includes(active))) {
+    active = '김종진';
+    setActiveTab('김종진');
+  }
+  const tabs = fullAdmin ? STAFF_NAMES : [user];
   const tabsHtml = tabs.map(name => {
     const isActive = name === active;
-    const count = name === '전체'
+    // 김종진 탭 = 전체 카운트
+    const count = (fullAdmin && name === '김종진')
       ? loadTokenList().length
       : loadTokenList().filter(t => t.label === name).length;
     return `<button class="staff-tab${isActive ? ' staff-tab--active' : ''}" data-tab="${name}">
       ${name}${count ? ` <span class="staff-tab__count">${count}</span>` : ''}
     </button>`;
   }).join('');
-  return `<div class="staff-tabs" id="staff-tabs">${tabsHtml}</div>`;
+  const userOpts = STAFF_NAMES.map(n =>
+    `<option value="${n}"${n === user ? ' selected' : ''}>${n}</option>`).join('');
+  return `<div id="staff-tabs-wrap">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:12px;color:#94a3b8">접속자</span>
+      <select id="admin-user-select" class="field__control" style="width:auto;padding:3px 10px;font-size:13px;display:inline-block">${userOpts}</select>
+    </div>
+    <div class="staff-tabs" id="staff-tabs">${tabsHtml}</div>
+  </div>`;
 }
 
 // ── 토큰 목록 HTML ───────────────────────────────────────────
 function renderTokenTable(chatLimits, chatUsage) {
-  const activeTab = getActiveTab();
+  const user = getAdminUser();
+  const activeTab = user === '김종진' ? getActiveTab() : user;
   const allList = loadTokenList();
-  const list = activeTab === '전체' ? allList : allList.filter(t => t.label === activeTab);
-  const defaultLimit = chatLimits?.default ?? 20;
+  // 김종진 탭 = 전체 보기
+  const list = (user === '김종진' && activeTab === '김종진') ? allList : allList.filter(t => t.label === activeTab);
+  const defaultLimit = chatLimits?.default ?? 50;
   const today = new Date().toISOString().slice(0, 10);
 
   const tableHtml = !list.length
     ? `<p class="admin-empty">${activeTab === '전체' ? '발급된 접속 코드가 없습니다.' : `${activeTab} 님에게 발급된 코드가 없습니다.`}</p>`
     : `<table class="token-table">
-      <thead><tr><th>#</th><th>이름</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>접속 코드</th><th>챗봇 한도</th><th>관리</th></tr></thead>
+      <thead><tr><th>#</th><th>이름</th><th>비밀번호</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>챗봇 한도</th><th>관리</th></tr></thead>
       <tbody>${list.map(t => {
         const userId = decodeTokenUserId(t.token);
         const usage  = userId ? (chatUsage?.[userId]) : null;
@@ -203,13 +259,16 @@ function renderTokenTable(chatLimits, chatUsage) {
         <tr class="token-row${rowClass}">
           <td class="token-col--no">${t.no || '–'}</td>
           <td class="token-col--label" style="color:#38bdf8;font-weight:600">${t.label || '–'}</td>
+          <td class="token-col--pw">
+            ${t.pw
+              ? `<span style="display:inline-block;background:#fff;color:#111;font-family:monospace;font-size:15px;font-weight:900;letter-spacing:3px;padding:3px 10px;border-radius:6px;border:2px solid #333">${t.pw}</span>
+                 <button class="btn btn--mini" data-copy-pw="${t.pw}" style="margin-left:6px;font-size:11px;background:#0ea5e9;color:#fff;border:none">복사</button>`
+              : '<span style="color:#475569;font-size:11px">–</span>'}
+          </td>
           <td class="token-col--date">${new Date(t.createdAt).toLocaleDateString('ko-KR')}</td>
           <td class="token-col--exp">${new Date(t.expiresAt).toLocaleDateString('ko-KR')}</td>
           <td class="token-col--days">${t.days}일</td>
           <td class="token-col--status">${statusBadge(t.expiresAt)}</td>
-          <td class="token-col--code">
-            <input class="field__control token-code-input" value="${t.token}" readonly />
-          </td>
           <td class="token-col--chat" style="white-space:nowrap">
             ${userId
               ? `<span style="font-size:12px;color:#64748b">오늘 ${todayCount}회</span>
@@ -234,7 +293,7 @@ function renderTokenTable(chatLimits, chatUsage) {
         id="default-limit-input" style="width:80px;padding:4px 8px;font-size:13px" />
       <button class="btn btn--mini" id="default-limit-save">저장</button>
     </div>
-    ${tableHtml}`;
+    <div class="token-table-wrap">${tableHtml}</div>`;
 }
 
 // ── 스킬 라이브러리 렌더 ────────────────────────────────────
@@ -380,14 +439,6 @@ function render(wrap, d) {
     ${chatToggleSectionHTML()}
     ${skillSectionHTML(skill)}
 
-    <!-- 계산 데이터 관리 -->
-    <div class="admin-section" id="calc-data-section">
-      <h3 class="admin-section__title">📊 계산 데이터 관리</h3>
-      <p class="admin-card__sub" style="margin:0 0 12px">Mac Studio에 저장된 정도검사 계산 데이터 (30일 자동 만료)</p>
-      <div id="calc-data-list" style="font-size:13px">
-        <p class="admin-loading">불러오는 중…</p>
-      </div>
-    </div>
 
     <!-- 고객 접속 코드 발급 -->
     <div class="admin-section">
@@ -401,16 +452,30 @@ function render(wrap, d) {
         <button class="btn btn--primary" id="issue-btn">+ 새 접속 코드 발급</button>
       </div>
       <div id="issue-result" class="issue-result" hidden>
-        <div class="issue-result__label">고객에게 전달할 접속 링크 (클릭 한 번으로 자동 로그인)</div>
+        <div class="issue-result__label" style="font-size:13px;color:#94a3b8">비밀번호</div>
         <div class="issue-url-row">
-          <input id="issue-url" class="field__control issue-url-input" type="text" readonly />
-          <button class="btn btn--mini" id="copy-url-btn">링크 복사</button>
+          <input id="issue-pw" class="field__control issue-url-input" type="text" readonly
+            style="font-size:24px;font-weight:900;letter-spacing:6px;color:#111;background:#fff;border:2px solid #333;text-align:center;max-width:200px" />
+          <button class="btn btn--mini" id="copy-pw-btn" style="background:#0ea5e9;color:#fff">비밀번호 복사</button>
         </div>
-        <div class="issue-result__label" style="margin-top:10px">코드만 전달할 경우</div>
+        <div class="issue-result__label" style="margin-top:14px;font-size:13px;color:#94a3b8">고객 접속 링크 (버튼 하나로 전달)</div>
         <div class="issue-url-row">
-          <input id="issue-code" class="field__control issue-url-input" type="text" readonly />
-          <button class="btn btn--mini" id="copy-code-btn">코드 복사</button>
+          <input id="issue-short-url" class="field__control issue-url-input" type="text" readonly />
+          <button class="btn btn--primary" id="copy-short-url-btn" style="white-space:nowrap">🔗 링크 복사</button>
         </div>
+        <details style="margin-top:10px">
+          <summary style="font-size:12px;color:#64748b;cursor:pointer">긴 접속 코드 / 전체 URL 보기</summary>
+          <div style="margin-top:8px">
+            <div class="issue-url-row">
+              <input id="issue-url" class="field__control issue-url-input" type="text" readonly />
+              <button class="btn btn--mini" id="copy-url-btn">전체 URL</button>
+            </div>
+            <div class="issue-url-row" style="margin-top:6px">
+              <input id="issue-code" class="field__control issue-url-input" type="text" readonly />
+              <button class="btn btn--mini" id="copy-code-btn">코드만</button>
+            </div>
+          </div>
+        </details>
         <p class="admin-card__sub" id="issue-exp"></p>
       </div>
     </div>
@@ -504,7 +569,7 @@ function bindEvents(wrap, access) {
   });
 
   // 계산 데이터 목록 로드
-  loadCalcDataList(adminToken);
+
 
   // 새로고침
   document.getElementById('admin-refresh')?.addEventListener('click', () => {
@@ -517,25 +582,31 @@ function bindEvents(wrap, access) {
     const tab = e.target.closest('[data-tab]')?.dataset.tab;
     if (!tab) return;
     setActiveTab(tab);
-    // 탭 라벨 입력 자동 설정
+    // 탭 이름으로 라벨 자동 설정
     const labelInput = document.getElementById('issue-label');
-    if (labelInput) labelInput.value = tab === '전체' ? '' : tab;
+    if (labelInput) labelInput.value = tab;
     refreshTokenList();
-    // 탭 버튼 활성 스타일 갱신
-    document.getElementById('staff-tabs')?.querySelectorAll('[data-tab]').forEach(btn => {
-      btn.classList.toggle('staff-tab--active', btn.dataset.tab === tab);
-    });
   });
 
-  // 발급 라벨 초기값을 현재 탭으로 설정
+  // 접속자 변경
+  document.getElementById('admin-user-select')?.addEventListener('change', (e) => {
+    setAdminUser(e.target.value);
+    const labelInput = document.getElementById('issue-label');
+    if (labelInput) labelInput.value = e.target.value === '김종진' ? '' : e.target.value;
+    refreshTokenList();
+  });
+
+  // 발급 라벨 초기값을 현재 활성 탭으로 설정
   const labelInput = document.getElementById('issue-label');
   if (labelInput) {
-    const cur = getActiveTab();
-    if (cur !== '전체') labelInput.value = cur;
+    const activeTab = getActiveTab();
+    labelInput.value = STAFF_NAMES.includes(activeTab) ? activeTab : getAdminUser();
   }
 
   // 토큰 발급
   document.getElementById('issue-btn')?.addEventListener('click', () => issueToken(access));
+  makeCopyBtn('copy-pw-btn', 'issue-pw');
+  makeCopyBtn('copy-short-url-btn', 'issue-short-url');
   makeCopyBtn('copy-url-btn', 'issue-url');
   makeCopyBtn('copy-code-btn', 'issue-code');
   document.getElementById('clear-expired-btn')?.addEventListener('click', () => {
@@ -544,8 +615,15 @@ function bindEvents(wrap, access) {
   });
   document.getElementById('token-list-wrap')?.addEventListener('click', async (e) => {
     const copyId    = e.target.dataset.copy;
+    const copyPw    = e.target.dataset.copyPw;
     const delId     = e.target.dataset.del;
     const resetUid  = e.target.dataset.resetUid;
+    if (copyPw) {
+      try { await navigator.clipboard.writeText(copyPw); } catch {}
+      const orig = e.target.textContent;
+      e.target.textContent = '복사됨 ✓';
+      setTimeout(() => { e.target.textContent = orig; }, 1500);
+    }
     if (copyId) {
       const t = loadTokenList().find(t => t.id === copyId);
       if (t) {
@@ -724,9 +802,32 @@ function updateCountBadge() {
   if (el) el.textContent = `활성 ${skills.filter(s => s.active).length}개 / 총 ${skills.length}개`;
 }
 function refreshTokenList() {
-  // 탭 카운트 갱신
-  const tabsEl = document.getElementById('staff-tabs');
-  if (tabsEl) tabsEl.outerHTML = renderStaffTabs();
+  const user = getAdminUser();
+  const fullAdmin = user === '김종진';
+  if (!fullAdmin) setActiveTab(user);
+  let active = getActiveTab();
+  if (fullAdmin && (active === '전체' || !STAFF_NAMES.includes(active))) {
+    active = '김종진';
+    setActiveTab('김종진');
+  }
+  const tabs = fullAdmin ? STAFF_NAMES : [user];
+
+  // 탭 버튼만 갱신 (컨테이너 유지 → 이벤트 리스너 보존)
+  const tabsDiv = document.getElementById('staff-tabs');
+  if (tabsDiv) {
+    tabsDiv.innerHTML = tabs.map(name => {
+      const isActive = name === active;
+      const count = (fullAdmin && name === '김종진')
+        ? loadTokenList().length
+        : loadTokenList().filter(t => t.label === name).length;
+      return `<button class="staff-tab${isActive ? ' staff-tab--active' : ''}" data-tab="${name}">
+        ${name}${count ? ` <span class="staff-tab__count">${count}</span>` : ''}
+      </button>`;
+    }).join('');
+  }
+  const selectEl = document.getElementById('admin-user-select');
+  if (selectEl) selectEl.value = user;
+
   // 목록 갱신
   const wrap = document.getElementById('token-list-wrap');
   if (wrap) wrap.innerHTML = renderTokenTable();
@@ -756,11 +857,15 @@ async function issueToken(access) {
     const no     = loadTokenList().length + 1;
     addToList({
       id: data.inviteToken.slice(-16), no, token: data.inviteToken, url, days, label,
+      pw: data.pw || '',
       createdAt: new Date().toISOString(),
       expiresAt: new Date(data.exp * 1000).toISOString(),
     });
-    document.getElementById('issue-url').value  = url;
-    document.getElementById('issue-code').value = data.inviteToken;
+    const shortUrl = data.pw ? `${origin}/?pw=${data.pw}` : url;
+    document.getElementById('issue-pw').value        = data.pw || '';
+    document.getElementById('issue-short-url').value = shortUrl;
+    document.getElementById('issue-url').value       = url;
+    document.getElementById('issue-code').value      = data.inviteToken;
     document.getElementById('issue-exp').textContent =
       `만료: ${new Date(data.exp * 1000).toLocaleDateString('ko-KR')} (${days}일)`;
     result.hidden = false;

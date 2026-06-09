@@ -38,11 +38,39 @@ async function writeCodes(map) {
   });
 }
 
-/** 새 토큰 ID 등록 */
+/** 고객용 단순 비밀번호 생성 (6자, 혼동 없는 대문자+숫자) */
+function genPw(map) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const used = new Set(Object.values(map).map(e => e.pw).filter(Boolean));
+  let pw;
+  do {
+    pw = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  } while (used.has(pw));
+  return pw;
+}
+
+/** 새 토큰 ID 등록 — 단순 비밀번호 생성 후 반환 (발급 시 만료 항목 자동 정리) */
 export async function registerToken(tokenId, { exp, label = '' }) {
   const map = await readCodes();
-  map[tokenId] = { exp, label, issuedAt: Math.floor(Date.now() / 1000) };
+  const now = Math.floor(Date.now() / 1000);
+  for (const id of Object.keys(map)) {
+    if (map[id].exp <= now) delete map[id];
+  }
+  const pw = genPw(map);
+  map[tokenId] = { exp, label, issuedAt: now, pw };
   await writeCodes(map);
+  return { pw };
+}
+
+/** 단순 비밀번호로 토큰 엔트리 조회 */
+export async function findTokenByPw(pw) {
+  if (!pw || pw.length < 4) return null;
+  const map = await readCodes();
+  const now = Math.floor(Date.now() / 1000);
+  for (const [tokenId, entry] of Object.entries(map)) {
+    if (entry.pw === pw && entry.exp > now) return { tokenId, exp: entry.exp };
+  }
+  return null;
 }
 
 /** 토큰 ID가 유효한지 확인 (Blob에 존재 + 만료 안 됨) */

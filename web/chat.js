@@ -41,7 +41,13 @@ export function initChat() {
 
     try {
       const adminSkill = loadAdminSkill();
-      const body = { message: msg, history: history.slice(-MAX_HISTORY) };
+      const getLS = k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
+      const body = {
+        message: msg,
+        history: history.slice(-MAX_HISTORY),
+        userName: getLS('ktl-calc-username'),
+        receiptNo: getLS('ktl-calc-receipt'),
+      };
       if (adminSkill) body.adminSkill = adminSkill;
 
       const authToken = (() => { try { return localStorage.getItem('ktl-auth') || ''; } catch { return ''; } })();

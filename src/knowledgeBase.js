@@ -1,11 +1,76 @@
 // 지식 베이스 — knowledge/**/*.md Obsidian 스타일 연결 그래프
-// 검색 시 관련 노드 + [[링크]] 연결 노드까지 함께 반환
+// 검색: TF-IDF 코사인 유사도(0.6) + 키워드 점수(0.4) 하이브리드
+// 엣지 가중치: search-index.json의 사전 계산 코사인 유사도
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
-const KB_DIR = join(__dir, '..', 'knowledge');
+const KB_DIR    = join(__dir, '..', 'knowledge');
+const INDEX_FILE = join(KB_DIR, 'search-index.json');
+
+// ── TF-IDF 인덱스 로더 (지연 초기화) ───────────────────────────
+let _index = null;
+function loadIndex() {
+  if (_index) return _index;
+  if (!existsSync(INDEX_FILE)) return null;
+  try {
+    _index = JSON.parse(readFileSync(INDEX_FILE, 'utf8'));
+  } catch { _index = null; }
+  return _index;
+}
+
+// 검색 쿼리 → TF-IDF 벡터 변환 (인덱스의 IDF 사용)
+const STOP = new Set([
+  '의','을','를','이','가','은','는','에','로','으로','도','와','과','한',
+  '하는','하여','에서','까지','부터','이나','나','만','서','이며','며',
+  '또는','및','관한','따른','따라','위한','대한','있는','있다','없는',
+  '없다','하다','한다','된다','되는','되어','것을','것이','것은',
+]);
+
+function queryVector(text, idf) {
+  const cleaned = text.toLowerCase().replace(/[?？]/g, '');
+  const tokens = cleaned
+    .split(/[\s,\.\(\)\[\]\{\}:;\/\-\+=%]+/)
+    .filter(t => t.length >= 2 && !STOP.has(t));
+
+  const bigrams = [];
+  for (const t of tokens) {
+    if (t.length >= 4) {
+      for (let i = 0; i < t.length - 1; i++) bigrams.push(t.slice(i, i + 2));
+    }
+  }
+
+  const allTokens = [...tokens, ...bigrams];
+  const freq = {};
+  for (const t of allTokens) freq[t] = (freq[t] || 0) + 1;
+  const maxF = Math.max(...Object.values(freq), 1);
+
+  const vec = {};
+  for (const [t, f] of Object.entries(freq)) {
+    if (idf[t]) vec[t] = (f / maxF) * idf[t];
+  }
+  return vec;
+}
+
+// 코사인 유사도 (희소 벡터)
+function cosine(a, b) {
+  let dot = 0, normA = 0, normB = 0;
+  for (const [t, va] of Object.entries(a)) {
+    const vb = b[t] || 0;
+    dot   += va * vb;
+    normA += va * va;
+  }
+  for (const vb of Object.values(b)) normB += vb * vb;
+  if (!normA || !normB) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+// 엣지 가중치 조회 (방향 무관)
+function edgeWeight(fileA, fileB, edges) {
+  if (!edges) return 0;
+  return edges[[fileA, fileB].sort().join('|')] ?? 0;
+}
 
 // 서브폴더까지 재귀 탐색하여 모든 .md 파일 경로 반환
 function getAllMdFiles(dir) {
@@ -50,8 +115,8 @@ function excerpt(node, maxLen = 3000) {
   return node.content.replace(/^---[\s\S]*?---\n/m, '').slice(0, maxLen);
 }
 
-// 관련도 점수 — 태그·제목·파일명·본문 매칭
-function scoreNode(node, terms) {
+// 키워드 점수 — 태그·제목·파일명·본문 매칭 (하이브리드의 40%)
+function keywordScore(node, terms) {
   let s = 0;
   for (const t of terms) {
     const tl = t.toLowerCase();
@@ -62,6 +127,21 @@ function scoreNode(node, terms) {
     s += Math.min(hits * 2, 24);
   }
   return s;
+}
+
+// 하이브리드 점수: TF-IDF 코사인(60%) + 키워드(40%)
+function hybridScore(node, terms, qVec, indexDocs) {
+  const kw = keywordScore(node, terms);
+
+  if (!qVec || !indexDocs?.[node.file]) return kw;
+
+  const docVec = indexDocs[node.file];
+  const sim    = cosine(qVec, docVec); // 0~1
+
+  // 키워드 점수 정규화 (최대 100점 기준)
+  const kwNorm = Math.min(kw / 100, 1);
+
+  return (kwNorm * 0.4 + sim * 0.6) * 100;
 }
 
 // Obsidian 링크 해석: 파일명 매칭 (대소문자·공백 무시)
@@ -96,6 +176,9 @@ export function searchKnowledge(query, topK = 3, maxLinked = 5) {
   const nodes = loadNodes();
   if (!nodes.length) return [];
 
+  const idx = loadIndex();
+  const qVec = idx ? queryVector(query, idx.idf) : null;
+
   // 한국어 조사·어미 제거 후 검색
   const stripParticles = t => t
     .replace(/(이랑|으로|에서|까지|이가|이는|이를|이도|이만|이와|이과|이서|이에서|이에|이로)$/, '')
@@ -116,27 +199,30 @@ export function searchKnowledge(query, topK = 3, maxLinked = 5) {
     .flatMap(expandWithSynonyms)
     .filter((t, i, a) => t.length > 1 && a.indexOf(t) === i);
 
-  const nodeMap = new Map(nodes.map(n => [n.file.toLowerCase().replace(/[\s-]/g, ''), n]));
-  const scoreMap = new Map(nodes.map(n => [n.file, scoreNode(n, terms)]));
+  const nodeMap  = new Map(nodes.map(n => [n.file.toLowerCase().replace(/[\s-]/g, ''), n]));
+  const scoreMap = new Map(nodes.map(n => [n.file, hybridScore(n, terms, qVec, idx?.docs)]));
+
   const scored = nodes
     .map(n => ({ ...n, score: scoreMap.get(n.file) }))
     .filter(n => n.score > 0)
     .sort((a, b) => b.score - a.score);
 
-  const top = scored.slice(0, topK);
+  const top      = scored.slice(0, topK);
   const included = new Set(top.map(n => n.file));
 
-  // 후보 수집 — 순방향·역방향 링크를 합쳐서 관련도 순 정렬 후 maxLinked로 제한
-  const candidateMap = new Map(); // file → { node, score, via }
+  // 엣지 가중치 기반 연결 노드 수집
+  const candidateMap = new Map();
 
   for (const node of top) {
     for (const linkName of node.links) {
       const target = resolveLink(linkName, nodeMap);
       if (!target || included.has(target.file)) continue;
-      const score = scoreMap.get(target.file) ?? 0;
-      const prev = candidateMap.get(target.file);
+
+      const w     = edgeWeight(node.file, target.file, idx?.edges);
+      const score = (scoreMap.get(target.file) ?? 0) + w * 20; // 엣지 가중치 보너스
+      const prev  = candidateMap.get(target.file);
       if (!prev || prev.score < score) {
-        candidateMap.set(target.file, { node: target, score, via: node.file });
+        candidateMap.set(target.file, { node: target, score, via: node.file, edgeW: w });
       }
     }
   }
@@ -149,7 +235,8 @@ export function searchKnowledge(query, topK = 3, maxLinked = 5) {
       return t && topFiles.has(t.file);
     });
     if (hasBacklink) {
-      candidateMap.set(node.file, { node, score: node.score, via: '←backlink' });
+      const w = edgeWeight(node.file, [...topFiles][0], idx?.edges);
+      candidateMap.set(node.file, { node, score: node.score, via: '←backlink', edgeW: w });
     }
   }
 
@@ -159,18 +246,18 @@ export function searchKnowledge(query, topK = 3, maxLinked = 5) {
 
   const result = [
     ...top,
-    ...linked.map(c => ({ ...c.node, score: c.score, via: c.via })),
+    ...linked.map(c => ({ ...c.node, score: c.score, via: c.via, edgeW: c.edgeW })),
   ];
 
-  return result.map(({ file, title, tags, links, score: s, via }, i) => ({
+  return result.map(({ file, title, tags, links, score: s, via, edgeW }, i) => ({
     file,
     title,
     tags,
     links,
-    via: via ?? null,
-    // top 노드 3000자, 링크 노드 1500자 (토큰 절감)
+    via:   via   ?? null,
+    edgeW: edgeW ?? null,
     excerpt: excerpt(nodes.find(n => n.file === file) ?? { content: '' }, i < topK ? 3000 : 1500),
-    score: s,
+    score: Math.round(s * 100) / 100,
   }));
 }
 

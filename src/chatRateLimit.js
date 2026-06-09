@@ -34,7 +34,7 @@ async function writeBlob(key, data) {
 
 /** 한도 설정 전체 조회 */
 export async function getLimits() {
-  return (await readBlob(LIMITS_KEY)) ?? { default: 20, keys: {} };
+  return (await readBlob(LIMITS_KEY)) ?? { default: 50, keys: {} };
 }
 
 /**
@@ -76,7 +76,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
  */
 export async function checkAndIncrement(userId) {
   const [cfg, usage] = await Promise.all([getLimits(), getUsage()]);
-  const limit = cfg.keys?.[userId] ?? cfg.default ?? 20;
+  const limit = cfg.keys?.[userId] ?? cfg.default ?? 50;
   const entry = usage[userId];
   const date  = todayStr();
   const count = (entry?.date === date) ? entry.count : 0;

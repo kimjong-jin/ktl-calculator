@@ -14,13 +14,16 @@ const $ = (id) => document.getElementById(id);
 // ── 인증 ──────────────────────────────────────────────────────────────────
 
 async function tryInviteLogin(onSuccess) {
-  const t = new URLSearchParams(location.search).get('t');
-  if (!t) return false;
+  const params = new URLSearchParams(location.search);
+  const t  = params.get('t');
+  const pw = params.get('pw');
+  const password = t || (pw ? pw.toUpperCase() : null);
+  if (!password) return false;
   try {
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: t }),
+      body: JSON.stringify({ password }),
     });
     const data = await res.json();
     if (res.ok) {

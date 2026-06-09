@@ -45,12 +45,12 @@ export default async function handler(req, res) {
     if (body?.action === 'generate_token') {
       try {
         const result = generateInviteToken(body?.days);
-        // Blob에 등록
-        await registerToken(result.inviteToken.split('.')[0], {
+        // Blob에 등록 — 단순 비밀번호 생성 후 반환
+        const { pw } = await registerToken(result.inviteToken.split('.')[0], {
           exp: result.exp,
           label: body?.label || '',
         });
-        return res.status(200).json(result);
+        return res.status(200).json({ ...result, pw });
       } catch (e) {
         return res.status(500).json({ error: e instanceof Error ? e.message : '토큰 생성 실패' });
       }
@@ -95,6 +95,12 @@ export default async function handler(req, res) {
     }
 
     return res.status(400).json({ error: '알 수 없는 action' });
+  }
+
+  // ── 토큰 목록 조회 (Blob 직접 반환) ────────────────────────
+  if (req.method === 'GET' && req.query?.action === 'list_tokens') {
+    const tokens = await listTokens();
+    return res.status(200).json({ tokens });
   }
 
   // ── 서비스 상태 조회 ─────────────────────────────────────────

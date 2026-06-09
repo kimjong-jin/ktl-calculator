@@ -111,3 +111,10 @@ export function verifyAccess(password, now = Date.now(), id = '') {
 
   return { ok: false, code: 401, error: '비밀번호 또는 접속 코드가 올바르지 않습니다.' };
 }
+
+/** 단순 비밀번호(blob 조회 완료 후) → 세션 토큰 발급 */
+export function issueUserSession(tokenId, exp) {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) return { ok: false, code: 500, error: '서버 인증이 설정되지 않았습니다.' };
+  return { ok: true, token: sign({ id: tokenId, exp, role: 'user' }, secret), exp, role: 'user' };
+}
