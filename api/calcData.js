@@ -9,6 +9,7 @@
  * DELETE /api/calcData?receiptNo=xxx&userName=yyy&token → 삭제 (관리자)
  */
 import { verifyToken } from '../src/authService.js';
+import { revokeTokenByReceiptNo } from '../src/tokenStore.js';
 
 const BASE          = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || '').replace(/\/$/, '');
 const STUDIO_SECRET = process.env.STUDIO_SECRET || '';
@@ -101,6 +102,13 @@ export default async function handler(req, res) {
 
     const upstream = await fetch(url, { ...options, signal: AbortSignal.timeout(8000) });
     const data = await upstream.json();
+
+    // 계산 데이터 삭제 성공 시 Blob 접속 토큰도 함께 무효화
+    if (req.method === 'DELETE' && upstream.ok) {
+      const { receiptNo } = req.query;
+      revokeTokenByReceiptNo(receiptNo).catch(() => {});
+    }
+
     return res.status(upstream.status).json(data);
 
   } catch (e) {

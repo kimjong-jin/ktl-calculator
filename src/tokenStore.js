@@ -104,3 +104,18 @@ export async function revokeToken(tokenId) {
 export async function listTokens() {
   return await readCodes();
 }
+
+/** 접수번호로 토큰 즉시 무효화 (로컬 삭제 시 연동) */
+export async function revokeTokenByReceiptNo(receiptNo) {
+  if (!receiptNo) return false;
+  const map = await readCodes();
+  let revoked = false;
+  for (const [tokenId, entry] of Object.entries(map)) {
+    if (entry.receiptNo === receiptNo) {
+      delete map[tokenId];
+      revoked = true;
+    }
+  }
+  if (revoked) await writeCodes(map);
+  return revoked;
+}
