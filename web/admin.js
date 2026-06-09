@@ -300,14 +300,40 @@ function renderTokenTable(chatLimits, chatUsage) {
   const user = getAdminUser();
   const activeTab = user === '김종진' ? getActiveTab() : user;
   const allList = loadTokenList();
-  // 김종진 탭 = 전체 보기
   const list = (user === '김종진' && activeTab === '김종진') ? allList : allList.filter(t => t.label === activeTab);
   const defaultLimit = chatLimits?.default ?? 50;
   const today = new Date().toISOString().slice(0, 10);
+  const isMobile = window.innerWidth <= 640;
 
-  const tableHtml = !list.length
-    ? `<p class="admin-empty">${activeTab === '전체' ? '발급된 접속 코드가 없습니다.' : `${activeTab} 님에게 발급된 코드가 없습니다.`}</p>`
-    : `<table class="token-table">
+  let contentHtml;
+  if (!list.length) {
+    contentHtml = `<p class="admin-empty">${activeTab === '전체' ? '발급된 접속 코드가 없습니다.' : `${activeTab} 님에게 발급된 코드가 없습니다.`}</p>`;
+  } else if (isMobile) {
+    contentHtml = list.map(t => {
+      const copied = isCopied(t.id);
+      const expired = isExpired(t.expiresAt);
+      return `
+      <div class="token-card${expired ? ' token-card--expired' : copied ? ' token-card--copied' : ''}">
+        <div class="token-card__top">
+          <span style="color:#38bdf8;font-weight:700;font-size:14px">${t.label || '–'}</span>
+          ${statusBadge(t.expiresAt)}
+          ${t.receiptNo && !calcDataReceipts.has(t.receiptNo) ? '<span style="font-size:11px;color:#f59e0b;font-weight:600;margin-left:4px">미사용</span>' : ''}
+        </div>
+        ${t.applicantName ? `<div class="token-card__meta">${t.applicantName}</div>` : ''}
+        ${t.siteName ? `<div class="token-card__meta">${t.siteName}</div>` : ''}
+        ${t.receiptNo ? `<div class="token-card__meta" style="font-family:monospace;color:#475569">${t.receiptNo}</div>` : ''}
+        ${t.pw ? `<div class="token-card__pw">
+          <span style="background:#fff;color:#111;font-family:monospace;font-size:14px;font-weight:900;letter-spacing:2px;padding:3px 8px;border-radius:5px;border:2px solid #333">${t.pw}</span>
+          <button class="btn btn--mini" data-copy-pw="${t.pw}" style="background:#0ea5e9;color:#fff;border:none;font-size:11px">복사</button>
+        </div>` : ''}
+        <div class="token-card__actions">
+          <button class="btn btn--mini${copied ? ' btn--copied' : ''}" data-copy="${t.id}">${copied ? '복사됨 ✓' : '링크복사'}</button>
+          <button class="btn btn--mini btn--danger" data-del="${t.id}">삭제</button>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    contentHtml = `<table class="token-table">
       <thead><tr><th>#</th><th>이름</th><th>비밀번호</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>챗봇 한도</th><th>관리</th></tr></thead>
       <tbody>${list.map(t => {
         const userId = decodeTokenUserId(t.token);
@@ -352,6 +378,7 @@ function renderTokenTable(chatLimits, chatUsage) {
         </tr>`;
       }).join('')}</tbody>
     </table>`;
+  }
 
   return `
     <div style="margin-bottom:10px;display:flex;align-items:center;gap:12px">
@@ -360,7 +387,7 @@ function renderTokenTable(chatLimits, chatUsage) {
         id="default-limit-input" style="width:80px;padding:4px 8px;font-size:13px" />
       <button class="btn btn--mini" id="default-limit-save">저장</button>
     </div>
-    <div class="token-table-wrap">${tableHtml}</div>`;
+    <div class="token-table-wrap">${contentHtml}</div>`;
 }
 
 // ── 스킬 라이브러리 렌더 ────────────────────────────────────
