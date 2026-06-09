@@ -50,14 +50,14 @@ function genPw(map) {
 }
 
 /** 새 토큰 ID 등록 — 단순 비밀번호 생성 후 반환 (발급 시 만료 항목 자동 정리) */
-export async function registerToken(tokenId, { exp, label = '' }) {
+export async function registerToken(tokenId, { exp, label = '', applicantName = '', receiptNo = '' }) {
   const map = await readCodes();
   const now = Math.floor(Date.now() / 1000);
   for (const id of Object.keys(map)) {
     if (map[id].exp <= now) delete map[id];
   }
   const pw = genPw(map);
-  map[tokenId] = { exp, label, issuedAt: now, pw };
+  map[tokenId] = { exp, label, issuedAt: now, pw, applicantName, receiptNo };
   await writeCodes(map);
   return { pw };
 }
@@ -68,7 +68,9 @@ export async function findTokenByPw(pw) {
   const map = await readCodes();
   const now = Math.floor(Date.now() / 1000);
   for (const [tokenId, entry] of Object.entries(map)) {
-    if (entry.pw === pw && entry.exp > now) return { tokenId, exp: entry.exp };
+    if (entry.pw === pw && entry.exp > now) {
+      return { tokenId, exp: entry.exp, applicantName: entry.applicantName || '', receiptNo: entry.receiptNo || '' };
+    }
   }
   return null;
 }

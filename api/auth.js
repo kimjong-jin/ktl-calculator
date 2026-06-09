@@ -42,7 +42,11 @@ export default async function handler(req, res) {
     const entry = await findTokenByPw(password);
     if (entry) {
       const result = issueUserSession(entry.tokenId, entry.exp);
-      if (result.ok) return res.status(200).json({ token: result.token, exp: result.exp, role: result.role });
+      if (result.ok) return res.status(200).json({
+        token: result.token, exp: result.exp, role: result.role,
+        applicantName: entry.applicantName || '',
+        receiptNo: entry.receiptNo || '',
+      });
     }
   }
 

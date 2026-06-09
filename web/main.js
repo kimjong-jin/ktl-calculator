@@ -109,6 +109,74 @@ function setupPwChangeModal(userName, onDone) {
   new2El.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
 }
 
+function showNameConfirmModal(applicantName, onConfirmed) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#1e293b;border-radius:14px;padding:28px 24px;min-width:280px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.5);text-align:center';
+
+  const nameDisplay = document.createElement('div');
+  nameDisplay.style.cssText = 'font-size:22px;font-weight:700;color:#f1f5f9;margin-bottom:6px';
+  nameDisplay.textContent = applicantName || '(이름 없음)';
+
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-size:14px;color:#94a3b8;margin-bottom:20px';
+  sub.textContent = '신청인 이름이 맞습니까?';
+
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;margin-bottom:12px';
+
+  const yesBtn = document.createElement('button');
+  yesBtn.textContent = '맞습니다';
+  yesBtn.style.cssText = 'flex:1;padding:10px;border-radius:8px;border:none;background:#0ea5e9;color:#fff;font-size:15px;font-weight:600;cursor:pointer';
+
+  const noBtn = document.createElement('button');
+  noBtn.textContent = '아닙니다';
+  noBtn.style.cssText = 'flex:1;padding:10px;border-radius:8px;border:none;background:#334155;color:#f1f5f9;font-size:15px;cursor:pointer';
+
+  const changeRow = document.createElement('div');
+  changeRow.style.cssText = 'display:none;margin-top:8px';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.placeholder = '이름을 입력하세요';
+  nameInput.style.cssText = 'width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#f1f5f9;font-size:14px;margin-bottom:8px';
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.textContent = '확인';
+  confirmBtn.style.cssText = 'width:100%;padding:9px;border-radius:8px;border:none;background:#0ea5e9;color:#fff;font-size:14px;font-weight:600;cursor:pointer';
+
+  changeRow.appendChild(nameInput);
+  changeRow.appendChild(confirmBtn);
+  btnRow.appendChild(yesBtn);
+  btnRow.appendChild(noBtn);
+  box.appendChild(nameDisplay);
+  box.appendChild(sub);
+  box.appendChild(btnRow);
+  box.appendChild(changeRow);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  const done = (name) => {
+    try { localStorage.setItem('ktl-applicant-name', name); } catch { /* 무시 */ }
+    document.body.removeChild(overlay);
+    onConfirmed(name);
+  };
+
+  yesBtn.addEventListener('click', () => done(applicantName));
+  noBtn.addEventListener('click', () => {
+    changeRow.style.display = 'block';
+    btnRow.style.display = 'none';
+    nameInput.focus();
+  });
+  confirmBtn.addEventListener('click', () => {
+    const v = nameInput.value.trim();
+    if (v) done(v);
+  });
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') { const v = nameInput.value.trim(); if (v) done(v); } });
+}
+
 function setupAuthGate(onSuccess) {
   const idEl   = $('auth-id');
   const passEl = $('auth-pass');
@@ -163,7 +231,11 @@ function setupAuthGate(onSuccess) {
       const data = await res.json();
       if (!res.ok) { showAuthError(data.error || '비밀번호가 올바르지 않습니다.'); return; }
       storeToken(data.token);
-      onSuccess(data.role || 'user');
+      if (data.applicantName) {
+        showNameConfirmModal(data.applicantName, () => onSuccess(data.role || 'user'));
+      } else {
+        onSuccess(data.role || 'user');
+      }
     } catch {
       showAuthError('서버에 연결할 수 없습니다.');
     } finally {
