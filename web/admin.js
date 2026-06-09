@@ -10,6 +10,7 @@ const COPIED_KEY   = 'ktl-copied-tokens';  // {tokenId: true} — 복사된 토�
 const TAB_KEY      = 'ktl-admin-tab';      // 마지막 선택 탭
 const USER_KEY     = 'ktl-admin-user';     // 현재 접속자 이름
 let adminToken = '';
+let calcDataReceipts = new Set();
 
 const STAFF_NAMES = ['김종진','권민경','김성대','김수철','정슬기','강준','정진욱'];
 
@@ -182,6 +183,15 @@ export async function initAdmin(token) {
     console.warn('[admin] Blob 토큰 동기화 실패:', e);
   }
 
+  // calc 데이터 receiptNo 목록 캐시 (미사용 코드 표시용)
+  try {
+    const r = await fetch(`/api/calcData?action=list&token=${encodeURIComponent(token)}`);
+    if (r.ok) {
+      const list = await r.json();
+      calcDataReceipts = new Set(list.map(d => d.receiptNo).filter(Boolean));
+    }
+  } catch {}
+
   const wrap = document.getElementById('admin-wrap');
   if (!wrap) return;
   wrap.innerHTML = '<p class="admin-loading">관리자 데이터 로드 중…</p>';
@@ -280,6 +290,7 @@ function renderTokenTable(chatLimits, chatUsage) {
             ${t.applicantName ? `<div style="font-size:11px;color:#94a3b8">${t.applicantName}</div>` : ''}
             ${t.siteName ? `<div style="font-size:11px;color:#64748b">${t.siteName}</div>` : ''}
             ${t.receiptNo ? `<div style="font-size:11px;color:#475569;font-family:monospace">${t.receiptNo}</div>` : ''}
+            ${t.receiptNo && !calcDataReceipts.has(t.receiptNo) ? `<div style="font-size:11px;color:#f59e0b;font-weight:600">미사용</div>` : ''}
           </td>
           <td class="token-col--pw">
             ${t.pw
@@ -507,6 +518,7 @@ function render(wrap, d) {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <h3 class="admin-section__title" style="margin:0">발급된 접속 코드 목록</h3>
         <button class="btn btn--mini btn--ghost" id="clear-expired-btn">만료 코드 정리</button>
+        <button class="btn btn--mini btn--ghost" id="dedup-btn">중복 정리</button>
       </div>
       ${renderStaffTabs()}
       <div id="token-list-wrap">${renderTokenTable(chatLimits, chatUsage)}</div>
@@ -634,6 +646,38 @@ function bindEvents(wrap, access) {
   document.getElementById('clear-expired-btn')?.addEventListener('click', () => {
     saveTokenList(loadTokenList().filter(t => !isExpired(t.expiresAt)));
     refreshTokenList();
+  });
+  document.getElementById('dedup-btn')?.addEventListener('click', async () => {
+    const list = loadTokenList();
+    const byReceipt = {};
+    for (const t of list) {
+      if (!t.receiptNo) continue;
+      if (!byReceipt[t.receiptNo]) byReceipt[t.receiptNo] = [];
+      byReceipt[t.receiptNo].push(t);
+    }
+    const toRevoke = [];
+    for (const group of Object.values(byReceipt)) {
+      if (group.length <= 1) continue;
+      group.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      toRevoke.push(...group.slice(1));
+    }
+    if (!toRevoke.length) { alert('중복 코드 없음'); return; }
+    if (!confirm(`동일 접수번호 중복 코드 ${toRevoke.length}개를 삭제하시겠습니까?\n(각 접수번호의 가장 최신 코드만 남깁니다)`)) return;
+    const ids = new Set(toRevoke.map(t => t.id));
+    saveTokenList(list.filter(t => !ids.has(t.id)));
+    for (const t of toRevoke) {
+      const tokenKey = (t.token || t.id || '').split('.')[0];
+      if (tokenKey) {
+        fetch('/api/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+          body: JSON.stringify({ action: 'revoke_token', tokenId: tokenKey }),
+        }).catch(() => {});
+      }
+    }
+    refreshTokenList();
+    const btn = document.getElementById('dedup-btn');
+    if (btn) { btn.textContent = `${toRevoke.length}개 정리됨 ✓`; setTimeout(() => { btn.textContent = '중복 정리'; }, 2500); }
   });
   document.getElementById('token-list-wrap')?.addEventListener('click', async (e) => {
     const copyId    = e.target.dataset.copy;
