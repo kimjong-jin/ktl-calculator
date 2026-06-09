@@ -717,16 +717,22 @@ function bindEvents(wrap, access) {
     }
     if (delId && confirm('이 접속 코드를 삭제할까요?\n삭제하면 해당 고객은 즉시 접속이 차단됩니다.')) {
       const entry = loadTokenList().find(t => t.id === delId);
+      const delBtn = e.target;
+      delBtn.textContent = '삭제 중…';
+      delBtn.disabled = true;
+      // Blob revoke 먼저 완료 후 localStorage 제거 (순서 역전 방지)
+      const tokenKey = entry?.id || entry?.token?.split('.')[0] || '';
+      if (tokenKey) {
+        try {
+          await fetch('/api/admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+            body: JSON.stringify({ action: 'revoke_token', tokenId: tokenKey }),
+          });
+        } catch {}
+      }
       removeFromList(delId);
       refreshTokenList();
-      if (entry?.token) {
-        const tokenKey = entry.token.split('.')[0];
-        fetch('/api/admin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-          body: JSON.stringify({ action: 'revoke_token', tokenId: tokenKey }),
-        }).catch(() => {});
-      }
     }
     // 오늘 사용량 초기화
     if (resetUid && confirm('오늘 사용량을 초기화할까요?')) {
