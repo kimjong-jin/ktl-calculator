@@ -1862,14 +1862,25 @@ function init() {
 <div class="pv-page">
   <div class="card pv-save-card">
     <div class="pv-save-bar">
-      <input id="pv-receipt-no" class="field__control pv-save-input" type="text"
-             placeholder="접수번호 (예: 26-031078-01-1)" value="${calcReceiptNo}" autocomplete="off" />
-      <input id="pv-user-name" class="field__control pv-save-input" type="text"
-             placeholder="사용자 이름" value="${calcUserName}" autocomplete="off" />
-      <input id="pv-site-name" class="field__control pv-save-input" type="text"
-             placeholder="현장명" value="${calcSiteName}" autocomplete="off" />
-      <button id="pv-load-btn" class="btn btn--ghost btn--mini" type="button">📂 불러오기</button>
-      <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
+      <div class="pv-save-field">
+        <label class="pv-save-label" for="pv-receipt-no">접수번호</label>
+        <input id="pv-receipt-no" class="field__control pv-save-input" type="text"
+               placeholder="26-031078-01-1" value="${calcReceiptNo}" autocomplete="off" />
+      </div>
+      <div class="pv-save-field">
+        <label class="pv-save-label" for="pv-user-name">사용자</label>
+        <input id="pv-user-name" class="field__control pv-save-input" type="text"
+               placeholder="이름" value="${calcUserName}" autocomplete="off" />
+      </div>
+      <div class="pv-save-field">
+        <label class="pv-save-label" for="pv-site-name">현장명</label>
+        <input id="pv-site-name" class="field__control pv-save-input" type="text"
+               placeholder="현장명" value="${calcSiteName}" autocomplete="off" />
+      </div>
+      <div class="pv-save-actions">
+        <button id="pv-load-btn" class="btn btn--ghost btn--mini" type="button">📂 불러오기</button>
+        <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
+      </div>
     </div>
     <div id="pv-save-status" class="pv-save-status"></div>
   </div>
