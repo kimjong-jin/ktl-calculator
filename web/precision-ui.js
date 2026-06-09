@@ -1556,110 +1556,222 @@ function buildResultsPanel(code) {
 }
 
 // ── 성적서 ───────────────────────────────────────────────
+const FIELD_LABELS = {
+  range:'측정범위 R', fdis:'배출기준 (mg/L)', resp:'응답시간',
+  z1:'Z1',z2:'Z2',z3:'Z3',z4:'Z4',z5:'Z5',z6:'Z6',z7:'Z7',
+  s1:'S1',s2:'S2',s3:'S3',s4:'S4',s5:'S5',s6:'S6',s7:'S7',
+  m1:'M1',m2:'M2',m3:'M3',
+  ci1:'Ci₁(현장)',ci2:'Ci₂(현장)',ai1:'Ai₁(수분석)',ai2:'Ai₂',ai3:'Ai₃',ai4:'Ai₄',
+  codmax:'최댓값',codmin:'최솟값',
+  ph7a:'pH7 1회',ph4a:'pH4 1회',ph7b:'pH7 2회',ph4b:'pH4 2회',ph7c:'pH7 3회',ph4c:'pH4 3회',
+  phdi:'드리프트 초기',phdf:'드리프트 2시간후',
+  phm4:'직선성 pH4',phm7:'직선성 pH7',phm10:'직선성 pH10',
+  pht10:'온도보상 10℃',pht15:'15℃',pht20:'20℃',pht25:'25℃',pht30:'30℃',
+  phci1:'Ci₁(현장)',phai1:'Ai₁',phai2:'Ai₂',phci2:'Ci₂(현장)',phai3:'Ai₃',phai4:'Ai₄',
+  dos1:'S1',dos2:'S2',dos3:'S3',
+  dozi:'Z초기',dozf:'Z 2시간후',dosi:'S초기',dosf:'S 2시간후',
+  domax:'최댓값',domin:'최솟값',dot20:'20℃',dot30:'30℃',
+};
+
 function certRow(l,v,p) {
   const color = p===null?'#888':p?'#1a7f37':'#cf222e';
   const verdict = p===null?'—':p?'적합':'부적합';
   return `<tr>
-    <td style="padding:7px 10px;border:1px solid #ccc">${l}</td>
-    <td style="padding:7px 10px;border:1px solid #ccc">${v}</td>
-    <td style="padding:7px 10px;border:1px solid #ccc;font-weight:600;color:${color}">${verdict}</td></tr>`;
+    <td style="padding:6px 10px;border:1px solid #ccc">${l}</td>
+    <td style="padding:6px 10px;border:1px solid #ccc">${v}</td>
+    <td style="padding:6px 10px;border:1px solid #ccc;font-weight:600;color:${color}">${verdict}</td></tr>`;
+}
+
+function buildCertResultRows(tab) {
+  let rows = ''; let allPass = true;
+  const addRow = (l,v,p) => { rows += certRow(l,v,p); if(p===false) allPass=false; };
+  const d = loadData(tab.id);
+  const gd = f => { const v = parseFloat(d[f]); return Number.isFinite(v) ? v : null; };
+  if (IS_PH(tab.code)) {
+    const rep = repeatability([gd('ph7a'),gd('ph7b'),gd('ph7c')],[gd('ph4a'),gd('ph4b'),gd('ph4c')]);
+    const dr = drift(14,[gd('phdi')],[gd('phdf')],[gd('phdi')],[gd('phdf')]);
+    const lin = phLinearity([gd('phm4'),gd('phm7'),gd('phm10')]);
+    addRow(`pH7 반복성 RSD ≤ ${rep.limit}%`,`${fmt(rep.zero.rsd)}%`,rep.zero.pass);
+    addRow(`pH4 반복성 RSD ≤ ${rep.limit}%`,`${fmt(rep.span.rsd)}%`,rep.span.pass);
+    addRow(`드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroPass);
+    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error)}%`,lin.pass);
+    const tc = phTemperatureComp({t10:gd('pht10'),t15:gd('pht15'),t20:gd('pht20'),t25:gd('pht25'),t30:gd('pht30')});
+    if(tc.pass!==null) addRow(`온도보상 max-min ≤ ${PRECISION_CRITERIA.phTempComp}`,fmt(tc.range,3),tc.pass);
+  } else if (IS_DO(tab.code)) {
+    const rep = repeatability([],[gd('dos1'),gd('dos2'),gd('dos3')]);
+    const dr = drift(20,[gd('dozi')],[gd('dozf')],[gd('dosi')],[gd('dosf')]);
+    const lin = doLinearity(gd('domax'),gd('domin'),20);
+    addRow(`DO 반복성 RSD ≤ ${rep.limit}%`,`${fmt(rep.span.rsd)}%`,rep.span.pass);
+    addRow(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroPass);
+    addRow(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`,`${fmt(dr.spanDrift)}%`,dr.spanPass);
+    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error)}%`,lin.pass);
+    if(gd('dot20')||gd('dot30')){
+      const tc = doTemperatureComp(gd('dot20'),gd('dot30'),DO_SPAN_TABLE[25]);
+      addRow(`20℃ 온도보상 ≤ ${PRECISION_CRITERIA.doTempComp}%`,`${fmt(tc.t20.error)}%`,tc.t20.pass);
+      addRow(`30℃ 온도보상 ≤ ${PRECISION_CRITERIA.doTempComp}%`,`${fmt(tc.t30.error)}%`,tc.t30.pass);
+    }
+  } else {
+    const range=gd('range'),isWater=IS_WATER(tab.code);
+    const zRepVals=pickRepVals(gd('z5'),gd('z6'),gd('z7'),[gd('z1'),gd('z2')],[gd('z3'),gd('z4')]);
+    const sRepVals=pickRepVals(gd('s5'),gd('s6'),gd('s7'),[gd('s1'),gd('s2')],[gd('s3'),gd('s4')]);
+    const rep=repeatability(zRepVals,sRepVals,range);
+    const dr=drift(range,[gd('z1'),gd('z2')],[gd('z3'),gd('z4')],[gd('s1'),gd('s2')],[gd('s3'),gd('s4')],isWater?{zero:3,span:3}:undefined);
+    const linRef=isWater&&gd('s1')>0?gd('s1')/2:undefined;
+    const lin=linearity(range,isWater?[gd('m1')]:[gd('m1'),gd('m2'),gd('m3')],linRef);
+    const driftLim=isWater?3:PRECISION_CRITERIA.zeroDrift;
+    addRow(`저농도 반복성 RSD ≤ ${rep.limit}%`,rep.zero.pass===null?'—':`${fmt(rep.zero.rsd)}%`,rep.zero.pass);
+    addRow(`고농도 반복성 RSD ≤ ${rep.limit}%`,rep.span.pass===null?'—':`${fmt(rep.span.rsd)}%`,rep.span.pass);
+    addRow(`제로드리프트 ≤ ${driftLim}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroPass);
+    addRow(`스팬드리프트 ≤ ${driftLim}%`,`${fmt(dr.spanDrift)}%`,dr.spanPass);
+    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error)}%`,lin.pass);
+    const ci1=gd('ci1'),ci2=gd('ci2'),ai1=gd('ai1'),ai2=gd('ai2'),ai3=gd('ai3'),ai4=gd('ai4');
+    if(ci1||ci2||ai1||ai2||ai3||ai4){
+      const fRes=fieldApplication(tab.code,[ai1,ai2,ai3,ai4],[ci1,ci2],{discharge:gd('fdis')});
+      const fv=fRes.useRate?`오차율 ${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`:
+        `절대오차 ${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`;
+      addRow(`${tab.code} 현장적용계수`,fv,fRes.pass);
+    }
+    if(IS_COD(tab.code)&&(gd('codmax')||gd('codmin'))){
+      const gRes=codGlucoseVariability(gd('codmax'),gd('codmin'),range);
+      addRow(`포도당변동성 ≤ ${PRECISION_CRITERIA.codGlucose}%`,`${fmt(gRes.error)}%`,gRes.pass);
+    }
+    const resp=gd('resp'),respLimit=gd('resp_limit');
+    if(resp&&respLimit) addRow(`응답시간(T90) ≤ ${fmt(respLimit,0)}초`,`${fmt(resp,0)}초`,resp<=respLimit);
+  }
+  return { rows, allPass };
+}
+
+function buildRawDataRows(tab) {
+  const d = loadData(tab.id);
+  const fields = getFields(tab.code).filter(f => f !== 'resp_limit');
+  return fields.map(f => {
+    const v = d[f];
+    if (v === undefined || v === '' || v === null) return '';
+    return `<tr><td style="padding:5px 10px;border:1px solid #ddd;color:#555">${FIELD_LABELS[f]||f}</td>
+      <td style="padding:5px 10px;border:1px solid #ddd;font-family:monospace">${v}</td></tr>`;
+  }).join('');
+}
+
+function buildCertPageHTML(tab, date) {
+  const { rows, allPass } = buildCertResultRows(tab);
+  const rawRows = buildRawDataRows(tab);
+  const passColor = allPass ? '#1a7f37' : '#cf222e';
+  return `<div class="cert-page">
+    <div class="cert-header">
+      <div style="font-size:18px;font-weight:700">수질TMS 정도검사 성적서</div>
+      <div style="font-size:11px;color:#666;margin-top:2px">KTL 전문 계측 서비스</div>
+    </div>
+    <table class="cert-meta">
+      <tr><td>접수번호</td><td style="font-family:monospace;font-weight:600">${fullReceiptNo(tab)}</td></tr>
+      <tr><td>검사 항목</td><td style="font-weight:600">${tab.label}</td></tr>
+      <tr><td>검사일</td><td>${date}</td></tr>
+    </table>
+    <div class="cert-section-title">▶ 검사 결과</div>
+    <table class="cert-table">
+      <thead><tr><th>검사항목</th><th>수치</th><th style="width:70px">판정</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="cert-verdict" style="border-color:${passColor};color:${passColor}">
+      최종 판정: ${allPass ? '✅ 전 항목 적합' : '❌ 부적합 항목 있음'}
+    </div>
+    ${rawRows ? `
+    <div class="cert-section-title" style="margin-top:18px">▶ Raw Data (측정 입력값)</div>
+    <table class="cert-table">
+      <thead><tr><th>항목</th><th>입력값</th></tr></thead>
+      <tbody>${rawRows}</tbody>
+    </table>` : ''}
+  </div>`;
+}
+
+const CERT_PRINT_CSS = `
+  body{font-family:sans-serif;margin:0;padding:0;color:#000;background:#fff}
+  .cert-page{padding:36px 40px;max-width:660px;margin:0 auto;page-break-after:always}
+  .cert-page:last-child{page-break-after:avoid}
+  .cert-header{text-align:center;margin-bottom:18px;padding-bottom:12px;border-bottom:2px solid #000}
+  .cert-meta{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:13px}
+  .cert-meta td{padding:4px 0}
+  .cert-meta td:first-child{width:90px;color:#666}
+  .cert-section-title{font-size:13px;font-weight:700;margin:0 0 6px;color:#334}
+  .cert-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
+  .cert-table th{padding:7px 10px;text-align:left;border:1px solid #ccc;background:#f0f0f0;font-size:12px}
+  .cert-table td{padding:6px 10px;border:1px solid #ccc}
+  .cert-verdict{border:2px solid;border-radius:6px;padding:10px;text-align:center;font-size:15px;font-weight:700;margin-bottom:10px}
+  @media print{.cert-page{padding:20px 24px}}
+`;
+
+function openCertPrintWindow(pagesHTML) {
+  const win = window.open('', '_blank', 'width=780,height=1000');
+  if (!win) { alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도하세요.'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+    <title>정도검사 성적서</title><style>${CERT_PRINT_CSS}</style></head>
+    <body>${pagesHTML}</body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 400);
 }
 
 function showCert(tabId) {
   const tab = tabs.find(t => t.id === tabId);
   if (!tab) return;
-
   const date = new Date().toLocaleDateString('ko-KR');
-  let rows = '';
-  let allPass = true;
-  const addRow = (l, v, p) => { rows += certRow(l, v, p); if (!p) allPass = false; };
 
-  if (IS_PH(tab.code)) {
-    const rep = repeatability([g('ph7a'),g('ph7b'),g('ph7c')],[g('ph4a'),g('ph4b'),g('ph4c')]);
-    const dr = drift(14,[g('phdi')],[g('phdf')],[g('phdi')],[g('phdf')]);
-    const lin = phLinearity([g('phm4'),g('phm7'),g('phm10')]);
-    addRow(`pH7 반복성 RSD ≤ ${rep.limit}%`, `${fmt(rep.zero.rsd)}%`, rep.zero.pass);
-    addRow(`pH4 반복성 RSD ≤ ${rep.limit}%`, `${fmt(rep.span.rsd)}%`, rep.span.pass);
-    addRow(`드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, `${fmt(dr.zeroDrift)}%`, dr.zeroPass);
-    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, `${fmt(lin.error)}%`, lin.pass);
-    const tc = phTemperatureComp({t10:g('pht10'),t15:g('pht15'),t20:g('pht20'),t25:g('pht25'),t30:g('pht30')});
-    if (tc.pass !== null) addRow(`온도보상 max-min ≤ ${PRECISION_CRITERIA.phTempComp}`, fmt(tc.range,3), tc.pass);
-  } else if (IS_DO(tab.code)) {
-    const rep = repeatability([],[g('dos1'),g('dos2'),g('dos3')]);
-    const dr = drift(20,[g('dozi')],[g('dozf')],[g('dosi')],[g('dosf')]);
-    const lin = doLinearity(g('domax'),g('domin'),20);
-    addRow(`DO 반복성 RSD ≤ ${rep.limit}%`, `${fmt(rep.span.rsd)}%`, rep.span.pass);
-    addRow(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`, `${fmt(dr.zeroDrift)}%`, dr.zeroPass);
-    addRow(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`, `${fmt(dr.spanDrift)}%`, dr.spanPass);
-    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, `${fmt(lin.error)}%`, lin.pass);
-    if (g('dot20')||g('dot30')) {
-      const tc = doTemperatureComp(g('dot20'),g('dot30'),DO_SPAN_TABLE[25]);
-      addRow(`20℃ 온도보상 ≤ ${PRECISION_CRITERIA.doTempComp}%`, `${fmt(tc.t20.error)}%`, tc.t20.pass);
-      addRow(`30℃ 온도보상 ≤ ${PRECISION_CRITERIA.doTempComp}%`, `${fmt(tc.t30.error)}%`, tc.t30.pass);
-    }
-  } else {
-    const range = g('range');
-    const zRepVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
-    const sRepVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
-    const rep = repeatability(zRepVals, sRepVals, range);
-    const isWater = IS_WATER(tab.code);
-    const driftLim = isWater ? 3 : PRECISION_CRITERIA.zeroDrift;
-    const dr = drift(range,[g('z1'),g('z2')],[g('z3'),g('z4')],[g('s1'),g('s2')],[g('s3'),g('s4')],
-      isWater ? {zero:3,span:3} : undefined);
-    const linRef = isWater && g('s1') > 0 ? g('s1')/2 : undefined;
-    const lin = linearity(range, isWater ? [g('m1')] : [g('m1'),g('m2'),g('m3')], linRef);
-    addRow(`저농도 반복성 RSD ≤ ${rep.limit}%`, rep.zero.pass===null?'—':`${fmt(rep.zero.rsd)}%`, rep.zero.pass);
-    addRow(`고농도 반복성 RSD ≤ ${rep.limit}%`, rep.span.pass===null?'—':`${fmt(rep.span.rsd)}%`, rep.span.pass);
-    addRow(`제로드리프트 ≤ ${driftLim}%`, `${fmt(dr.zeroDrift)}%`, dr.zeroPass);
-    addRow(`스팬드리프트 ≤ ${driftLim}%`, `${fmt(dr.spanDrift)}%`, dr.spanPass);
-    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, `${fmt(lin.error)}%`, lin.pass);
-    const ci1=g('ci1'),ci2=g('ci2'),ai1=g('ai1'),ai2=g('ai2'),ai3=g('ai3'),ai4=g('ai4');
-    if (ci1||ci2||ai1||ai2||ai3||ai4) {
-      const fRes = fieldApplication(tab.code,[ai1,ai2,ai3,ai4],[ci1,ci2],{discharge:g('fdis')});
-      const fieldVal = fRes.useRate
-        ? `오차율 ${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`
-        : `절대오차 ${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`;
-      addRow(`${tab.code} 현장적용계수`, fieldVal, fRes.pass);
-    }
-    if (IS_COD(tab.code) && (g('codmax')||g('codmin'))) {
-      const gRes = codGlucoseVariability(g('codmax'),g('codmin'),range);
-      addRow(`포도당변동성 ≤ ${PRECISION_CRITERIA.codGlucose}%`, `${fmt(gRes.error)}%`, gRes.pass);
-    }
-    const resp=g('resp'),respLimit=g('resp_limit');
-    if (resp&&respLimit) addRow(`응답시간(T90) ≤ ${fmt(respLimit,0)}초`, `${fmt(resp,0)}초`, resp<=respLimit);
-  }
+  // 기존 오버레이 제거
+  document.getElementById('cert-overlay')?.remove();
+
+  const { rows, allPass } = buildCertResultRows(tab);
+  const rawRows = buildRawDataRows(tab);
+  const passColor = allPass ? '#1a7f37' : '#cf222e';
 
   const ov = document.createElement('div');
   ov.id = 'cert-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto';
   ov.innerHTML = `
-    <div style="background:#fff;color:#000;max-width:660px;width:100%;border-radius:12px;overflow:auto;max-height:90vh;padding:36px;font-family:sans-serif">
-      <div style="text-align:center;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #000">
-        <h2 style="font-size:20px;font-weight:700;margin:0">수질TMS 정도검사 성적서</h2>
-        <p style="margin:4px 0 0;font-size:12px;color:#666">KTL 전문 계측 서비스</p>
+    <div style="background:#fff;color:#000;max-width:660px;width:100%;border-radius:12px;padding:32px 36px;font-family:sans-serif;max-height:90vh;overflow:auto">
+      <div style="text-align:center;margin-bottom:18px;padding-bottom:12px;border-bottom:2px solid #000">
+        <div style="font-size:19px;font-weight:700">수질TMS 정도검사 성적서</div>
+        <div style="font-size:11px;color:#666;margin-top:3px">KTL 전문 계측 서비스</div>
       </div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:13px">
         <tr><td style="padding:4px 0;width:90px;color:#666">접수번호</td><td style="font-weight:600;font-family:monospace">${fullReceiptNo(tab)}</td></tr>
         <tr><td style="padding:4px 0;color:#666">검사 항목</td><td style="font-weight:600">${tab.label}</td></tr>
         <tr><td style="padding:4px 0;color:#666">검사일</td><td>${date}</td></tr>
       </table>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px">
+      <div style="font-size:13px;font-weight:700;margin:0 0 6px">▶ 검사 결과</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px">
         <thead><tr style="background:#f0f0f0">
-          <th style="padding:8px 10px;text-align:left;border:1px solid #ccc">검사항목</th>
-          <th style="padding:8px 10px;text-align:left;border:1px solid #ccc">수치</th>
-          <th style="padding:8px 10px;text-align:left;border:1px solid #ccc;width:70px">판정</th>
+          <th style="padding:7px 10px;text-align:left;border:1px solid #ccc">검사항목</th>
+          <th style="padding:7px 10px;text-align:left;border:1px solid #ccc">수치</th>
+          <th style="padding:7px 10px;text-align:left;border:1px solid #ccc;width:70px">판정</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div style="border:2px solid ${allPass?'#1a7f37':'#cf222e'};border-radius:8px;padding:12px;text-align:center;font-size:17px;font-weight:700;color:${allPass?'#1a7f37':'#cf222e'}">
-        최종 판정: ${allPass?'✅ 전 항목 적합':'❌ 부적합 항목 있음'}
+      <div style="border:2px solid ${passColor};border-radius:6px;padding:10px;text-align:center;font-size:15px;font-weight:700;color:${passColor};margin-bottom:16px">
+        최종 판정: ${allPass ? '✅ 전 항목 적합' : '❌ 부적합 항목 있음'}
       </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
-        <button onclick="window.print()" style="padding:8px 18px;background:#0969da;color:#fff;border:0;border-radius:6px;cursor:pointer">인쇄/PDF</button>
-        <button onclick="document.getElementById('cert-overlay').remove()" style="padding:8px 18px;background:#f0f0f0;border:0;border-radius:6px;cursor:pointer">닫기</button>
+      ${rawRows ? `
+      <div style="font-size:13px;font-weight:700;margin:0 0 6px">▶ Raw Data (측정 입력값)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px">
+        <thead><tr style="background:#f9f9f9">
+          <th style="padding:6px 10px;text-align:left;border:1px solid #ddd">항목</th>
+          <th style="padding:6px 10px;text-align:left;border:1px solid #ddd">입력값</th>
+        </tr></thead>
+        <tbody>${rawRows}</tbody>
+      </table>` : ''}
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button id="cert-print-one" style="padding:8px 16px;background:#0969da;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:13px">🖨 이 항목 출력</button>
+        <button id="cert-print-all" style="padding:8px 16px;background:#6f42c1;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:13px">📄 전체 출력</button>
+        <button onclick="document.getElementById('cert-overlay').remove()" style="padding:8px 16px;background:#f0f0f0;border:0;border-radius:6px;cursor:pointer;font-size:13px">닫기</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
+
+  document.getElementById('cert-print-one').addEventListener('click', () => {
+    openCertPrintWindow(buildCertPageHTML(tab, date));
+  });
+  document.getElementById('cert-print-all').addEventListener('click', () => {
+    const allPages = tabs.map(t => buildCertPageHTML(t, date)).join('');
+    openCertPrintWindow(allPages);
+  });
 }
 
 // ── 초기화 ───────────────────────────────────────────────
