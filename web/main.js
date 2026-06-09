@@ -268,17 +268,17 @@ function showApp() {
 }
 
 async function guardAuth(onReady) {
-  const hasInviteParam = !!new URLSearchParams(location.search).get('t');
+  const searchParams = new URLSearchParams(location.search);
+  const hasInviteParam = !!(searchParams.get('t') || searchParams.get('pw'));
   const inviteDone = await tryInviteLogin((role) => { showApp(); onReady(role); });
   if (inviteDone) return;
 
-  // ?t= 파라미터가 있었는데 실패 → 저장 세션 무시하고 게이트로
-  // (삭제된 코드로 접근 시도 차단)
+  // 초대 파라미터가 있었는데 실패 → 저장 세션 무시하고 게이트로
   if (!hasInviteParam) {
     const stored = getStoredToken();
     if (tokenValid(stored)) { showApp(); onReady(tokenRole(stored)); return; }
   } else {
-    // URL의 ?t= 제거 후 오류 표시
+    // URL의 파라미터 제거 후 오류 표시
     window.history.replaceState(null, '', location.pathname);
     showAuthError('접속 코드가 만료되었거나 삭제된 코드입니다.');
   }

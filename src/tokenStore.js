@@ -57,7 +57,7 @@ export async function registerToken(tokenId, { exp, label = '', applicantName = 
     if (map[id].exp <= now) delete map[id];
   }
   const pw = genPw(map);
-  map[tokenId] = { exp, label, issuedAt: now, pw, applicantName, receiptNo };
+  map[tokenId] = { exp, label, applicantName, receiptNo, issuedAt: now, pw };
   await writeCodes(map);
   return { pw };
 }
@@ -69,7 +69,12 @@ export async function findTokenByPw(pw) {
   const now = Math.floor(Date.now() / 1000);
   for (const [tokenId, entry] of Object.entries(map)) {
     if (entry.pw === pw && entry.exp > now) {
-      return { tokenId, exp: entry.exp, applicantName: entry.applicantName || '', receiptNo: entry.receiptNo || '' };
+      return { 
+        tokenId, 
+        exp: entry.exp, 
+        applicantName: entry.applicantName || '', 
+        receiptNo: entry.receiptNo || '' 
+      };
     }
   }
   return null;

@@ -34,9 +34,9 @@ export default async function handler(req, res) {
   try {
     const body = await readBody(req);
     const label = typeof body.label === 'string' ? body.label.slice(0, 40) : '';
+    const applicantName = typeof body.applicantName === 'string' ? body.applicantName.slice(0, 40) : '';
+    const receiptNo = typeof body.receiptNo === 'string' ? body.receiptNo.slice(0, 30) : '';
     const days = Number.isFinite(Number(body.days)) && Number(body.days) > 0 ? Number(body.days) : 30;
-    const applicantName = typeof body.applicantName === 'string' ? body.applicantName.slice(0, 20) : '';
-    const receiptNo = typeof body.receiptNo === 'string' ? body.receiptNo.slice(0, 20) : '';
 
     const result = generateInviteToken(days);
     const tokenId = result.inviteToken.split('.')[0];
