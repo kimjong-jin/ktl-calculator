@@ -355,6 +355,35 @@ function pickRepVals(z5, z6, z7, initVals, finVals) {
   return [z5, best.a, best.b];
 }
 
+// pickRepVals와 동일한 로직으로 어떤 필드가 선택됐는지 레이블까지 반환
+function pickRepWithLabels(refVal, refLabel, extVals, extLabels, initPairs, finPairs) {
+  // extVals = [z6,z7] or [s6,s7], extLabels = ['Z6','Z7'] etc.
+  if (!Number.isFinite(refVal) || refVal <= 0) return null;
+  const z6ok = Number.isFinite(extVals[0]) && extVals[0] > 0;
+  const z7ok = Number.isFinite(extVals[1]) && extVals[1] > 0;
+  if (z6ok && z7ok) {
+    return [
+      {label: refLabel,        val: refVal},
+      {label: extLabels[0],    val: extVals[0]},
+      {label: extLabels[1],    val: extVals[1]},
+    ];
+  }
+  const iv = initPairs.filter(p => p.val > 0);
+  const fv = finPairs.filter(p => p.val > 0);
+  if (!iv.length || !fv.length) return [{label: refLabel, val: refVal}];
+  let best = {s: -1, a: null, b: null};
+  for (const a of iv) for (const b of fv) {
+    const m = (refVal + a.val + b.val) / 3;
+    const s = Math.sqrt(((refVal-m)**2 + (a.val-m)**2 + (b.val-m)**2) / 2);
+    if (s > best.s) best = {s, a, b};
+  }
+  return [
+    {label: refLabel, val: refVal},
+    {label: best.a.label, val: best.a.val},
+    {label: best.b.label, val: best.b.val},
+  ];
+}
+
 function calcBasic(tab) {
   const range = g('range');
   if (!range) return;
@@ -1644,12 +1673,37 @@ function buildCertResultRows(tab) {
 function buildRawDataRows(tab) {
   const d = loadData(tab.id);
   const fields = getFields(tab.code).filter(f => f !== 'resp_limit');
-  return fields.map(f => {
+  const gd = f => { const v = parseFloat(d[f]); return Number.isFinite(v) ? v : NaN; };
+
+  let repPickHTML = '';
+  if (!IS_PH(tab.code) && !IS_DO(tab.code)) {
+    const zPicked = pickRepWithLabels(
+      gd('z5'), 'Z5', [gd('z6'), gd('z7')], ['Z6','Z7'],
+      [{label:'Z1',val:gd('z1')},{label:'Z2',val:gd('z2')}],
+      [{label:'Z3',val:gd('z3')},{label:'Z4',val:gd('z4')}]
+    );
+    const sPicked = pickRepWithLabels(
+      gd('s5'), 'S5', [gd('s6'), gd('s7')], ['S6','S7'],
+      [{label:'S1',val:gd('s1')},{label:'S2',val:gd('s2')}],
+      [{label:'S3',val:gd('s3')},{label:'S4',val:gd('s4')}]
+    );
+    const fmtPick = arr => arr ? arr.map(p => `${p.label}=${p.val}`).join(', ') : '—';
+    repPickHTML = `
+      <tr style="background:#fffbe6"><td colspan="2" style="padding:5px 10px;border:1px solid #ddd;font-weight:600;color:#92400e;font-size:11px">▶ 반복성 계산에 사용된 값</td></tr>
+      <tr><td style="padding:5px 10px;border:1px solid #ddd;color:#555">저농도(Z) 선택값</td>
+        <td style="padding:5px 10px;border:1px solid #ddd;font-family:monospace;font-size:12px">${fmtPick(zPicked)}</td></tr>
+      <tr><td style="padding:5px 10px;border:1px solid #ddd;color:#555">고농도(S) 선택값</td>
+        <td style="padding:5px 10px;border:1px solid #ddd;font-family:monospace;font-size:12px">${fmtPick(sPicked)}</td></tr>`;
+  }
+
+  const inputRows = fields.map(f => {
     const v = d[f];
     if (v === undefined || v === '' || v === null) return '';
     return `<tr><td style="padding:5px 10px;border:1px solid #ddd;color:#555">${FIELD_LABELS[f]||f}</td>
       <td style="padding:5px 10px;border:1px solid #ddd;font-family:monospace">${v}</td></tr>`;
   }).join('');
+
+  return repPickHTML + inputRows;
 }
 
 function buildCertPageHTML(tab, date) {
