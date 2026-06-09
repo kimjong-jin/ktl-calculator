@@ -45,14 +45,20 @@ async function loadCalcDataList(token) {
       listEl.innerHTML = '<p class="admin-card__sub" style="color:#64748b">저장된 계산 데이터 없음</p>';
       return;
     }
+    const tokenList = loadTokenList();
     const rows = data.map(d => {
       const updated = new Date(d.updatedAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
       const expires = new Date(d.expiresAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'});
       const expiredTag = d.expired ? ' <span style="color:#ef4444">(만료)</span>' : '';
+      const matchedToken = tokenList.find(t => t.receiptNo === d.receiptNo);
+      const pwBadge = matchedToken?.pw
+        ? `<span style="background:#fff;color:#111;font-family:monospace;font-size:13px;font-weight:900;letter-spacing:2px;padding:2px 8px;border-radius:5px;border:2px solid #333">${matchedToken.pw}</span>`
+        : '';
       return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #1e293b;flex-wrap:wrap">
         <span style="font-family:monospace;color:#38bdf8;min-width:160px">${d.receiptNo}</span>
         <span style="color:#94a3b8;min-width:80px">${d.userName}</span>
         ${d.siteName ? `<span style="color:#7dd3fc;font-size:12px;min-width:100px">${d.siteName}</span>` : ''}
+        ${pwBadge}
         <span style="color:#64748b;font-size:12px;flex:1">저장 ${updated}${expiredTag} | 만료 ${expires}</span>
         <button class="btn btn--mini" style="background:#dc2626;color:#fff;border:none"
           data-no="${d.receiptNo}" data-user="${d.userName}">삭제</button>
