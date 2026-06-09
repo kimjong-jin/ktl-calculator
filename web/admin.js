@@ -4,9 +4,26 @@
  */
 
 const STORE_KEY    = 'ktl-issued-tokens';
-const SKILLS_KEY   = 'ktl-admin-skills';   // 스킬 라이브러리 (배열)
-const CHAT_KEY     = 'ktl-chat-mode';      // AI 법령 모드: 'active'|'maintenance'|'inactive'
+const SKILLS_KEY   = 'ktl-admin-skills';
+const CHAT_KEY     = 'ktl-chat-mode';
+const COPIED_KEY   = 'ktl-copied-tokens';  // {tokenId: true} — 복사된 토큰 영구 기록
+const TAB_KEY      = 'ktl-admin-tab';      // 마지막 선택 탭
 let adminToken = '';
+
+const STAFF_NAMES = ['김종진','권민경','김성대','김수철','정슬기','강준','정진욱'];
+
+function loadCopied() {
+  try { return JSON.parse(localStorage.getItem(COPIED_KEY) || '{}'); } catch { return {}; }
+}
+function markCopied(tokenId) {
+  const m = loadCopied();
+  m[tokenId] = true;
+  try { localStorage.setItem(COPIED_KEY, JSON.stringify(m)); } catch {}
+}
+function isCopied(tokenId) { return !!loadCopied()[tokenId]; }
+
+function getActiveTab() { return localStorage.getItem(TAB_KEY) || '전체'; }
+function setActiveTab(name) { localStorage.setItem(TAB_KEY, name); }
 
 // ── 계산 데이터 관리 ──────────────────────────────────────
 async function loadCalcDataList(token) {
@@ -147,42 +164,69 @@ function decodeTokenUserId(inviteToken) {
   } catch { return null; }
 }
 
+// ── 담당자 탭 HTML ──────────────────────────────────────────
+function renderStaffTabs() {
+  const active = getActiveTab();
+  const tabs = ['전체', ...STAFF_NAMES];
+  const tabsHtml = tabs.map(name => {
+    const isActive = name === active;
+    const count = name === '전체'
+      ? loadTokenList().length
+      : loadTokenList().filter(t => t.label === name).length;
+    return `<button class="staff-tab${isActive ? ' staff-tab--active' : ''}" data-tab="${name}">
+      ${name}${count ? ` <span class="staff-tab__count">${count}</span>` : ''}
+    </button>`;
+  }).join('');
+  return `<div class="staff-tabs" id="staff-tabs">${tabsHtml}</div>`;
+}
+
 // ── 토큰 목록 HTML ───────────────────────────────────────────
 function renderTokenTable(chatLimits, chatUsage) {
-  const list = loadTokenList();
-  if (!list.length) return '<p class="admin-empty">발급된 접속 코드가 없습니다.</p>';
+  const activeTab = getActiveTab();
+  const allList = loadTokenList();
+  const list = activeTab === '전체' ? allList : allList.filter(t => t.label === activeTab);
   const defaultLimit = chatLimits?.default ?? 20;
   const today = new Date().toISOString().slice(0, 10);
-  const rows = list.map(t => {
-    const userId = decodeTokenUserId(t.token);
-    const usage  = userId ? (chatUsage?.[userId]) : null;
-    const todayCount = (usage?.date === today) ? usage.count : 0;
-    const limit  = userId ? (chatLimits?.keys?.[userId] ?? defaultLimit) : defaultLimit;
-    return `
-    <tr class="token-row${isExpired(t.expiresAt) ? ' token-row--expired' : ''}">
-      <td class="token-col--no">${t.no || '–'}</td>
-      <td class="token-col--date">${new Date(t.createdAt).toLocaleDateString('ko-KR')}</td>
-      <td class="token-col--exp">${new Date(t.expiresAt).toLocaleDateString('ko-KR')}</td>
-      <td class="token-col--days">${t.days}일</td>
-      <td class="token-col--status">${statusBadge(t.expiresAt)}</td>
-      <td class="token-col--code">
-        <input class="field__control token-code-input" value="${t.token}" readonly />
-      </td>
-      <td class="token-col--chat" style="white-space:nowrap">
-        ${userId
-          ? `<span style="font-size:12px;color:#64748b">오늘 ${todayCount}회</span>
-             <input class="field__control" type="number" min="0" max="9999" value="${limit}"
-               style="width:64px;margin-left:6px;padding:2px 6px;font-size:13px"
-               data-limit-uid="${userId}" title="일일 한도 설정 후 Enter" />
-             <button class="btn btn--mini btn--ghost" data-reset-uid="${userId}" title="오늘 사용량 초기화" style="margin-left:4px">↺</button>`
-          : `<span style="font-size:12px;color:#94a3b8">–</span>`}
-      </td>
-      <td class="token-col--actions">
-        <button class="btn btn--mini" data-copy="${t.id}">복사</button>
-        <button class="btn btn--mini btn--danger" data-del="${t.id}">삭제</button>
-      </td>
-    </tr>`;
-  }).join('');
+
+  const tableHtml = !list.length
+    ? `<p class="admin-empty">${activeTab === '전체' ? '발급된 접속 코드가 없습니다.' : `${activeTab} 님에게 발급된 코드가 없습니다.`}</p>`
+    : `<table class="token-table">
+      <thead><tr><th>#</th><th>이름</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>접속 코드</th><th>챗봇 한도</th><th>관리</th></tr></thead>
+      <tbody>${list.map(t => {
+        const userId = decodeTokenUserId(t.token);
+        const usage  = userId ? (chatUsage?.[userId]) : null;
+        const todayCount = (usage?.date === today) ? usage.count : 0;
+        const limit  = userId ? (chatLimits?.keys?.[userId] ?? defaultLimit) : defaultLimit;
+        const copied = isCopied(t.id);
+        const rowClass = isExpired(t.expiresAt) ? ' token-row--expired' : copied ? ' token-row--copied' : '';
+        return `
+        <tr class="token-row${rowClass}">
+          <td class="token-col--no">${t.no || '–'}</td>
+          <td class="token-col--label" style="color:#38bdf8;font-weight:600">${t.label || '–'}</td>
+          <td class="token-col--date">${new Date(t.createdAt).toLocaleDateString('ko-KR')}</td>
+          <td class="token-col--exp">${new Date(t.expiresAt).toLocaleDateString('ko-KR')}</td>
+          <td class="token-col--days">${t.days}일</td>
+          <td class="token-col--status">${statusBadge(t.expiresAt)}</td>
+          <td class="token-col--code">
+            <input class="field__control token-code-input" value="${t.token}" readonly />
+          </td>
+          <td class="token-col--chat" style="white-space:nowrap">
+            ${userId
+              ? `<span style="font-size:12px;color:#64748b">오늘 ${todayCount}회</span>
+                 <input class="field__control" type="number" min="0" max="9999" value="${limit}"
+                   style="width:64px;margin-left:6px;padding:2px 6px;font-size:13px"
+                   data-limit-uid="${userId}" title="일일 한도 설정 후 Enter" />
+                 <button class="btn btn--mini btn--ghost" data-reset-uid="${userId}" title="오늘 사용량 초기화" style="margin-left:4px">↺</button>`
+              : `<span style="font-size:12px;color:#94a3b8">–</span>`}
+          </td>
+          <td class="token-col--actions">
+            <button class="btn btn--mini${copied ? ' btn--copied' : ''}" data-copy="${t.id}">${copied ? '복사됨 ✓' : '복사'}</button>
+            <button class="btn btn--mini btn--danger" data-del="${t.id}">삭제</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+
   return `
     <div style="margin-bottom:10px;display:flex;align-items:center;gap:12px">
       <span style="font-size:13px;color:#94a3b8">기본 일일 한도</span>
@@ -190,10 +234,7 @@ function renderTokenTable(chatLimits, chatUsage) {
         id="default-limit-input" style="width:80px;padding:4px 8px;font-size:13px" />
       <button class="btn btn--mini" id="default-limit-save">저장</button>
     </div>
-    <table class="token-table">
-      <thead><tr><th>#</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>접속 코드</th><th>챗봇 한도</th><th>관리</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    ${tableHtml}`;
 }
 
 // ── 스킬 라이브러리 렌더 ────────────────────────────────────
@@ -380,6 +421,7 @@ function render(wrap, d) {
         <h3 class="admin-section__title" style="margin:0">발급된 접속 코드 목록</h3>
         <button class="btn btn--mini btn--ghost" id="clear-expired-btn">만료 코드 정리</button>
       </div>
+      ${renderStaffTabs()}
       <div id="token-list-wrap">${renderTokenTable(chatLimits, chatUsage)}</div>
     </div>
 
@@ -470,6 +512,28 @@ function bindEvents(wrap, access) {
     loadAndRender(wrap);
   });
 
+  // 담당자 탭 클릭
+  document.getElementById('staff-tabs')?.addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-tab]')?.dataset.tab;
+    if (!tab) return;
+    setActiveTab(tab);
+    // 탭 라벨 입력 자동 설정
+    const labelInput = document.getElementById('issue-label');
+    if (labelInput) labelInput.value = tab === '전체' ? '' : tab;
+    refreshTokenList();
+    // 탭 버튼 활성 스타일 갱신
+    document.getElementById('staff-tabs')?.querySelectorAll('[data-tab]').forEach(btn => {
+      btn.classList.toggle('staff-tab--active', btn.dataset.tab === tab);
+    });
+  });
+
+  // 발급 라벨 초기값을 현재 탭으로 설정
+  const labelInput = document.getElementById('issue-label');
+  if (labelInput) {
+    const cur = getActiveTab();
+    if (cur !== '전체') labelInput.value = cur;
+  }
+
   // 토큰 발급
   document.getElementById('issue-btn')?.addEventListener('click', () => issueToken(access));
   makeCopyBtn('copy-url-btn', 'issue-url');
@@ -485,10 +549,11 @@ function bindEvents(wrap, access) {
     if (copyId) {
       const t = loadTokenList().find(t => t.id === copyId);
       if (t) {
-        try { await navigator.clipboard.writeText(t.token); } catch {}
-        const orig = e.target.textContent;
-        e.target.textContent = '복사됨';
-        setTimeout(() => { e.target.textContent = orig; }, 1500);
+        const origin = location.origin;
+        const url = `${origin}/?t=${t.token}`;
+        try { await navigator.clipboard.writeText(url); } catch {}
+        markCopied(t.id);
+        refreshTokenList();
       }
     }
     if (delId && confirm('이 접속 코드를 삭제할까요?\n삭제하면 해당 고객은 즉시 접속이 차단됩니다.')) {
@@ -659,9 +724,12 @@ function updateCountBadge() {
   if (el) el.textContent = `활성 ${skills.filter(s => s.active).length}개 / 총 ${skills.length}개`;
 }
 function refreshTokenList() {
+  // 탭 카운트 갱신
+  const tabsEl = document.getElementById('staff-tabs');
+  if (tabsEl) tabsEl.outerHTML = renderStaffTabs();
+  // 목록 갱신
   const wrap = document.getElementById('token-list-wrap');
   if (wrap) wrap.innerHTML = renderTokenTable();
-  // chatLimits/chatUsage 없이 호출 시 한도칸은 기본값으로 렌더됨 — 무방
 }
 
 function escH(s) {
