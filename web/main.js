@@ -171,6 +171,9 @@ function showNameConfirmModal(applicantName, receiptNo, onConfirmed) {
     try {
       localStorage.setItem('ktl-applicant-name', name);
       if (receiptNo) localStorage.setItem('ktl-receipt-no', receiptNo);
+      // 계산기 UI(precision-ui.js)가 읽는 키도 함께 저장
+      localStorage.setItem('ktl-calc-username', name);
+      if (receiptNo) localStorage.setItem('ktl-calc-receipt', receiptNo);
     } catch { /* 무시 */ }
     document.body.removeChild(overlay);
     onConfirmed(name);
