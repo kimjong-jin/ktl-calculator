@@ -160,12 +160,18 @@ async function loadFromServer() {
       const res = await fetch(`/api/calcData?action=byReceipt&receiptNo=${encodeURIComponent(calcReceiptNo)}&token=${token}`);
       if (res.status === 404) { setSaveStatus('❌ 해당 접수번호의 저장 데이터가 없습니다.', 'error'); return; }
       if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
-      const { data, userName: foundUser, updatedAt } = await res.json();
+      const { data, userName: foundUser, siteName: foundSite, updatedAt } = await res.json();
       if (foundUser) {
         calcUserName = foundUser;
         const userEl = document.getElementById('pv-user-name');
         if (userEl) { userEl.value = foundUser; userEl.dispatchEvent(new Event('input')); }
         try { localStorage.setItem('ktl-calc-username', foundUser); } catch {}
+      }
+      if (foundSite) {
+        calcSiteName = foundSite;
+        const siteEl = document.getElementById('pv-site-name');
+        if (siteEl) { siteEl.value = foundSite; siteEl.dispatchEvent(new Event('input')); }
+        try { localStorage.setItem('ktl-site-name', foundSite); } catch {}
       }
       restoreBundle(data);
       const time = new Date(updatedAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -193,8 +199,14 @@ async function loadFromServer() {
       return;
     }
     if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
-    const { data, updatedAt } = await res.json();
+    const { data, siteName: loadedSite, updatedAt } = await res.json();
     restoreBundle(data);
+    if (loadedSite) {
+      calcSiteName = loadedSite;
+      const siteEl = document.getElementById('pv-site-name');
+      if (siteEl) { siteEl.value = loadedSite; siteEl.dispatchEvent(new Event('input')); }
+      try { localStorage.setItem('ktl-site-name', loadedSite); } catch {}
+    }
     const time = new Date(updatedAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
     setSaveStatus(`✅ 불러오기 완료 (마지막 저장: ${time})`);
   } catch (e) {
