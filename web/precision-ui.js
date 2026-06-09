@@ -124,7 +124,7 @@ async function saveToServer() {
     const res = await fetch('/api/calcData', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, data: bundle, ttlDays: 10 }),
+      body: JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, siteName: calcSiteName, data: bundle, ttlDays: 10 }),
     });
     if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
     const { expiresAt } = await res.json();

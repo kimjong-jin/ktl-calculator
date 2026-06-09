@@ -51,6 +51,7 @@ async function loadCalcDataList(token) {
       return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #1e293b;flex-wrap:wrap">
         <span style="font-family:monospace;color:#38bdf8;min-width:160px">${d.receiptNo}</span>
         <span style="color:#94a3b8;min-width:80px">${d.userName}</span>
+        ${d.siteName ? `<span style="color:#7dd3fc;font-size:12px;min-width:100px">${d.siteName}</span>` : ''}
         <span style="color:#64748b;font-size:12px;flex:1">저장 ${updated}${expiredTag} | 만료 ${expires}</span>
         <button class="btn btn--mini" style="background:#dc2626;color:#fff;border:none"
           data-no="${d.receiptNo}" data-user="${d.userName}">삭제</button>
