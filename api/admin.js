@@ -9,7 +9,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { verifyToken, generateInviteToken } from '../src/authService.js';
-import { registerToken, revokeToken, listTokens } from '../src/tokenStore.js';
+import { registerToken, revokeToken, listTokens, clearAllTokens } from '../src/tokenStore.js';
 import { listTestItems, getSheetNames, getDataFileName } from '../src/excelClient.js';
 import { getLimits, setLimit, getUsage, resetUsage } from '../src/chatRateLimit.js';
 const _dbOk = existsSync(join(process.cwd(), 'Version11_(2026).xlsx'))
@@ -63,6 +63,16 @@ export default async function handler(req, res) {
       try {
         const ok = await revokeToken(tokenId);
         return res.status(200).json({ ok, tokenId });
+      } catch (e) {
+        return res.status(500).json({ error: e instanceof Error ? e.message : '실패' });
+      }
+    }
+
+    // 전체 토큰 삭제
+    if (body?.action === 'revoke_all') {
+      try {
+        await clearAllTokens();
+        return res.status(200).json({ ok: true });
       } catch (e) {
         return res.status(500).json({ error: e instanceof Error ? e.message : '실패' });
       }

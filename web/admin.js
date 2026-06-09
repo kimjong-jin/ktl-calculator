@@ -535,6 +535,7 @@ function render(wrap, d) {
         <h3 class="admin-section__title" style="margin:0">발급된 접속 코드 목록</h3>
         <button class="btn btn--mini btn--ghost" id="clear-expired-btn">만료 코드 정리</button>
         <button class="btn btn--mini btn--ghost" id="dedup-btn">중복 정리</button>
+        <button class="btn btn--mini btn--danger" id="clear-all-btn">전체 삭제</button>
       </div>
       ${renderStaffTabs()}
       <div id="token-list-wrap">${renderTokenTable(chatLimits, chatUsage)}</div>
@@ -662,6 +663,21 @@ function bindEvents(wrap, access) {
   document.getElementById('clear-expired-btn')?.addEventListener('click', () => {
     saveTokenList(loadTokenList().filter(t => !isExpired(t.expiresAt)));
     refreshTokenList();
+  });
+  document.getElementById('clear-all-btn')?.addEventListener('click', async () => {
+    if (!confirm('발급된 접속 코드를 전체 삭제하시겠습니까?\n모든 고객의 접속이 즉시 차단됩니다.')) return;
+    const btn = document.getElementById('clear-all-btn');
+    btn.textContent = '삭제 중…'; btn.disabled = true;
+    try {
+      await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ action: 'revoke_all' }),
+      });
+    } catch {}
+    saveTokenList([]);
+    refreshTokenList();
+    btn.textContent = '전체 삭제'; btn.disabled = false;
   });
   document.getElementById('dedup-btn')?.addEventListener('click', async () => {
     const list = loadTokenList();

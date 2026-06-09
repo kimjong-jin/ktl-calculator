@@ -109,6 +109,12 @@ export async function listTokens() {
   return await readCodes();
 }
 
+/** 전체 토큰 삭제 */
+export async function clearAllTokens() {
+  await writeCodes({});
+  return true;
+}
+
 /** 접수번호로 토큰 즉시 무효화 (로컬 삭제 시 연동) */
 export async function revokeTokenByReceiptNo(receiptNo) {
   if (!receiptNo) return false;
