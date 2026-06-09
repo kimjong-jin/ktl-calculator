@@ -89,7 +89,7 @@ export default async function handler(req, res) {
       options.body = JSON.stringify(req.body);
 
     } else if (req.method === 'DELETE') {
-      if (!requireAdmin(req, res)) return;
+      if (!isAdminJwt(req) && !requireAdmin(req, res)) return;
       const { receiptNo, userName } = req.query;
       if (!receiptNo) return res.status(400).json({ error: 'receiptNo 필수' });
       const qs = userName ? `?userName=${encodeURIComponent(userName)}` : '';
