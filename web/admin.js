@@ -149,13 +149,18 @@ export async function initAdmin(token) {
       Object.entries(tokens).forEach(([tokenId, e]) => {
         if (e.exp <= now) return; // 만료 제외
         if (localIds.has(tokenId)) return; // 이미 있으면 skip
+        const issuedMs = e.issuedAt ? e.issuedAt * 1000 : Date.now();
+        const createdAt = new Date(issuedMs).toISOString();
+        const days = Math.round((e.exp * 1000 - issuedMs) / 86400000);
         local.unshift({
           id: tokenId,
-          token: tokenId, // 합성 token (pw 로그인 방식이라 full token 불필요)
+          token: tokenId,
           label: e.label || '',
           pw: e.pw || '',
-          issuedAt: e.issuedAt ? new Date(e.issuedAt * 1000).toISOString() : new Date().toISOString(),
+          issuedAt: createdAt,
+          createdAt,
           expiresAt: new Date(e.exp * 1000).toISOString(),
+          days,
           no: local.length + 1,
         });
         changed = true;
