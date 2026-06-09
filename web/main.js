@@ -126,7 +126,7 @@ function showNameConfirmModal(applicantName, receiptNo, onConfirmed) {
 
   const sub = document.createElement('div');
   sub.style.cssText = 'font-size:14px;color:#94a3b8;margin-bottom:6px';
-  sub.textContent = '신청인 이름이 맞습니까?';
+  sub.textContent = '유지관리담당자 맞습니까?';
 
   const receiptEl = document.createElement('div');
   receiptEl.style.cssText = 'font-size:12px;color:#64748b;margin-bottom:16px';
@@ -174,6 +174,17 @@ function showNameConfirmModal(applicantName, receiptNo, onConfirmed) {
       // 계산기 UI(precision-ui.js)가 읽는 키도 함께 저장
       localStorage.setItem('ktl-calc-username', name);
       if (receiptNo) localStorage.setItem('ktl-calc-receipt', receiptNo);
+      // DOM 직접 업데이트 (precision-ui init()이 이미 실행된 후라 localStorage만으론 부족)
+      const receiptEl = document.getElementById('pv-receipt-no');
+      const userEl = document.getElementById('pv-user-name');
+      if (receiptEl && receiptNo) {
+        receiptEl.value = receiptNo;
+        receiptEl.dispatchEvent(new Event('input'));
+      }
+      if (userEl) {
+        userEl.value = name;
+        userEl.dispatchEvent(new Event('input'));
+      }
     } catch { /* 무시 */ }
     document.body.removeChild(overlay);
     onConfirmed(name);
