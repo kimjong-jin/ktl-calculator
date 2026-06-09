@@ -929,9 +929,17 @@ select.field__control {
 .token-col--pw { white-space: nowrap; }
 .token-col--date, .token-col--exp, .token-col--days { white-space: nowrap; }
 .token-col--actions { white-space: nowrap; display: flex; gap: 4px; }
-@media (max-width: 600px) {
-  .token-table { font-size: 12px; min-width: 400px; }
-  .token-table th, .token-table td { padding: 6px 8px; }
+@media (max-width: 640px) {
+  .token-table { font-size: 12px; min-width: 0; }
+  .token-table th, .token-table td { padding: 6px 7px; }
+  /* 모바일: 덜 중요한 열 숨김 — 이름·비번·상태·관리만 표시 */
+  .token-col--no,
+  .token-col--date,
+  .token-col--exp,
+  .token-col--days,
+  .token-col--chat { display: none; }
+  .token-col--label { max-width: 120px; word-break: break-word; }
+  .token-col--actions { flex-direction: column; gap: 3px; }
 }
 
 /* ── 담당자 탭 ─────────────────────────────────────────────── */
