@@ -1137,6 +1137,20 @@ function switchTab(id) {
   stored = loadData(id);
   formArea.innerHTML = buildForm(tab.code);
 
+  // 측정값 입력칸: type="number" → type="text", 4자리 소수 통일
+  const INTEGER_FIELDS = new Set(['range', 'fdis', 'resp']);
+  formArea.querySelectorAll('input.field__control[type="number"], input.pv-zs-input[type="number"]').forEach(el => {
+    const fieldId = (el.id || '').replace('pv_', '');
+    if (INTEGER_FIELDS.has(fieldId)) return;
+    el.type = 'text';
+    el.inputMode = 'decimal';
+    el.classList.add('pv-measure-input');
+    if (el.value !== '') {
+      const n = parseFloat(el.value);
+      if (Number.isFinite(n) && n % 1 !== 0) el.value = n.toFixed(4);
+    }
+  });
+
   const fields = getFields(tab.code);
   fields.forEach(f => {
     document.getElementById(`pv_${f}`)?.addEventListener('input', () => {
@@ -1709,6 +1723,14 @@ function init() {
     if (e.target.type === 'number' && e.target.value !== '' && parseFloat(e.target.value) < 0)
       e.target.value = '';
     scheduleAutoSave();
+  });
+  // 측정값 입력칸: 포커스 해제 시 4자리 소수로 통일
+  document.getElementById('pv-form-area')?.addEventListener('focusout', e => {
+    if (!e.target.classList.contains('pv-measure-input')) return;
+    const v = e.target.value.trim();
+    if (v === '') return;
+    const n = parseFloat(v);
+    if (Number.isFinite(n) && n % 1 !== 0) e.target.value = n.toFixed(4);
   });
 }
 
