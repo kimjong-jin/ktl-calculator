@@ -161,6 +161,7 @@ export async function initAdmin(token) {
         if (existing) {
           // id를 Blob tokenId로 통일 (다음 sync부터 정확히 매칭되도록)
           if (existing.id !== tokenId) { existing.id = tokenId; changed = true; }
+          if (!existing.pw && e.pw)               { existing.pw = e.pw;               changed = true; }
           if (!existing.receiptNo && e.receiptNo) { existing.receiptNo = e.receiptNo; changed = true; }
           if (!existing.siteName && e.siteName)   { existing.siteName  = e.siteName;  changed = true; }
           if (!existing.applicantName && e.applicantName) { existing.applicantName = e.applicantName; changed = true; }
