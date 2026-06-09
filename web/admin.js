@@ -148,10 +148,18 @@ export async function initAdmin(token) {
       let changed = false;
       Object.entries(tokens).forEach(([tokenId, e]) => {
         if (e.exp <= now) return; // 만료 제외
-        if (localIds.has(tokenId)) return; // 이미 있으면 skip
         const issuedMs = e.issuedAt ? e.issuedAt * 1000 : Date.now();
         const createdAt = new Date(issuedMs).toISOString();
         const days = Math.round((e.exp * 1000 - issuedMs) / 86400000);
+        const existing = local.find(t => (t.id || t.token?.split('.')[0]) === tokenId);
+        if (existing) {
+          // 이미 있어도 메타 필드 보강
+          if (!existing.receiptNo && e.receiptNo) { existing.receiptNo = e.receiptNo; changed = true; }
+          if (!existing.siteName && e.siteName)   { existing.siteName  = e.siteName;  changed = true; }
+          if (!existing.applicantName && e.applicantName) { existing.applicantName = e.applicantName; changed = true; }
+          if (!existing.createdAt) { existing.createdAt = createdAt; existing.days = days; changed = true; }
+          return;
+        }
         local.unshift({
           id: tokenId,
           token: tokenId,
@@ -161,6 +169,9 @@ export async function initAdmin(token) {
           createdAt,
           expiresAt: new Date(e.exp * 1000).toISOString(),
           days,
+          receiptNo: e.receiptNo || '',
+          siteName: e.siteName || '',
+          applicantName: e.applicantName || '',
           no: local.length + 1,
         });
         changed = true;
@@ -264,7 +275,12 @@ function renderTokenTable(chatLimits, chatUsage) {
         return `
         <tr class="token-row${rowClass}">
           <td class="token-col--no">${t.no || '–'}</td>
-          <td class="token-col--label" style="color:#38bdf8;font-weight:600">${t.label || '–'}</td>
+          <td class="token-col--label">
+            <div style="color:#38bdf8;font-weight:600">${t.label || '–'}</div>
+            ${t.applicantName ? `<div style="font-size:11px;color:#94a3b8">${t.applicantName}</div>` : ''}
+            ${t.siteName ? `<div style="font-size:11px;color:#64748b">${t.siteName}</div>` : ''}
+            ${t.receiptNo ? `<div style="font-size:11px;color:#475569;font-family:monospace">${t.receiptNo}</div>` : ''}
+          </td>
           <td class="token-col--pw">
             ${t.pw
               ? `<span style="display:inline-block;background:#fff;color:#111;font-family:monospace;font-size:15px;font-weight:900;letter-spacing:3px;padding:3px 10px;border-radius:6px;border:2px solid #333">${t.pw}</span>
