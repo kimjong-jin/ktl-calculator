@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       const { action, receiptNo, userName } = req.query;
 
       if (action === 'list') {
-        if (!requireAdmin(req, res)) return;
+        if (!isAdminJwt(req) && !requireAdmin(req, res)) return;
         url = `${BASE}/api/calc/list`;
         options.headers['x-studio-secret'] = STUDIO_SECRET;
 
