@@ -7,3 +7,5 @@ dist/
 .vercel
 .env*.local
 knowledge/.obsidian/workspace.json
+.env.prod
+.env.*.tmp
