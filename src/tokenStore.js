@@ -19,7 +19,11 @@ async function readCodes() {
     const url = meta.downloadUrl || meta.url;
     const token = process.env.BLOB_READ_WRITE_TOKEN || '';
     const res = await fetch(url, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Cache-Control': 'no-cache, no-store',
+        'Pragma': 'no-cache',
+      },
     });
     if (!res.ok) return {};
     return await res.json();
