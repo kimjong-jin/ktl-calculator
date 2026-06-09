@@ -138,8 +138,43 @@ async function saveToServer() {
   }
 }
 
+function isAdmin() {
+  try {
+    const token = localStorage.getItem('ktl-auth') || '';
+    if (!token.includes('.')) return false;
+    const decoded = JSON.parse(atob(token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/')));
+    return decoded.role === 'admin';
+  } catch { return false; }
+}
+
 async function loadFromServer() {
-  if (!calcReceiptNo || !calcUserName) {
+  if (!calcReceiptNo) {
+    setSaveStatus('⚠️ 접수번호를 입력하세요.', 'warn'); return;
+  }
+  // 관리자이고 사용자명이 없으면 접수번호만으로 검색
+  if (isAdmin() && !calcUserName) {
+    setSaveStatus('🔄 불러오는 중…', 'loading');
+    try {
+      const token = encodeURIComponent(localStorage.getItem('ktl-auth') || '');
+      const res = await fetch(`/api/calcData?action=byReceipt&receiptNo=${encodeURIComponent(calcReceiptNo)}&token=${token}`);
+      if (res.status === 404) { setSaveStatus('❌ 해당 접수번호의 저장 데이터가 없습니다.', 'error'); return; }
+      if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
+      const { data, userName: foundUser, updatedAt } = await res.json();
+      if (foundUser) {
+        calcUserName = foundUser;
+        const userEl = document.getElementById('pv-user-name');
+        if (userEl) { userEl.value = foundUser; userEl.dispatchEvent(new Event('input')); }
+        try { localStorage.setItem('ktl-calc-username', foundUser); } catch {}
+      }
+      restoreBundle(data);
+      const time = new Date(updatedAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+      setSaveStatus(`✅ 불러오기 완료 — ${foundUser} (${time})`);
+    } catch (e) {
+      setSaveStatus(`❌ 불러오기 실패: ${e.message}`, 'error');
+    }
+    return;
+  }
+  if (!calcUserName) {
     setSaveStatus('⚠️ 접수번호와 사용자 이름을 입력하세요.', 'warn'); return;
   }
   setSaveStatus('🔄 불러오는 중…', 'loading');

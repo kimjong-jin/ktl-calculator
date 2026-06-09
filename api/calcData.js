@@ -4,9 +4,11 @@
  *
  * GET  /api/calcData?receiptNo=xxx&userName=yyy         → 불러오기
  * GET  /api/calcData?action=list&token=adminToken       → 목록 (관리자)
+ * GET  /api/calcData?action=byReceipt&receiptNo=xxx&token=jwt → 접수번호만으로 불러오기 (관리자)
  * POST /api/calcData                                    → 저장
  * DELETE /api/calcData?receiptNo=xxx&userName=yyy&token → 삭제 (관리자)
  */
+import { verifyToken } from '../src/authService.js';
 
 const BASE          = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || '').replace(/\/$/, '');
 const STUDIO_SECRET = process.env.STUDIO_SECRET || '';
@@ -19,6 +21,14 @@ function requireAdmin(req, res) {
     return false;
   }
   return true;
+}
+
+function isAdminJwt(req) {
+  const token = req.query.token || req.headers['x-admin-token'] || '';
+  try {
+    const result = verifyToken(token);
+    return result.valid && result.role === 'admin';
+  } catch { return false; }
 }
 
 export default async function handler(req, res) {
@@ -43,6 +53,27 @@ export default async function handler(req, res) {
         if (!requireAdmin(req, res)) return;
         url = `${BASE}/api/calc/list`;
         options.headers['x-studio-secret'] = STUDIO_SECRET;
+
+      } else if (action === 'byReceipt') {
+        if (!isAdminJwt(req)) return res.status(401).json({ error: '관리자 JWT 인증 필요' });
+        if (!receiptNo) return res.status(400).json({ error: 'receiptNo 필수' });
+        // 목록에서 receiptNo로 찾은 뒤 해당 레코드 fetch
+        const listRes = await fetch(`${BASE}/api/calc/list`, {
+          headers: { 'x-studio-secret': STUDIO_SECRET },
+          signal: AbortSignal.timeout(8000),
+        });
+        const listData = await listRes.json();
+        const items = Array.isArray(listData) ? listData : (listData.items || []);
+        const found = items.find(it => it.receiptNo === receiptNo || it.receipt_no === receiptNo);
+        if (!found) return res.status(404).json({ error: '해당 접수번호의 저장 데이터가 없습니다.' });
+        const foundUser = found.userName || found.user_name || '';
+        const recRes = await fetch(
+          `${BASE}/api/calc?receiptNo=${encodeURIComponent(receiptNo)}&userName=${encodeURIComponent(foundUser)}`,
+          { headers: { 'x-studio-secret': STUDIO_SECRET }, signal: AbortSignal.timeout(8000) }
+        );
+        const recData = await recRes.json();
+        return res.status(recRes.status).json({ ...recData, userName: foundUser });
+
       } else {
         if (!receiptNo || !userName)
           return res.status(400).json({ error: 'receiptNo, userName 필수' });
