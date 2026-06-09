@@ -29,7 +29,11 @@ async function tryInviteLogin(onSuccess) {
     if (res.ok) {
       storeToken(data.token);
       window.history.replaceState(null, '', location.pathname);
-      onSuccess(data.role || 'user');
+      if (data.applicantName) {
+        showNameConfirmModal(data.applicantName, data.receiptNo || '', () => onSuccess(data.role || 'user'));
+      } else {
+        onSuccess(data.role || 'user');
+      }
       return true;
     }
   } catch { /* 일반 게이트로 진행 */ }
@@ -109,7 +113,7 @@ function setupPwChangeModal(userName, onDone) {
   new2El.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
 }
 
-function showNameConfirmModal(applicantName, onConfirmed) {
+function showNameConfirmModal(applicantName, receiptNo, onConfirmed) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
 
@@ -121,8 +125,12 @@ function showNameConfirmModal(applicantName, onConfirmed) {
   nameDisplay.textContent = applicantName || '(이름 없음)';
 
   const sub = document.createElement('div');
-  sub.style.cssText = 'font-size:14px;color:#94a3b8;margin-bottom:20px';
+  sub.style.cssText = 'font-size:14px;color:#94a3b8;margin-bottom:6px';
   sub.textContent = '신청인 이름이 맞습니까?';
+
+  const receiptEl = document.createElement('div');
+  receiptEl.style.cssText = 'font-size:12px;color:#64748b;margin-bottom:16px';
+  receiptEl.textContent = receiptNo ? `접수번호: ${receiptNo}` : '';
 
   const btnRow = document.createElement('div');
   btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;margin-bottom:12px';
@@ -153,13 +161,17 @@ function showNameConfirmModal(applicantName, onConfirmed) {
   btnRow.appendChild(noBtn);
   box.appendChild(nameDisplay);
   box.appendChild(sub);
+  box.appendChild(receiptEl);
   box.appendChild(btnRow);
   box.appendChild(changeRow);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
 
   const done = (name) => {
-    try { localStorage.setItem('ktl-applicant-name', name); } catch { /* 무시 */ }
+    try {
+      localStorage.setItem('ktl-applicant-name', name);
+      if (receiptNo) localStorage.setItem('ktl-receipt-no', receiptNo);
+    } catch { /* 무시 */ }
     document.body.removeChild(overlay);
     onConfirmed(name);
   };
@@ -232,7 +244,7 @@ function setupAuthGate(onSuccess) {
       if (!res.ok) { showAuthError(data.error || '비밀번호가 올바르지 않습니다.'); return; }
       storeToken(data.token);
       if (data.applicantName) {
-        showNameConfirmModal(data.applicantName, () => onSuccess(data.role || 'user'));
+        showNameConfirmModal(data.applicantName, data.receiptNo || '', () => onSuccess(data.role || 'user'));
       } else {
         onSuccess(data.role || 'user');
       }
