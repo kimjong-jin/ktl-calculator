@@ -53,15 +53,16 @@ function genPw(map) {
   return pw;
 }
 
-/** 새 토큰 ID 등록 — 단순 비밀번호 생성 후 반환 (발급 시 만료 항목 자동 정리) */
-export async function registerToken(tokenId, { exp, label = '', applicantName = '', receiptNo = '', siteName = '' }) {
+/** 새 토큰 ID 등록 — 단순 비밀번호 생성 후 반환 (발급 시 만료 항목 자동 정리)
+ *  issuer: 발급한 관리자 본인 이름 (인증 토큰의 id). 발급자별 격리의 기준값. */
+export async function registerToken(tokenId, { exp, label = '', applicantName = '', receiptNo = '', siteName = '', issuer = '' }) {
   const map = await readCodes();
   const now = Math.floor(Date.now() / 1000);
   for (const id of Object.keys(map)) {
     if (map[id].exp <= now) delete map[id];
   }
   const pw = genPw(map);
-  map[tokenId] = { exp, label, applicantName, receiptNo, siteName, issuedAt: now, pw };
+  map[tokenId] = { exp, label, applicantName, receiptNo, siteName, issuer, issuedAt: now, pw };
   await writeCodes(map);
   return { pw };
 }
@@ -104,15 +105,33 @@ export async function revokeToken(tokenId) {
   return true;
 }
 
-/** 전체 코드 목록 */
-export async function listTokens() {
-  return await readCodes();
+/** 코드 목록. issuer 지정 시 해당 발급자(또는 발급자 없는 레거시) 항목만 반환. */
+export async function listTokens(issuer) {
+  const map = await readCodes();
+  if (!issuer) return map;
+  const out = {};
+  for (const [id, e] of Object.entries(map)) {
+    if ((e.issuer || '') === issuer) out[id] = e;
+  }
+  return out;
 }
 
 /** 전체 토큰 삭제 */
 export async function clearAllTokens() {
   await writeCodes({});
   return true;
+}
+
+/** 특정 발급자가 발급한 토큰만 일괄 삭제 (단일 쓰기) */
+export async function clearTokensByIssuer(issuer) {
+  if (!issuer) return 0;
+  const map = await readCodes();
+  let removed = 0;
+  for (const [id, e] of Object.entries(map)) {
+    if ((e.issuer || '') === issuer) { delete map[id]; removed++; }
+  }
+  if (removed) await writeCodes(map);
+  return removed;
 }
 
 /** 접수번호로 토큰 즉시 무효화 (로컬 삭제 시 연동) */

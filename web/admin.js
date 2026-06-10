@@ -11,8 +11,14 @@ const TAB_KEY      = 'ktl-admin-tab';      // 마지막 선택 탭
 const USER_KEY     = 'ktl-admin-user';     // 현재 접속자 이름
 let adminToken = '';
 let calcDataReceipts = new Set();
+let currentAdminId = '';   // 인증 토큰의 id = 로그인한 관리자 본인 이름
 
 const STAFF_NAMES = ['김종진','권민경','김성대','김수철','정슬기','강준','정진욱'];
+const SUPER_ADMINS = ['김종진'];   // 전체 조회 가능한 소유자 (서버 SUPER_ADMIN_IDS와 일치)
+// id 없는 로그인(레거시 공용 비번)은 소유자로 간주
+function isSuperAdmin() { return !currentAdminId || SUPER_ADMINS.includes(currentAdminId); }
+// 토큰의 발급자 식별 (신규 issuer 우선, 레거시 label 폴백)
+function tokenIssuer(t) { return t.issuer || t.label || ''; }
 
 function loadCopied() {
   try { return JSON.parse(localStorage.getItem(COPIED_KEY) || '{}'); } catch { return {}; }
@@ -27,7 +33,11 @@ function isCopied(tokenId) { return !!loadCopied()[tokenId]; }
 function getActiveTab() { return localStorage.getItem(TAB_KEY) || '전체'; }
 function setActiveTab(name) { localStorage.setItem(TAB_KEY, name); }
 
-function getAdminUser() { return localStorage.getItem(USER_KEY) || '김종진'; }
+// 비-슈퍼 관리자는 본인 이름으로 고정. 슈퍼관리자만 드롭다운으로 전환 가능.
+function getAdminUser() {
+  if (currentAdminId && !isSuperAdmin()) return currentAdminId;
+  return localStorage.getItem(USER_KEY) || currentAdminId || '김종진';
+}
 function setAdminUser(name) { localStorage.setItem(USER_KEY, name); }
 
 // ── 계산 데이터 관리 ──────────────────────────────────────
@@ -152,8 +162,14 @@ function daysLeft(expiresAt) {
 // ── 초기화 ──────────────────────────────────────────────────
 export async function initAdmin(token) {
   adminToken = token;
+  currentAdminId = decodeTokenUserId(token) || '';   // 본인 이름 (userAuth 로그인 시)
   // 만료된 토큰 localStorage에서 자동 정리
-  saveTokenList(loadTokenList().filter(t => !isExpired(t.expiresAt)));
+  let cleaned = loadTokenList().filter(t => !isExpired(t.expiresAt));
+  // 비-슈퍼 관리자: 과거 동기화로 새어 들어온 타인 발급분 제거 (본인 것만 유지)
+  if (currentAdminId && !isSuperAdmin()) {
+    cleaned = cleaned.filter(t => tokenIssuer(t) === currentAdminId);
+  }
+  saveTokenList(cleaned);
 
   // Blob에서 전체 토큰 목록 동기화 (parser.work 발급 토큰 포함)
   try {
@@ -184,6 +200,7 @@ export async function initAdmin(token) {
           if (!existing.siteName && e.siteName)   { existing.siteName  = e.siteName;  changed = true; }
           if (!existing.applicantName && e.applicantName) { existing.applicantName = e.applicantName; changed = true; }
           if (!existing.label && e.label)         { existing.label = e.label; changed = true; }
+          if (!existing.issuer && e.issuer)       { existing.issuer = e.issuer; changed = true; }
           if (!existing.createdAt) { existing.createdAt = createdAt; existing.days = days; changed = true; }
           return;
         }
@@ -191,6 +208,7 @@ export async function initAdmin(token) {
           id: tokenId,
           token: tokenId,
           label: e.label || '',
+          issuer: e.issuer || '',
           pw: e.pw || '',
           issuedAt: createdAt,
           createdAt,
@@ -253,19 +271,23 @@ function statusBadge(expiresAt) {
   return `<span class="admin-chip admin-chip--ok">유효 D-${d}</span>`;
 }
 
-/** 초대 토큰 문자열에서 hex16 userId 추출 */
+/** 토큰 payload에서 id 추출 (고객=hex16, 관리자=한글 이름).
+ *  한글 이름은 UTF-8 멀티바이트 → atob 후 TextDecoder로 정확히 복원. */
 function decodeTokenUserId(inviteToken) {
   try {
-    const payload = inviteToken.split('.')[0];
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = String(inviteToken).split('.')[0];
+    const bin = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
     return JSON.parse(json).id || null;
   } catch { return null; }
 }
 
 // ── 담당자 탭 HTML ──────────────────────────────────────────
 function renderStaffTabs() {
+  const canViewAll = isSuperAdmin();
   const user = getAdminUser();
-  const fullAdmin = user === '김종진';
+  const fullAdmin = canViewAll && user === '김종진';
   if (!fullAdmin) setActiveTab(user);
   let active = getActiveTab();
   // '전체' 탭 없음 — 김종진 탭이 전체 역할
@@ -273,34 +295,45 @@ function renderStaffTabs() {
     active = '김종진';
     setActiveTab('김종진');
   }
-  const tabs = fullAdmin ? STAFF_NAMES : [user];
+  const tabs = canViewAll ? STAFF_NAMES : [user];
   const tabsHtml = tabs.map(name => {
     const isActive = name === active;
     // 김종진 탭 = 전체 카운트
     const count = (fullAdmin && name === '김종진')
       ? loadTokenList().length
-      : loadTokenList().filter(t => t.label === name).length;
+      : loadTokenList().filter(t => tokenIssuer(t) === name).length;
     return `<button class="staff-tab${isActive ? ' staff-tab--active' : ''}" data-tab="${name}">
       ${name}${count ? ` <span class="staff-tab__count">${count}</span>` : ''}
     </button>`;
   }).join('');
-  const userOpts = STAFF_NAMES.map(n =>
-    `<option value="${n}"${n === user ? ' selected' : ''}>${n}</option>`).join('');
+  // 비-슈퍼 관리자는 본인 고정 → 접속자 선택 드롭다운 숨김
+  const selectHtml = canViewAll
+    ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:12px;color:#94a3b8">접속자</span>
+        <select id="admin-user-select" class="field__control" style="width:auto;padding:3px 10px;font-size:13px;display:inline-block">${
+          STAFF_NAMES.map(n => `<option value="${n}"${n === user ? ' selected' : ''}>${n}</option>`).join('')
+        }</select>
+      </div>`
+    : `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:12px;color:#94a3b8">접속자</span>
+        <strong style="font-size:13px;color:#38bdf8">${user}</strong>
+        <span style="font-size:11px;color:#64748b">(본인 발급분만 표시)</span>
+      </div>`;
   return `<div id="staff-tabs-wrap">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-      <span style="font-size:12px;color:#94a3b8">접속자</span>
-      <select id="admin-user-select" class="field__control" style="width:auto;padding:3px 10px;font-size:13px;display:inline-block">${userOpts}</select>
-    </div>
+    ${selectHtml}
     <div class="staff-tabs" id="staff-tabs">${tabsHtml}</div>
   </div>`;
 }
 
 // ── 토큰 목록 HTML ───────────────────────────────────────────
 function renderTokenTable(chatLimits, chatUsage) {
+  const canViewAll = isSuperAdmin();
   const user = getAdminUser();
-  const activeTab = user === '김종진' ? getActiveTab() : user;
+  const activeTab = (canViewAll && user === '김종진') ? getActiveTab() : user;
   const allList = loadTokenList();
-  const list = (user === '김종진' && activeTab === '김종진') ? allList : allList.filter(t => t.label === activeTab);
+  const list = (canViewAll && user === '김종진' && activeTab === '김종진')
+    ? allList
+    : allList.filter(t => tokenIssuer(t) === activeTab);
   const defaultLimit = chatLimits?.default ?? 50;
   const today = new Date().toISOString().slice(0, 10);
   const isMobile = window.innerWidth <= 640;
@@ -951,15 +984,16 @@ function updateCountBadge() {
   if (el) el.textContent = `활성 ${skills.filter(s => s.active).length}개 / 총 ${skills.length}개`;
 }
 function refreshTokenList() {
+  const canViewAll = isSuperAdmin();
   const user = getAdminUser();
-  const fullAdmin = user === '김종진';
+  const fullAdmin = canViewAll && user === '김종진';
   if (!fullAdmin) setActiveTab(user);
   let active = getActiveTab();
   if (fullAdmin && (active === '전체' || !STAFF_NAMES.includes(active))) {
     active = '김종진';
     setActiveTab('김종진');
   }
-  const tabs = fullAdmin ? STAFF_NAMES : [user];
+  const tabs = canViewAll ? STAFF_NAMES : [user];
 
   // 탭 버튼만 갱신 (컨테이너 유지 → 이벤트 리스너 보존)
   const tabsDiv = document.getElementById('staff-tabs');
@@ -968,7 +1002,7 @@ function refreshTokenList() {
       const isActive = name === active;
       const count = (fullAdmin && name === '김종진')
         ? loadTokenList().length
-        : loadTokenList().filter(t => t.label === name).length;
+        : loadTokenList().filter(t => tokenIssuer(t) === name).length;
       return `<button class="staff-tab${isActive ? ' staff-tab--active' : ''}" data-tab="${name}">
         ${name}${count ? ` <span class="staff-tab__count">${count}</span>` : ''}
       </button>`;
@@ -994,10 +1028,11 @@ async function issueToken(access) {
   const result = document.getElementById('issue-result');
   btn.disabled = true; btn.textContent = '생성 중…';
   try {
+    const issuer = getAdminUser();   // 발급자 = 본인(또는 슈퍼관리자가 선택한 담당자)
     const res = await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify({ action: 'generate_token', days }),
+      body: JSON.stringify({ action: 'generate_token', days, label, issuer }),
     });
     const data = await res.json();
     if (!res.ok) { alert(data.error || '토큰 생성 실패'); return; }
@@ -1006,6 +1041,7 @@ async function issueToken(access) {
     const no     = loadTokenList().length + 1;
     addToList({
       id: data.inviteToken.slice(-16), no, token: data.inviteToken, url, days, label,
+      issuer: data.issuer || issuer,
       pw: data.pw || '',
       createdAt: new Date().toISOString(),
       expiresAt: new Date(data.exp * 1000).toISOString(),

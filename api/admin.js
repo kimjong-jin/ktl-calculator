@@ -9,18 +9,30 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { verifyToken, generateInviteToken } from '../src/authService.js';
-import { registerToken, revokeToken, listTokens, clearAllTokens } from '../src/tokenStore.js';
+import { registerToken, revokeToken, listTokens, clearAllTokens, clearTokensByIssuer } from '../src/tokenStore.js';
 import { listTestItems, getSheetNames, getDataFileName } from '../src/excelClient.js';
 import { getLimits, setLimit, getUsage, resetUsage } from '../src/chatRateLimit.js';
 const _dbOk = existsSync(join(process.cwd(), 'Version11_(2026).xlsx'))
   || existsSync(join(process.cwd(), 'data.xlsx'));
 
-function requireAdmin(req) {
+/** 인증 토큰 검증 → { id } (id = 관리자 본인 이름, userAuth 로그인 시 존재) | null */
+function adminIdentity(req) {
   const auth = (req.headers && req.headers['authorization']) || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   const result = verifyToken(token);
-  return result.valid && result.role === 'admin';
+  if (!result.valid || result.role !== 'admin') return null;
+  return { id: result.id || '' };
 }
+
+function requireAdmin(req) {
+  return !!adminIdentity(req);
+}
+
+// 전체 토큰을 조회할 수 있는 슈퍼관리자(소유자). 환경변수로 추가 가능.
+const SUPER_ADMINS = (process.env.SUPER_ADMIN_IDS || '김종진')
+  .split(',').map(s => s.trim()).filter(Boolean);
+// id 없는 로그인(레거시 공용 ADMIN_PASSWORD)은 소유자로 간주 → 전체 조회
+const isSuperAdmin = (id) => !id || SUPER_ADMINS.includes(id);
 
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -45,22 +57,33 @@ export default async function handler(req, res) {
     if (body?.action === 'generate_token') {
       try {
         const result = generateInviteToken(body?.days);
+        // 발급자 = 인증된 본인 이름(우선). 레거시 공용 로그인은 클라이언트 힌트 사용.
+        const issuer = adminIdentity(req)?.id || String(body?.issuer || '').trim();
         // Blob에 등록 — 단순 비밀번호 생성 후 반환
         const { pw } = await registerToken(result.inviteToken.split('.')[0], {
           exp: result.exp,
           label: body?.label || '',
+          issuer,
         });
-        return res.status(200).json({ ...result, pw });
+        return res.status(200).json({ ...result, pw, issuer });
       } catch (e) {
         return res.status(500).json({ error: e instanceof Error ? e.message : '토큰 생성 실패' });
       }
     }
 
-    // 토큰 즉시 무효화
+    // 토큰 즉시 무효화 (비-슈퍼관리자는 본인 발급분만 삭제 가능)
     if (body?.action === 'revoke_token') {
       const { tokenId } = body;
       if (!tokenId) return res.status(400).json({ error: 'tokenId 필수' });
       try {
+        const id = adminIdentity(req)?.id || '';
+        if (!isSuperAdmin(id)) {
+          const all = await listTokens();
+          const entry = all[tokenId];
+          if (entry && (entry.issuer || '') !== id) {
+            return res.status(403).json({ error: '본인이 발급한 코드만 삭제할 수 있습니다.' });
+          }
+        }
         const ok = await revokeToken(tokenId);
         return res.status(200).json({ ok, tokenId });
       } catch (e) {
@@ -68,10 +91,12 @@ export default async function handler(req, res) {
       }
     }
 
-    // 전체 토큰 삭제
+    // 전체 토큰 삭제 (비-슈퍼관리자는 본인 발급분만)
     if (body?.action === 'revoke_all') {
       try {
-        await clearAllTokens();
+        const id = adminIdentity(req)?.id || '';
+        if (isSuperAdmin(id)) await clearAllTokens();
+        else await clearTokensByIssuer(id);
         return res.status(200).json({ ok: true });
       } catch (e) {
         return res.status(500).json({ error: e instanceof Error ? e.message : '실패' });
@@ -107,10 +132,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: '알 수 없는 action' });
   }
 
-  // ── 토큰 목록 조회 (Blob 직접 반환) ────────────────────────
+  // ── 토큰 목록 조회 (발급자별 격리) ────────────────────────
+  // 슈퍼관리자(김종진/레거시)는 전체, 그 외 관리자는 본인 발급분만.
   if (req.method === 'GET' && req.query?.action === 'list_tokens') {
-    const tokens = await listTokens();
-    return res.status(200).json({ tokens });
+    const id = adminIdentity(req)?.id || '';
+    const tokens = isSuperAdmin(id) ? await listTokens() : await listTokens(id);
+    return res.status(200).json({ tokens, issuer: id, isSuper: isSuperAdmin(id) });
   }
 
   // ── 서비스 상태 조회 ─────────────────────────────────────────
