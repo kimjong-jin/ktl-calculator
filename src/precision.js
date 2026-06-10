@@ -199,6 +199,11 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
   const meanRate = hasTwoRounds ? (rate1 + rate2) / 2 : rate1;
 
   if (param === 'TOC') {
+    // 고시 별표1의1 저농도특례: labMean < 배출허용기준 × 50% → 자동 적합
+    const discharge = Number(opts.discharge) || 0;
+    if (discharge > 0 && labMean < discharge * 0.5) {
+      return { parameter: param, labMean, siteMean, limit: null, useRate: false, meanFi, meanRate, auto: true, pass: true };
+    }
     // Sheet2 row21: 15.0% 또는 0.45mg/L (labMean≤3mg/L)
     let limit, useRate, pass;
     if (labMean < 3) {
