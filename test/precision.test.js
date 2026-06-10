@@ -52,6 +52,20 @@ check('TOC 수분석2 → 허용 0.45, 동일값 적합', () => {
   const f = fieldApplication('TOC', [2, 2], [2, 2]);
   assert.ok(near(f.limit, 0.45)); assert.equal(f.pass, true);
 });
+check('TOC 배출기준10 labMean2 (< 5): Fi/배출기준 기준 적합', () => {
+  // labMean=2 < discharge/2=5 → Case 2: dischargeRate=0.3/10*100=3% ≤ 15 → 적합
+  const f = fieldApplication('TOC', [2,2,2,2], [2.3,2.3], {discharge:10});
+  assert.equal(f.useDischarge, true);
+  assert.ok(near(f.dischargeRate, 3.0));
+  assert.equal(f.pass, true);
+});
+check('TOC 배출기준10 labMean2 Fi큰경우: Fi/배출기준 > 15% → 부적합', () => {
+  // Fi=2.0, dischargeRate=2/10*100=20 > 15 → 부적합
+  const f = fieldApplication('TOC', [2,2,2,2], [4,4], {discharge:10});
+  assert.equal(f.useDischarge, true);
+  assert.ok(near(f.dischargeRate, 20.0));
+  assert.equal(f.pass, false);
+});
 check('TN 수분석≥10 → 상대오차 15% 기준 (오차0 → 적합)', () => {
   const f = fieldApplication('TN', [12, 12, 12, 12], [12, 12]);
   assert.equal(f.useRate, true); assert.equal(f.pass, true);

@@ -199,19 +199,32 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
   const meanRate = hasTwoRounds ? (rate1 + rate2) / 2 : rate1;
 
   if (param === 'TOC') {
-    // 고시 별표1의1 저농도특례: labMean < 배출허용기준 × 50% → 자동 적합
+    // 엑셀 Sheet2 D20 판정 수식 (각 단계 ROUND 동일 적용)
+    //   B16 = ROUND(meanFi, 2)             — 절대오차(mg/L)
+    //   B18 = ROUND(meanRate, 1)           — 상대오차(%)
+    //   B19 = ROUND(B16/배출기준*100, 1)    — 배출기준 대비(%)
     const discharge = Number(opts.discharge) || 0;
-    if (discharge > 0 && labMean < discharge * 0.5) {
-      return { parameter: param, labMean, siteMean, limit: null, useRate: false, meanFi, meanRate, auto: true, pass: true };
+    const r2 = v => Math.round(v * 100) / 100;
+    const r1 = v => Math.round(v * 10) / 10;
+    const fi  = r2(meanFi);          // B16
+    const rate = r1(meanRate);       // B18
+    // Case 1 (엑셀 1순위): 배출기준 있고 labMean < 배출기준/2 → Fi/배출기준×100 ≤ 15%
+    if (discharge > 0 && labMean < discharge / 2) {
+      const dischargeRate = r1(fi / discharge * 100);   // B19
+      return { parameter: param, labMean, siteMean, limit: 15, useRate: false,
+               meanFi, meanRate, fi, rate, dischargeRate, discharge, useDischarge: true,
+               auto: false, pass: dischargeRate <= 15 };
     }
-    // Sheet2 row21: 15.0% 또는 0.45mg/L (labMean≤3mg/L)
+    // Case 2: labMean < 3 → 절대오차 ≤ 0.45 mg/L
+    // Case 3: else        → 상대오차 ≤ 15%
     let limit, useRate, pass;
     if (labMean < 3) {
-      limit = 0.45; useRate = false; pass = meanFi <= 0.45;
+      limit = 0.45; useRate = false; pass = fi <= 0.45;
     } else {
-      limit = 15; useRate = true;  pass = meanRate <= 15;
+      limit = 15; useRate = true;  pass = rate <= 15;
     }
-    return { parameter: param, labMean, siteMean, limit, useRate, meanFi, meanRate, auto: false, pass };
+    return { parameter: param, labMean, siteMean, limit, useRate, meanFi, meanRate, fi, rate,
+             useDischarge: false, auto: false, pass };
   }
 
   if (param === 'PH') {

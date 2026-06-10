@@ -460,8 +460,8 @@ function calcBasic(tab) {
       `<div class="pv-lines">
         ${row('수분석 평균 (Ai)', fmt(fRes.labMean,3))}
         ${row('현장측정 평균 (Ci)', fmt(fRes.siteMean,3))}
-        ${fRes.auto
-          ? row('저농도 특례', `Ai ${fmt(fRes.labMean,2)} mg/L < 배출기준 ${fmt(g('fdis'),0)} mg/L × 50%`)
+        ${fRes.useDischarge
+          ? row('Fi/배출기준', `${fmt(fRes.dischargeRate,1)}% (기준 ≤15%)`)
           : fRes.useRate
             ? row('오차율 (Fi/Ai)', `${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`)
             : row('절대오차 (Fi)', `${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`)}
@@ -1671,8 +1671,8 @@ function buildCertResultRows(tab) {
     const ci1=gd('ci1'),ci2=gd('ci2'),ai1=gd('ai1'),ai2=gd('ai2'),ai3=gd('ai3'),ai4=gd('ai4');
     if(ci1||ci2||ai1||ai2||ai3||ai4){
       const fRes=fieldApplication(tab.code,[ai1,ai2,ai3,ai4],[ci1,ci2],{discharge:gd('fdis')});
-      const fv=fRes.auto
-        ?`저농도 특례 자동적합 (Ai ${fmt(fRes.labMean,2)} mg/L < 배출기준 × 50%)`
+      const fv=fRes.useDischarge
+        ?`Fi/배출기준 ${fmt(fRes.dischargeRate,1)}% (기준 ≤15%)`
         :fRes.useRate?`오차율 ${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`
         :`절대오차 ${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`;
       addRow(`${tab.code} 현장적용계수`,fv,fRes.pass);
