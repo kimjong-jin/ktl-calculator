@@ -199,12 +199,9 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
   const meanRate = hasTwoRounds ? (rate1 + rate2) / 2 : rate1;
 
   if (param === 'TOC') {
-    // 엑셀: labMean<discharge/2 → 15%, labMean<3 → 0.45mg/L, else → 15%
-    const discharge = Number(opts.discharge) || 0;
+    // Sheet2 row21: 15.0% 또는 0.45mg/L (labMean≤3mg/L)
     let limit, useRate, pass;
-    if (discharge > 0 && labMean < discharge * 0.5) {
-      limit = 15; useRate = true;  pass = meanRate <= 15;
-    } else if (labMean < 3) {
+    if (labMean < 3) {
       limit = 0.45; useRate = false; pass = meanFi <= 0.45;
     } else {
       limit = 15; useRate = true;  pass = meanRate <= 15;
