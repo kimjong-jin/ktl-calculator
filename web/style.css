@@ -326,28 +326,10 @@ select.field__control {
   white-space: pre;
 }
 
-/* ── 저장 바 ── */
-.pv-save-bar {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.pv-save-field { flex: 1; min-width: 120px; }
-.pv-save-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-dim);
-  margin-bottom: 4px;
-}
-.pv-save-actions { display: flex; gap: 6px; }
+
 
 @media (max-width: 420px) {
   .field-row { grid-template-columns: 1fr; }
-  .pv-save-bar { flex-direction: column; align-items: stretch; }
-  .pv-save-actions { justify-content: flex-end; }
 }
 
 .hint {
@@ -617,7 +599,7 @@ select.field__control {
   display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap;
 }
 .pv-save-field {
-  display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 120px;
+  display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 130px;
 }
 .pv-save-label {
   font-size: 10px; font-weight: 700; color: var(--text-dim);
@@ -631,6 +613,11 @@ select.field__control {
 }
 .pv-save-status {
   margin-top: 6px; font-size: 12px; min-height: 18px;
+}
+@media (max-width: 540px) {
+  .pv-save-bar { flex-direction: column; align-items: stretch; gap: 6px; }
+  .pv-save-field { min-width: 0; }
+  .pv-save-actions { justify-content: flex-end; }
 }
 .pv-ss-ok      { color: #22c55e; }
 .pv-ss-warn    { color: #f59e0b; }
