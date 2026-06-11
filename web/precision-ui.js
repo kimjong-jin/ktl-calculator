@@ -604,8 +604,7 @@ function calcPH(tab) {
 
 // ── 계산: DO ─────────────────────────────────────────────
 function calcDO(tab) {
-  const range = 20; 
-  const span = DO_SPAN_TABLE[25]; 
+  const range = 20;
 
   const sRepVals = [gv('dos1'),gv('dos2'),gv('dos3')].filter(v=>!isNaN(v));
   const rep = repeatability([], sRepVals, range);
@@ -637,14 +636,14 @@ function calcDO(tab) {
   let tcPass = null;
   const tcBlock = document.getElementById('pv-res-tc-block');
   if (!isNaN(m20) || !isNaN(m30)) {
-    const tc = doTemperatureComp(m20, m30, span);
+    const tc = doTemperatureComp(m20, m30);
     document.getElementById('pv-res-tc').innerHTML =
       `<div class="pv-lines">
-        ${row('20℃ 측정', fmt(m20,3))} ${row('기준 (9.092)', fmt(DO_SPAN_TABLE[20],3))} ${row('오차', `${fmt(tc.t20.error)}%`)}
-        ${row('30℃ 측정', fmt(m30,3))} ${row('기준 (7.559)', fmt(DO_SPAN_TABLE[30],3))} ${row('오차', `${fmt(tc.t30.error)}%`)}
+        ${row('20℃ 측정', fmt(m20,3))} ${row('기준 (9.092)', fmt(DO_SPAN_TABLE[20],3))} ${row('편차', `${fmt(tc.t20.dev,3)} mg/L`)}
+        ${row('30℃ 측정', fmt(m30,3))} ${row('기준 (7.559)', fmt(DO_SPAN_TABLE[30],3))} ${row('편차', `${fmt(tc.t30.dev,3)} mg/L`)}
+        ${row('최대 편차', `${fmt(tc.maxDev,2)} mg/L (기준 ≤ ${tc.limit})`)}
       </div><div class="pv-badges">
-        ${badge(`20℃ 온도보상 ≤ ${PRECISION_CRITERIA.doTempComp}%`, tc.t20.pass)}
-        ${badge(`30℃ 온도보상 ≤ ${PRECISION_CRITERIA.doTempComp}%`, tc.t30.pass)}
+        ${badge(`DO 온도보상 |편차| ≤ ${tc.limit} mg/L`, tc.pass)}
       </div>`;
     tcPass = tc.pass;
     if (tcBlock) tcBlock.hidden = false;

@@ -31,7 +31,7 @@ export const PRECISION_CRITERIA = {
   spanDrift:        _criteria.spanDrift        ?? 5.0,  // %
   linearity:        _criteria.linearity        ?? 5.0,  // %
   phTempComp:       0.1,   // pH — 엑셀 별도 기준, 고정
-  doTempComp:       5.0,   // DO — 엑셀 별도 기준, 고정
+  doTempComp:       0.3,   // DO 온도보상 |편차| ≤ 0.3 mg/L 절대값 (엑셀 Z53/AB53)
   codGlucose:       5.0,
   // 반올림 자릿수 (엑셀 ROUND 수식에서 추출)
   repeatabilityRound: _criteria.repeatabilityRound ?? 1,
@@ -140,21 +140,28 @@ export function phTemperatureComp(temps) {
 }
 
 /* ── ⑤ DO 온도보상시험 ─────────────────────────────────────
- * 기준: 20℃=9.092, 30℃=7.559 vs 측정값, |오차|/span×100 ≤ 5%
- * opts: { m20, m30 } 실측값 */
+ * 엑셀 Sheet1 Z52/Z53/AB53:
+ *   편차20 = 20℃측정 − 9.092, 편차30 = 30℃측정 − 7.559
+ *   Z53 = ROUND(|편차| 큰 쪽(부호 유지), 2)
+ *   판정: -0.3 ≤ Z53 ≤ 0.3  (절대값 0.3 mg/L 기준, % 아님) */
 export const DO_SPAN_TABLE = {
   25: 8.263, 20: 9.092, 30: 7.559,
 };
 
-export function doTemperatureComp(m20, m30, span = DO_SPAN_TABLE[25]) {
-  const ref20 = DO_SPAN_TABLE[20];
-  const ref30 = DO_SPAN_TABLE[30];
-  const err20 = pct(m20 - ref20, span);
-  const err30 = pct(m30 - ref30, span);
+export function doTemperatureComp(m20, m30) {
+  const ref20 = DO_SPAN_TABLE[20];   // 9.092
+  const ref30 = DO_SPAN_TABLE[30];   // 7.559
+  const dev20 = m20 - ref20;         // 편차(mg/L, 부호)
+  const dev30 = m30 - ref30;
+  // 엑셀: Z52=MAX(편차들), AB52=MIN(편차들), Z53 = 절대값 큰 쪽을 ROUND(,2)
+  const hi = Math.max(dev20, dev30), lo = Math.min(dev20, dev30);
+  const maxDev = roundTo(Math.abs(hi) >= Math.abs(lo) ? hi : lo, 2);
+  const limit = PRECISION_CRITERIA.doTempComp;  // 0.3 mg/L
   return {
-    t20: { measured: m20, ref: ref20, error: err20, pass: err20 <= PRECISION_CRITERIA.doTempComp },
-    t30: { measured: m30, ref: ref30, error: err30, pass: err30 <= PRECISION_CRITERIA.doTempComp },
-    pass: err20 <= PRECISION_CRITERIA.doTempComp && err30 <= PRECISION_CRITERIA.doTempComp,
+    t20: { measured: m20, ref: ref20, dev: dev20 },
+    t30: { measured: m30, ref: ref30, dev: dev30 },
+    maxDev, limit,
+    pass: maxDev >= -limit && maxDev <= limit,
   };
 }
 

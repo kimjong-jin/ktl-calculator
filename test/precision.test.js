@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import {
   mean, sampleStd, repeatability, drift, linearity, fieldApplication, total,
+  doTemperatureComp,
 } from '../src/precision.js';
 
 let passed = 0;
@@ -134,6 +135,24 @@ check('pH 현장적용계수 0.204 → 반올림 0.20 ≤0.2 적합 (엑셀 T67=
 check('미정의 파라미터 → pass null', () => {
   const f = fieldApplication('XYZ', [1], [1]);
   assert.equal(f.pass, null);
+});
+
+console.log('⑤-DO 온도보상 (엑셀: |편차| ROUND(,2) ≤ 0.3 mg/L)');
+check('DO 온도보상 — 편차 0.108 → 0.11 ≤0.3 적합', () => {
+  const t = doTemperatureComp(9.2, 7.6); // dev20=0.108→0.11, dev30=0.041
+  assert.ok(near(t.maxDev, 0.11));
+  assert.equal(t.limit, 0.3);
+  assert.equal(t.pass, true);
+});
+check('DO 온도보상 — 편차 0.408 → 0.41 >0.3 부적합 (5%면 적합일 케이스)', () => {
+  const t = doTemperatureComp(9.5, 7.559); // dev20=0.408→0.41 (>0.3, 단 0.413=5%span 미만)
+  assert.ok(near(t.maxDev, 0.41));
+  assert.equal(t.pass, false);
+});
+check('DO 온도보상 — 음수 편차 -0.292 → -0.29 적합', () => {
+  const t = doTemperatureComp(8.8, 7.559); // dev20=-0.292→-0.29
+  assert.ok(near(t.maxDev, -0.29));
+  assert.equal(t.pass, true);
 });
 
 console.log('⑤ 통합');
