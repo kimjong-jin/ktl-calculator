@@ -520,8 +520,8 @@ function calcBasic(tab) {
 
 // ── 계산: pH ─────────────────────────────────────────────
 function calcPH(tab) {
-  const z7 = [g('ph7a'),g('ph7b'),g('ph7c')];
-  const z4 = [g('ph4a'),g('ph4b'),g('ph4c')];
+  const z7 = [gv('ph7a'),gv('ph7b'),gv('ph7c')];
+  const z4 = [gv('ph4a'),gv('ph4b'),gv('ph4c')];
   const rep = repeatability(z7, z4);
   document.getElementById('pv-res-rep').innerHTML = repCards({
     zero: { mean: rep.zero.mean, rsd: rep.zero.rsd, pass: rep.zero.pass },
@@ -529,30 +529,30 @@ function calcPH(tab) {
     limit: rep.limit,
   });
 
-  const dr = drift(14, [g('phdi')], [g('phdf')], [g('phdi')], [g('phdf')]);
+  const dr = drift(14, [gv('phdi')], [gv('phdf')], [gv('phdi')], [gv('phdf')]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
-      ${row('초기', fmt(g('phdi'),3))}
-      ${row('2시간후', fmt(g('phdf'),3))}
+      ${row('초기', fmt(gv('phdi'),3))}
+      ${row('2시간후', fmt(gv('phdf'),3))}
     </div>` +
     gauge(dr.zeroDrift, PRECISION_CRITERIA.zeroDrift, '드리프트');
 
-  const lin = phLinearity([g('phm4'),g('phm7'),g('phm10')]);
+  const lin = phLinearity([gv('phm4'),gv('phm7'),gv('phm10')]);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
-      ${row('pH4 측정', fmt(g('phm4'),2))}
-      ${row('pH7 측정', fmt(g('phm7'),2))}
-      ${row('pH10 측정', fmt(g('phm10'),2))}
+      ${row('pH4 측정', fmt(gv('phm4'),2))}
+      ${row('pH7 측정', fmt(gv('phm7'),2))}
+      ${row('pH10 측정', fmt(gv('phm10'),2))}
       ${row('max-min', fmt(lin.max-lin.min,3))} ${row('오차/범위', `${fmt(lin.error)}%`)}
     </div><div class="pv-badges">
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
 
-  const temps = {t10:g('pht10'),t15:g('pht15'),t20:g('pht20'),t25:g('pht25'),t30:g('pht30')};
+  const temps = {t10:gv('pht10'),t15:gv('pht15'),t20:gv('pht20'),t25:gv('pht25'),t30:gv('pht30')};
   const tc = phTemperatureComp(temps);
   const tcBlock = document.getElementById('pv-res-tc-block');
   let tcPass = null;
-  if (Object.values(temps).some(v=>v)) {
+  if (Object.values(temps).some(v=>!isNaN(v))) {
     document.getElementById('pv-res-tc').innerHTML =
       `<div class="pv-lines">
         ${row('10℃', fmt(temps.t10,2))} ${row('15℃', fmt(temps.t15,2))} ${row('20℃', fmt(temps.t20,2))}
@@ -567,10 +567,10 @@ function calcPH(tab) {
     if (tcBlock) tcBlock.hidden = true;
   }
 
-  const ci1=g('phci1'),ci2=g('phci2'),ai1=g('phai1'),ai2=g('phai2'),ai3=g('phai3'),ai4=g('phai4');
+  const ci1=gv('phci1'),ci2=gv('phci2'),ai1=gv('phai1'),ai2=gv('phai2'),ai3=gv('phai3'),ai4=gv('phai4');
   let fieldPass = null;
   const fieldBlock = document.getElementById('pv-res-field-block');
-  if (ci1||ci2||ai1||ai2||ai3||ai4) {
+  if (!isNaN(ci1)||!isNaN(ci2)||!isNaN(ai1)||!isNaN(ai2)||!isNaN(ai3)||!isNaN(ai4)) {
     const fRes = fieldApplication('PH', [ai1,ai2,ai3,ai4], [ci1,ci2]);
     document.getElementById('pv-res-field').innerHTML =
       `<div class="pv-lines">
@@ -595,7 +595,7 @@ function calcDO(tab) {
   const range = 20; 
   const span = DO_SPAN_TABLE[25]; 
 
-  const sRepVals = [g('dos1'),g('dos2'),g('dos3')].filter(v=>v>0);
+  const sRepVals = [gv('dos1'),gv('dos2'),gv('dos3')].filter(v=>!isNaN(v));
   const rep = repeatability([], sRepVals, range);
   document.getElementById('pv-res-rep').innerHTML = repCards(
     { zero: rep.zero, span: rep.span, limit: rep.limit },
@@ -603,28 +603,28 @@ function calcDO(tab) {
     sRepVals
   );
 
-  const dr = drift(range, [g('dozi')], [g('dozf')], [g('dosi')], [g('dosf')]);
+  const dr = drift(range, [gv('dozi')], [gv('dozf')], [gv('dosi')], [gv('dosf')]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
-      ${row('Z초기', fmt(g('dozi'),3))} ${row('Z2시간', fmt(g('dozf'),3))}
-      ${row('S초기', fmt(g('dosi'),3))} ${row('S2시간', fmt(g('dosf'),3))}
+      ${row('Z초기', fmt(gv('dozi'),3))} ${row('Z2시간', fmt(gv('dozf'),3))}
+      ${row('S초기', fmt(gv('dosi'),3))} ${row('S2시간', fmt(gv('dosf'),3))}
     </div>` +
     gauge(dr.zeroDrift, PRECISION_CRITERIA.zeroDrift, '제로드리프트') +
     gauge(dr.spanDrift, PRECISION_CRITERIA.spanDrift, '스팬드리프트');
 
-  const lin = doLinearity(g('domax'), g('domin'), range);
+  const lin = doLinearity(gv('domax'), gv('domin'), range);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
-      ${row('최댓값', fmt(g('domax'),3))} ${row('최솟값', fmt(g('domin'),3))}
+      ${row('최댓값', fmt(gv('domax'),3))} ${row('최솟값', fmt(gv('domin'),3))}
       ${row('max-min/범위', `${fmt(lin.error)}%`)}
     </div><div class="pv-badges">
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
 
-  const m20=g('dot20'), m30=g('dot30');
+  const m20=gv('dot20'), m30=gv('dot30');
   let tcPass = null;
   const tcBlock = document.getElementById('pv-res-tc-block');
-  if (m20 || m30) {
+  if (!isNaN(m20) || !isNaN(m30)) {
     const tc = doTemperatureComp(m20, m30, span);
     document.getElementById('pv-res-tc').innerHTML =
       `<div class="pv-lines">
@@ -640,11 +640,11 @@ function calcDO(tab) {
     if (tcBlock) tcBlock.hidden = true;
   }
 
-  const resp = g('resp');
+  const resp = gv('resp');
   const respLimit = 120;
   let respPass = null;
   const respBlock = document.getElementById('pv-res-resp-block');
-  if (resp) {
+  if (!isNaN(resp)) {
     respPass = resp <= respLimit;
     document.getElementById('pv-res-resp').innerHTML =
       `<div class="pv-lines">
@@ -667,37 +667,37 @@ function calcWater(tab) {
   if (!range) return;
 
   // 반복성: 4콤보 pickRepVals (TMS와 동일 엑셀 로직) — TU/CL 기준 2.0%
-  const zRepVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
-  const sRepVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
+  const zRepVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[gv('z1'),gv('z2')],[gv('z3'),gv('z4')]);
+  const sRepVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[gv('s1'),gv('s2')],[gv('s3'),gv('s4')]);
   const rep = repeatability(zRepVals, sRepVals, range, 2.0);
   document.getElementById('pv-res-rep').innerHTML = repCards(rep, zRepVals, sRepVals);
 
   // 드리프트: TU/CL 기준 ≤ 3% (TMS는 5%)
   const WATER_DRIFT_LIMIT = 3;
-  const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')], { zero: WATER_DRIFT_LIMIT, span: WATER_DRIFT_LIMIT });
+  const dr = drift(range, [gv('z1'),gv('z2')], [gv('z3'),gv('z4')], [gv('s1'),gv('s2')], [gv('s3'),gv('s4')], { zero: WATER_DRIFT_LIMIT, span: WATER_DRIFT_LIMIT });
   document.getElementById('pv-res-drift').innerHTML =
     gauge(dr.zeroDrift, WATER_DRIFT_LIMIT, '제로드리프트') +
     gauge(dr.spanDrift, WATER_DRIFT_LIMIT, '스팬드리프트');
 
   // 직선성: 기준값 = S1/2 (TMS는 range×0.45)
-  const linRef = g('s1') > 0 ? g('s1') / 2 : undefined;
-  const lin = linearity(range, [g('m1')], linRef);
+  const linRef = gv('s1') > 0 ? gv('s1') / 2 : undefined;
+  const lin = linearity(range, [gv('m1')], linRef);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
-      ${row('기준값 (S1÷2)', fmt(lin.ref,3))} ${row('주입농도 M', fmt(g('m1'),3))} ${row('오차', `${fmt(lin.error)}%`)}
+      ${row('기준값 (S1÷2)', fmt(lin.ref,3))} ${row('주입농도 M', fmt(gv('m1'),3))} ${row('오차', `${fmt(lin.error)}%`)}
     </div><div class="pv-badges">
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
   
   const respSkip = document.getElementById('pv_resp_skip')?.checked;
-  const resp = g('resp');
-  const s1val = g('s1');
+  const resp = gv('resp');
+  const s1val = gv('s1');
   const respLimit = s1val ? s1val * 0.5 : null;
   const respBlock = document.getElementById('pv-res-resp-block');
   let respPass = null;
   if (respSkip) {
     if (respBlock) respBlock.hidden = true;
-  } else if (resp && respLimit !== null) {
+  } else if (!isNaN(resp) && respLimit !== null) {
     respPass = resp >= respLimit;
     document.getElementById('pv-res-resp').innerHTML =
       `<div class="pv-lines">${row('측정값', `${fmt(resp,2)}`)}
@@ -708,7 +708,7 @@ function calcWater(tab) {
     if (respBlock) respBlock.hidden = true;
   }
   // 측정범위 초과 체크: S값, M값이 range를 초과하면 부적합
-  const allMeasured = [g('s1'),g('s2'),g('s3'),g('s4'),g('s5'),g('m1'),g('m2'),g('m3')].filter(v=>v>0);
+  const allMeasured = [gv('s1'),gv('s2'),gv('s3'),gv('s4'),gv('s5'),gv('m1'),gv('m2'),gv('m3')].filter(v=>v>0);
   const rangeExceeded = allMeasured.some(v => v > range);
   if (rangeExceeded) {
     const note = document.createElement('div');
@@ -872,13 +872,14 @@ function setLinHint(id, ref, cur) {
 function updateInlineHints(code) {
   const range = g('range');
 
-  // ── 기본형: TOC/TN/TP/SS/COD ──────────────────────────────
-  if (IS_BASIC(code) || IS_COD(code)) {
+  // ── 기본형: TOC/TN/TP/SS/COD & 먹는물: TU/CL ──────────────────────────────
+  if (IS_BASIC(code) || IS_COD(code) || IS_WATER(code)) {
+    const isWater = IS_WATER(code);
+    const repLimit = isWater ? 2.0 : 3.0;
+    const driftLimit = isWater ? 3.0 : 5.0;
+
     const clear = ids => ids.forEach(id => setHint(id, NaN, NaN, NaN));
     if (!range) { clear(['z2','z3','z4','z5','z6','z7','s2','s3','s4','s5','s6','s7']); return; }
-
-    // ── 드리프트: |mean(Z3,Z4) - mean(Z1,Z2)| / range ≤ 5% ──
-    const driftTol = range * 0.05;          // ±range×5% = 드리프트 허용 편차
 
     const z1=gv('z1'), z2=gv('z2'), z3=gv('z3'), z4=gv('z4');
     const s1=gv('s1'), s2=gv('s2'), s3=gv('s3'), s4=gv('s4');
@@ -891,10 +892,19 @@ function updateInlineHints(code) {
     const clamp = (v, r) => isNaN(v) ? NaN : Math.max(0, Math.min(r, v));
     const sh = (id, lo, hi, cur) => setHint(id, clamp(lo, range), clamp(hi, range), cur);
 
-    // Z3/Z4: 엑셀 기준 ROUND(drift,1) <= 5 통과 범위
-    // drift 경계: |mean(Z3,Z4)-ziMean|/range*100 < 5.05 (ROUND 1자리)
-    // Z3 입력 시 Z4 고정값 기반 정확한 경계: Z3 = 2*(ziMean±driftMax) - Z4
-    const driftMax = range * 0.050499; // ROUND(5.0499,1)=5.0 → 패스 경계 (5.05 미만)
+    // Z2/S2: Z1/S1 기준 ±4% (기존 TU/CL 초기구간 힌트 유지용, 기본형은 Z2 힌트 없음)
+    if (isWater) {
+      const repT = v => v * 0.04;
+      sh('z2', !isNaN(z1) ? z1-repT(z1) : NaN, !isNaN(z1) ? z1+repT(z1) : NaN, z2);
+      sh('s2', !isNaN(s1) ? s1-repT(s1) : NaN, !isNaN(s1) ? s1+repT(s1) : NaN, s2);
+    } else {
+      setHint('z2', NaN, NaN, z2);
+      setHint('s2', NaN, NaN, s2);
+    }
+
+    // Z3/Z4: 엑셀 기준 ROUND(drift,1) <= driftLimit 통과 범위
+    // drift 경계: |mean(Z3,Z4)-ziMean|/range*100 < driftLimit + 0.05
+    const driftMax = range * ((driftLimit + 0.0499) / 100);
     const z3Lo = !isNaN(ziMean) ? (!isNaN(z4) ? 2*(ziMean-driftMax)-z4 : ziMean-driftMax) : NaN;
     const z3Hi = !isNaN(ziMean) ? (!isNaN(z4) ? 2*(ziMean+driftMax)-z4 : ziMean+driftMax) : NaN;
     const z4Lo = !isNaN(ziMean) ? (!isNaN(z3) ? 2*(ziMean-driftMax)-z3 : ziMean-driftMax) : NaN;
@@ -912,63 +922,38 @@ function updateInlineHints(code) {
     // Z5/S5 통과범위 힌트:
     //  - Z6/Z7(S6/S7) 둘 다 입력 → 별도측정 방식([Z5,Z6,Z7]) 기준으로 Z5 통과범위 계산
     //  - 아니면 → 드리프트 유도 4콤보(Z1~Z4) 기준
-    // (Z6/Z7 입력 시 실제 판정은 별도측정인데 힌트가 드리프트 좁은범위라 빨갛게 뜨던 버그 수정)
     const z6=gv('z6'), z7=gv('z7'), s6=gv('s6'), s7=gv('s7');
     const z6z7 = !isNaN(z6) && !isNaN(z7);
     const s6s7 = !isNaN(s6) && !isNaN(s7);
-    const z5r = z6z7 ? computeRepZ5Range([z6],[z7], range, 3) : computeRepZ5Range([z1,z2],[z3,z4], range, 3);
-    const s5r = s6s7 ? computeRepZ5Range([s6],[s7], range, 3) : computeRepZ5Range([s1,s2],[s3,s4], range, 3);
+    const z5r = z6z7 ? computeRepZ5Range([z6],[z7], range, repLimit) : computeRepZ5Range([z1,z2],[z3,z4], range, repLimit);
+    const s5r = s6s7 ? computeRepZ5Range([s6],[s7], range, repLimit) : computeRepZ5Range([s1,s2],[s3,s4], range, repLimit);
     if (z5r.passable) setHint('z5', z5r.lo, z5r.hi, z5);
     else setHintRef('z5', z5r.lo, z5);
     if (s5r.passable) setHint('s5', s5r.lo, s5r.hi, s5);
     else setHintRef('s5', s5r.lo, s5);
 
-    // Z6/Z7: Z5 기준값 ± range×3%×√3
-    // std([Z5,Z6,Z6]) = |Z6-Z5|/√3 ≤ 3 → |Z6-Z5| ≤ 3√3 ≈ 5.196
-    // Z5 미입력 시 힌트 없음
-    const repAbs = range * 0.03 * Math.sqrt(3);
+    // Z6/Z7: Z5 기준값 ± range × repLimit% × √3
+    const repAbs = range * (repLimit / 100) * Math.sqrt(3);
     if (!isNaN(z5)) {
-      setHint('z6', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z6'));
-      setHint('z7', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z7'));
+      sh('z6', z5-repAbs, z5+repAbs, z6);
+      sh('z7', z5-repAbs, z5+repAbs, z7);
+    } else {
+      setHint('z6', NaN, NaN, z6);
+      setHint('z7', NaN, NaN, z7);
     }
     if (!isNaN(s5)) {
-      setHint('s6', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s6'));
-      setHint('s7', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s7'));
+      sh('s6', s5-repAbs, s5+repAbs, s6);
+      sh('s7', s5-repAbs, s5+repAbs, s7);
+    } else {
+      setHint('s6', NaN, NaN, s6);
+      setHint('s7', NaN, NaN, s7);
     }
 
     // 드리프트·반복성·직선성 요약바
     updateDriftSummary(range);
-    updateRepSummary(range);
-    updateLinSummary(range);
+    updateRepSummary(range, repLimit);
+    updateLinSummary(range, isWater ? gv('s1') : undefined);
     return;
-  }
-
-  // ── 먹는물: TU/CL ─────────────────────────────────────────
-  if (IS_WATER(code)) {
-    if (!range) return;
-    const repT = v => v * 0.04; // 반복성 2% RSD 기준 → ±4% 목표범위
-    const z1=gv('z1'), s1=gv('s1');
-    ['z2','z3','z4','z5'].forEach(id => {
-      setHint(id, !isNaN(z1) ? z1-repT(z1) : NaN, !isNaN(z1) ? z1+repT(z1) : NaN, gv(id));
-    });
-    ['s2','s3','s4','s5'].forEach(id => {
-      setHint(id, !isNaN(s1) ? s1-repT(s1) : NaN, !isNaN(s1) ? s1+repT(s1) : NaN, gv(id));
-    });
-    // Z6/Z7, S6/S7: Z5/S5 기준 ±range×2%×√3 (3회 STDEV 허용 범위)
-    const z5=gv('z5'), s5=gv('s5');
-    const repAbs = range * 0.02 * Math.sqrt(3);
-    const clamp = (v, r) => isNaN(v) ? NaN : Math.max(0, Math.min(r, v));
-    if (!isNaN(z5)) {
-      setHint('z6', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z6'));
-      setHint('z7', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z7'));
-    }
-    if (!isNaN(s5)) {
-      setHint('s6', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s6'));
-      setHint('s7', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s7'));
-    }
-    // 반복성 요약바(TU/CL 기준 2%) + 직선성 요약바
-    updateRepSummary(range, 2);
-    updateLinSummary(range, gv('s1'));
   }
 }
 
@@ -1630,7 +1615,7 @@ function buildCertResultRows(tab) {
     const tc = phTemperatureComp({t10:gd('pht10'),t15:gd('pht15'),t20:gd('pht20'),t25:gd('pht25'),t30:gd('pht30')});
     if(tc.pass!==null) addRow(`온도보상 max-min ≤ ${PRECISION_CRITERIA.phTempComp}`,fmt(tc.range,3),tc.pass);
   } else if (IS_DO(tab.code)) {
-    const rep = repeatability([],[gd('dos1'),gd('dos2'),gd('dos3')]);
+    const rep = repeatability([],[gd('dos1'),gd('dos2'),gd('dos3')], 20);
     const dr = drift(20,[gd('dozi')],[gd('dozf')],[gd('dosi')],[gd('dosf')]);
     const lin = doLinearity(gd('domax'),gd('domin'),20);
     addRow(`DO 반복성 RSD ≤ ${rep.limit}%`,`${fmt(rep.span.rsd)}%`,rep.span.pass);
@@ -1646,7 +1631,7 @@ function buildCertResultRows(tab) {
     const range=gd('range'),isWater=IS_WATER(tab.code);
     const zRepVals=pickRepVals(gd('z5'),gd('z6'),gd('z7'),[gd('z1'),gd('z2')],[gd('z3'),gd('z4')]);
     const sRepVals=pickRepVals(gd('s5'),gd('s6'),gd('s7'),[gd('s1'),gd('s2')],[gd('s3'),gd('s4')]);
-    const rep=repeatability(zRepVals,sRepVals,range);
+    const rep=repeatability(zRepVals,sRepVals,range,isWater?2.0:undefined);
     const dr=drift(range,[gd('z1'),gd('z2')],[gd('z3'),gd('z4')],[gd('s1'),gd('s2')],[gd('s3'),gd('s4')],isWater?{zero:3,span:3}:undefined);
     const linRef=isWater&&gd('s1')>0?gd('s1')/2:undefined;
     const lin=linearity(range,isWater?[gd('m1')]:[gd('m1'),gd('m2'),gd('m3')],linRef);
