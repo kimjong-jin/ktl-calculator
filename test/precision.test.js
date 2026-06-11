@@ -52,6 +52,13 @@ check('TOC 수분석2 → 허용 0.45, 동일값 적합', () => {
   const f = fieldApplication('TOC', [2, 2], [2, 2]);
   assert.ok(near(f.limit, 0.45)); assert.equal(f.pass, true);
 });
+check('TOC 수분석 0 및 NaN 처리 적합', () => {
+  // 0 is valid. Empty fields are NaN.
+  const f = fieldApplication('TOC', [0, 0, NaN, NaN], [0, NaN]);
+  assert.equal(f.pass, true);
+  assert.equal(f.labMean, 0);
+  assert.equal(f.siteMean, 0);
+});
 check('TOC 배출기준10 labMean2 (< 5): Fi/배출기준 기준 적합', () => {
   // labMean=2 < discharge/2=5 → Case 2: dischargeRate=0.3/10*100=3% ≤ 15 → 적합
   const f = fieldApplication('TOC', [2,2,2,2], [2.3,2.3], {discharge:10});

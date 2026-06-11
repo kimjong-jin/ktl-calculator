@@ -179,23 +179,31 @@ const FIELD_RULES = {
 
 export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
   const param = String(parameter).toUpperCase();
-  const labMean  = mean(labVals.filter(v => v !== 0));
-  const siteMean = mean(siteVals.filter(v => v !== 0));
+
+  // Filter out NaN / null / undefined / empty values, keeping 0
+  const cleanLabVals = labVals.filter(v => v !== null && v !== undefined && !isNaN(v) && v !== '');
+  const cleanSiteVals = siteVals.filter(v => v !== null && v !== undefined && !isNaN(v) && v !== '');
+
+  const labMean  = mean(cleanLabVals);
+  const siteMean = mean(cleanSiteVals);
 
   // 회차별 Ai 평균 및 오차 계산
-  // labVals 4개: [Ai1,Ai2,Ai3,Ai4] → round1=mean(Ai1,Ai2), round2=mean(Ai3,Ai4)
-  // labVals 2개 이하: round1만 사용 (하위 호환)
-  const r1Ai = mean([labVals[0], labVals[1]].filter(v => v != null && v !== 0));
-  const r2Raw = mean([labVals[2], labVals[3]].filter(v => v != null && v !== 0));
-  const hasTwoRounds = labVals.length >= 3 && !isNaN(r2Raw);
-  const r2Ai = hasTwoRounds ? r2Raw : r1Ai;
-  const ci1  = siteVals[0] || 0;
-  const ci2  = hasTwoRounds ? (siteVals[1] || 0) : ci1;
+  const r1Vals = [labVals[0], labVals[1]].filter(v => v !== null && v !== undefined && !isNaN(v) && v !== '');
+  const r2Vals = [labVals[2], labVals[3]].filter(v => v !== null && v !== undefined && !isNaN(v) && v !== '');
+
+  const hasTwoRounds = r2Vals.length > 0;
+  const r1Ai = mean(r1Vals);
+  const r2Ai = hasTwoRounds ? mean(r2Vals) : r1Ai;
+
+  const ci1  = cleanSiteVals[0] !== undefined ? cleanSiteVals[0] : 0;
+  const ci2  = hasTwoRounds ? (cleanSiteVals[1] !== undefined ? cleanSiteVals[1] : ci1) : ci1;
+
   const fi1  = Math.abs(r1Ai - ci1);
   const fi2  = Math.abs(r2Ai - ci2);
   const meanFi   = hasTwoRounds ? (fi1 + fi2) / 2 : fi1;
-  const rate1    = r1Ai > 0 ? fi1 / r1Ai * 100 : Infinity;
-  const rate2    = r2Ai > 0 ? fi2 / r2Ai * 100 : Infinity;
+
+  const rate1    = r1Ai > 0 ? fi1 / r1Ai * 100 : (r1Ai === 0 && fi1 === 0 ? 0 : Infinity);
+  const rate2    = r2Ai > 0 ? fi2 / r2Ai * 100 : (r2Ai === 0 && fi2 === 0 ? 0 : Infinity);
   const meanRate = hasTwoRounds ? (rate1 + rate2) / 2 : rate1;
 
   if (param === 'TOC') {
