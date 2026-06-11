@@ -73,6 +73,22 @@ check('TOC 배출기준10 labMean2 Fi큰경우: Fi/배출기준 > 15% → 부적
   assert.ok(near(f.dischargeRate, 20.0));
   assert.equal(f.pass, false);
 });
+check('TOC ⑤ 변동성 큰 시료 → 15% AND 0.5mg/L 둘 다 (rate3%·Fi0.3 → 적합)', () => {
+  const f = fieldApplication('TOC', [10,10,10,10], [10.3,10.3], { highVariability: true });
+  assert.equal(f.highVariability, true);
+  assert.ok(near(f.fi, 0.3)); assert.ok(near(f.rate, 3));
+  assert.equal(f.pass, true);   // 3%≤15 AND 0.3≤0.5
+});
+check('TOC ⑤ 변동성 — 절대오차 0.6>0.5 → 부적합 (비율은 통과해도)', () => {
+  const f = fieldApplication('TOC', [10,10,10,10], [10.6,10.6], { highVariability: true });
+  assert.ok(near(f.fi, 0.6)); assert.ok(f.rate <= 15);
+  assert.equal(f.pass, false);  // 절대오차 초과 → 둘 다 만족 실패
+});
+check('TOC ⑤ 변동성 — 비율 20%>15 → 부적합 (절대오차는 통과해도)', () => {
+  const f = fieldApplication('TOC', [2,2,2,2], [2.4,2.4], { highVariability: true });
+  assert.ok(near(f.fi, 0.4)); assert.ok(near(f.rate, 20));
+  assert.equal(f.pass, false);  // 비율 초과 → 둘 다 만족 실패
+});
 check('TN 수분석≥10 → 상대오차 15% 기준 (오차0 → 적합)', () => {
   const f = fieldApplication('TN', [12, 12, 12, 12], [12, 12]);
   assert.equal(f.useRate, true); assert.equal(f.pass, true);

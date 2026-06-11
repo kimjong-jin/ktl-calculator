@@ -216,6 +216,12 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
     const r1 = v => Math.round(v * 10) / 10;
     const fi  = r2(meanFi);          // B16
     const rate = r1(meanRate);       // B18
+    // Case 5 (법, 최우선): 변동성이 큰 시료 → 상대오차 ≤ 15% AND 절대오차 ≤ 0.5 mg/L "둘 다" 만족
+    if (opts.highVariability) {
+      return { parameter: param, labMean, siteMean, limit: 15, absLimit: 0.5, useRate: true,
+               meanFi, meanRate, fi, rate, useDischarge: false, highVariability: true,
+               auto: false, pass: rate <= 15 && fi <= 0.5 };
+    }
     // Case 1 (엑셀 1순위): 배출기준 있고 labMean < 배출기준/2 → Fi/배출기준×100 ≤ 15%
     if (discharge > 0 && labMean < discharge / 2) {
       const dischargeRate = r1(fi / discharge * 100);   // B19

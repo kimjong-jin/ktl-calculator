@@ -1199,6 +1199,12 @@ select.field__control {
   color: var(--warn); font-weight: 700; font-size: 12px;
   display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
 }
+.pv-highvar {
+  display: flex; align-items: flex-start; gap: 8px; margin-top: 10px;
+  font-size: 12px; line-height: 1.4; cursor: pointer; color: var(--warn);
+}
+.pv-highvar input { margin-top: 2px; flex-shrink: 0; }
+.pv-highvar b { color: var(--fail); }
 
 /* ── 반복성 카드 (Z/S 2열) ──────────────────────────────────── */
 .pv-rep-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

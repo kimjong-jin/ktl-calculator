@@ -455,16 +455,19 @@ function calcBasic(tab) {
   let fieldPass = null;
   const fieldBlock = document.getElementById('pv-res-field-block');
   if (!isNaN(ci1)||!isNaN(ci2)||!isNaN(ai1)||!isNaN(ai2)||!isNaN(ai3)||!isNaN(ai4)) {
-    const fRes = fieldApplication(tab.code, [ai1,ai2,ai3,ai4], [ci1,ci2], {discharge:gv('fdis')});
+    const highVar = !!document.getElementById('pv_highvar')?.checked;
+    const fRes = fieldApplication(tab.code, [ai1,ai2,ai3,ai4], [ci1,ci2], {discharge:gv('fdis'), highVariability:highVar});
     document.getElementById('pv-res-field').innerHTML =
       `<div class="pv-lines">
         ${row('수분석 평균 (Ai)', fmt(fRes.labMean,3))}
         ${row('현장측정 평균 (Ci)', fmt(fRes.siteMean,3))}
-        ${fRes.useDischarge
-          ? row('Fi/배출기준', `${fmt(fRes.dischargeRate,1)}% (기준 ≤15%)`)
-          : fRes.useRate
-            ? row('오차율 (Fi/Ai)', `${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`)
-            : row('절대오차 (Fi)', `${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`)}
+        ${fRes.highVariability
+          ? row('변동성 큰 시료', `오차율 ${fmt(fRes.meanRate,1)}% (≤15%) AND 절대오차 ${fmt(fRes.meanFi,3)} mg/L (≤0.5)`)
+          : fRes.useDischarge
+            ? row('Fi/배출기준', `${fmt(fRes.dischargeRate,1)}% (기준 ≤15%)`)
+            : fRes.useRate
+              ? row('오차율 (Fi/Ai)', `${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`)
+              : row('절대오차 (Fi)', `${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`)}
       </div><div class="pv-badges">${badge(`${tab.code} 현장적용계수`, fRes.pass)}</div>`;
     fieldPass = fRes.pass;
     if (fieldBlock) fieldBlock.hidden = false;
@@ -1196,6 +1199,12 @@ function switchTab(id) {
       calcTimer = setTimeout(() => calculate(id), 300);
     });
   });
+  // TOC 변동성 체크박스: 변경 시 재계산
+  document.getElementById('pv_highvar')?.addEventListener('change', () => {
+    saveData(id);
+    clearTimeout(calcTimer);
+    calcTimer = setTimeout(() => calculate(id), 50);
+  });
   updateGuide(tab.code);
   updateInlineHints(tab.code);
   if (g('range')) updateLinSummary(g('range'), IS_WATER(tab.code) ? gv('s1') : undefined);
@@ -1342,6 +1351,10 @@ function buildFormBasic(code) {
     <div class="pv-discharge-wrap">
       <div class="pv-discharge-wrap .field__label">⚠️ TOC 배출허용기준 (mg/L)</div>
       ${ni('fdis','배출기준값 mg/L — 없으면 0 입력')}
+      <label class="pv-highvar">
+        <input type="checkbox" id="pv_highvar">
+        <span>변동성이 큰 시료 — 15% 이하 <b>AND</b> 절대오차 0.5 mg/L 이하 둘 다 만족 (법)</span>
+      </label>
     </div>
   </div>` : ''}
 
