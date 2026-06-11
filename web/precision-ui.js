@@ -914,10 +914,10 @@ function updateInlineHints(code) {
     //  - 아니면 → 드리프트 유도 4콤보(Z1~Z4) 기준
     // (Z6/Z7 입력 시 실제 판정은 별도측정인데 힌트가 드리프트 좁은범위라 빨갛게 뜨던 버그 수정)
     const z6=gv('z6'), z7=gv('z7'), s6=gv('s6'), s7=gv('s7');
-    const z6z7 = !isNaN(z6) && z6>0 && !isNaN(z7) && z7>0;
-    const s6s7 = !isNaN(s6) && s6>0 && !isNaN(s7) && s7>0;
-    const z5r = z6z7 ? computeRepZ5Range([z6],[z7], range) : computeRepZ5Range([z1,z2],[z3,z4], range);
-    const s5r = s6s7 ? computeRepZ5Range([s6],[s7], range) : computeRepZ5Range([s1,s2],[s3,s4], range);
+    const z6z7 = !isNaN(z6) && !isNaN(z7);
+    const s6s7 = !isNaN(s6) && !isNaN(s7);
+    const z5r = z6z7 ? computeRepZ5Range([z6],[z7], range, 3) : computeRepZ5Range([z1,z2],[z3,z4], range, 3);
+    const s5r = s6s7 ? computeRepZ5Range([s6],[s7], range, 3) : computeRepZ5Range([s1,s2],[s3,s4], range, 3);
     if (z5r.passable) setHint('z5', z5r.lo, z5r.hi, z5);
     else setHintRef('z5', z5r.lo, z5);
     if (s5r.passable) setHint('s5', s5r.lo, s5r.hi, s5);
