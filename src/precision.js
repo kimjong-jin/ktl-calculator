@@ -255,10 +255,13 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
   if (!rule) return { parameter: param, labMean, siteMean, limit: null, useRate: false, meanFi, meanRate,
     auto: false, pass: null, note: '현장적용계수 기준 미정의' };
 
+  // 엑셀과 동일: 절대오차 ROUND(,2)=F17, 오차율 ROUND(,1)=F19 로 반올림 후 비교
+  const fi   = Math.round(meanFi * 100) / 100;
+  const rate = Math.round(meanRate * 10) / 10;
   const useRate = labMean >= rule.threshold;
   const limit   = useRate ? rule.rateLimit : rule.absLimit;
-  const pass    = useRate ? meanRate <= rule.rateLimit : meanFi <= rule.absLimit;
-  return { parameter: param, labMean, siteMean, limit, useRate, meanFi, meanRate, auto: false, pass };
+  const pass    = useRate ? rate <= rule.rateLimit : fi <= rule.absLimit;
+  return { parameter: param, labMean, siteMean, limit, useRate, meanFi, meanRate, fi, rate, auto: false, pass };
 }
 
 /* ── ⑧ 통합 계산기 (기존 호환) ──────────────────────────── */

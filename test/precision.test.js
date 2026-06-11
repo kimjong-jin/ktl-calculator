@@ -119,6 +119,13 @@ check('TP 수분석0.2 site0.5 → 0.3>0.06 부적합', () => {
   const f = fieldApplication('TP', [0.2, 0.2], [0.5, 0.5]);
   assert.ok(near(f.limit, 0.06)); assert.equal(f.pass, false);
 });
+check('TN 오차율 15.04% → 반올림 15.0 ≤15 적합 (엑셀 F19=ROUND(,1))', () => {
+  // meanFi=1.504, meanRate=15.04% → ROUND(,1)=15.0 ≤ 15 → 적합 (반올림 안 하면 부적합)
+  const f = fieldApplication('TN', [10, 10, 10, 10], [8.496, 8.496]);
+  assert.equal(f.useRate, true);
+  assert.ok(near(f.rate, 15.0));
+  assert.equal(f.pass, true);
+});
 check('미정의 파라미터 → pass null', () => {
   const f = fieldApplication('XYZ', [1], [1]);
   assert.equal(f.pass, null);
