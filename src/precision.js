@@ -247,8 +247,10 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
 
   if (param === 'PH') {
     const limit = 0.20;
-    return { parameter: param, labMean, siteMean, limit, useRate: false, meanFi, meanRate, auto: false,
-      pass: meanFi <= limit };
+    // 엑셀 T67 = ROUND(meanFi, 2) 후 ≤0.2 판정 (V68)
+    const fi = Math.round(meanFi * 100) / 100;
+    return { parameter: param, labMean, siteMean, limit, useRate: false, meanFi, meanRate, fi, auto: false,
+      pass: fi <= limit };
   }
 
   const rule = FIELD_RULES[param];

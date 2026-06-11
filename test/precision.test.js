@@ -126,6 +126,11 @@ check('TN 오차율 15.04% → 반올림 15.0 ≤15 적합 (엑셀 F19=ROUND(,1)
   assert.ok(near(f.rate, 15.0));
   assert.equal(f.pass, true);
 });
+check('pH 현장적용계수 0.204 → 반올림 0.20 ≤0.2 적합 (엑셀 T67=ROUND(,2))', () => {
+  const f = fieldApplication('PH', [7, 7, 7, 7], [7.204, 7.204]);
+  assert.ok(near(f.fi, 0.20));
+  assert.equal(f.pass, true);
+});
 check('미정의 파라미터 → pass null', () => {
   const f = fieldApplication('XYZ', [1], [1]);
   assert.equal(f.pass, null);
