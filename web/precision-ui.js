@@ -353,11 +353,10 @@ function rt1(label, val, pass, unit='') {
 }
 
 // ── 계산: 기본형 (TOC/TN/TP/SS/COD) ─────────────────────
-// Z6/Z7 모두 입력 시 [Z5,Z6,Z7] 사용, 그 외 4콤보 자동선택 (Z6만 입력은 무시)
-function pickRepVals(z5, z6, z7, initVals, finVals) {
+// 엑셀과 동일: Z5 + (Z1/Z2)×(Z3/Z4) 4조합 중 최대 표준편차 조합 사용.
+// (z6/z7 인자는 호환을 위해 받되 무시 — 엑셀엔 Z6/Z7이 없고 항상 Z1~Z4에서 유도)
+function pickRepVals(z5, _z6, _z7, initVals, finVals) {
   if (isNaN(z5) || z5 <= 0) return [];
-  const z6ok = !isNaN(z6) && z6 > 0, z7ok = !isNaN(z7) && z7 > 0;
-  if (z6ok && z7ok) return [z5, z6, z7];
   const iv = initVals.filter(v=>v>0), fv = finVals.filter(v=>v>0);
   if (!iv.length || !fv.length) return [z5];
   let best = {s:-1, a:null, b:null};
@@ -370,17 +369,8 @@ function pickRepVals(z5, z6, z7, initVals, finVals) {
 
 // pickRepVals와 동일한 로직으로 어떤 필드가 선택됐는지 레이블까지 반환
 function pickRepWithLabels(refVal, refLabel, extVals, extLabels, initPairs, finPairs) {
-  // extVals = [z6,z7] or [s6,s7], extLabels = ['Z6','Z7'] etc.
+  // 엑셀과 동일: z6/z7 무시, 항상 Z5 + (Z1~Z4) 4조합 중 최대 표준편차 조합
   if (!Number.isFinite(refVal) || refVal <= 0) return null;
-  const z6ok = Number.isFinite(extVals[0]) && extVals[0] > 0;
-  const z7ok = Number.isFinite(extVals[1]) && extVals[1] > 0;
-  if (z6ok && z7ok) {
-    return [
-      {label: refLabel,        val: refVal},
-      {label: extLabels[0],    val: extVals[0]},
-      {label: extLabels[1],    val: extVals[1]},
-    ];
-  }
   const iv = initPairs.filter(p => p.val > 0);
   const fv = finPairs.filter(p => p.val > 0);
   if (!iv.length || !fv.length) return [{label: refLabel, val: refVal}];
