@@ -780,66 +780,48 @@ function renderLegal(el, d) {
     <div class="pv-legal-source">출처: ${d.출처} · ${d.조회일시} 기준</div>`;
 }
 
-// ── Z5/S5 힌트: 4콤보 STDEV최대 조합 + std/range ≤ 3% 통과 범위 수치계산 ──
-function computeRepZ5Range(initVals, finVals, range) {
-  const iv = initVals.filter(v => !isNaN(v) && v > 0);
-  const fv = finVals.filter(v => !isNaN(v) && v > 0);
+// ── Z5/S5 힌트: 4콤보 STDEV최대 조합 + std/range ≤ limit% 통과 범위 수치계산 (수학적 폐형식 해공식) ──
+function computeRepZ5Range(initVals, finVals, range, limit = 3) {
+  const iv = initVals.filter(v => !isNaN(v));
+  const fv = finVals.filter(v => !isNaN(v));
   if (!iv.length || !fv.length || !(range > 0)) return { lo: NaN, hi: NaN, passable: false };
 
-  function worstStdAt(z5) {
-    let maxS = -1;
-    for (const a of iv) for (const b of fv) {
-      const m = (z5+a+b)/3;
-      const s = Math.sqrt(((z5-m)**2+(a-m)**2+(b-m)**2)/2);
-      if (s > maxS) maxS = s;
-    }
-    return maxS / range * 100;
-  }
+  // 엑셀 ROUND(rsd, 1) <= limit 판정을 고려한 허용 최대 std 계산 (rsd < limit + 0.05)
+  const limitWithRound = limit + 0.0499;
+  const sMax = range * (limitWithRound / 100);
+  const sMaxSq = sMax * sMax;
 
-  // 엑셀 ROUND(x,1) 기준 통과 여부
-  const passes = x => Math.round(worstStdAt(x) * 10) / 10 <= 3;
+  let overallLo = -Infinity;
+  let overallHi = Infinity;
 
-  const all = [...iv, ...fv];
-  const dMin = Math.min(...all), dMax = Math.max(...all);
-  const span = Math.max(dMax - dMin, dMin * 0.1);
-  const scanLo = Math.max(0, dMin - span), scanHi = dMax + span;
+  for (const a of iv) {
+    for (const b of fv) {
+      const d = a - b;
+      const dSqTerm = 0.25 * d * d;
+      const insideSqrt = sMaxSq - dSqTerm;
+      if (insideSqrt < 0) {
+        // 이미 2점 간의 편차가 너무 커서 어떤 Z5를 대입해도 기준을 만족할 수 없음
+        return { lo: NaN, hi: NaN, passable: false };
+      }
+      const w = Math.sqrt(3 * insideSqrt);
+      const c = (a + b) / 2;
+      const lo = c - w;
+      const hi = c + w;
 
-  // 1단계: 선형 스캔으로 통과 구간 대략 파악 (200단계)
-  const STEPS = 200;
-  const step = (scanHi - scanLo) / STEPS;
-  let coarseLo = NaN, coarseHi = NaN;
-  for (let i = 0; i <= STEPS; i++) {
-    const x = scanLo + i * step;
-    if (passes(x)) {
-      if (isNaN(coarseLo)) coarseLo = x;
-      coarseHi = x;
+      if (lo > overallLo) overallLo = lo;
+      if (hi < overallHi) overallHi = hi;
     }
   }
 
-  if (isNaN(coarseLo)) {
-    const dm = all.reduce((a,b)=>a+b,0)/all.length;
-    return { lo: dm, hi: dm, passable: false };
+  // 0 ~ range 범위로 제한
+  overallLo = Math.max(0, overallLo);
+  overallHi = Math.min(range, overallHi);
+
+  if (overallLo > overallHi) {
+    return { lo: NaN, hi: NaN, passable: false };
   }
 
-  // 2단계: 이진 탐색으로 하한·상한 정밀 계산 (오차 ~0.000001)
-  const ITER = 50;
-  // 하한 이진탐색: coarseLo-step ~ coarseLo 구간
-  let bLo = Math.max(0, coarseLo - step), bHi = coarseLo;
-  for (let i = 0; i < ITER; i++) {
-    const mid = (bLo + bHi) / 2;
-    if (passes(mid)) bHi = mid; else bLo = mid;
-  }
-  const lo = bHi;
-
-  // 상한 이진탐색: coarseHi ~ coarseHi+step 구간
-  bLo = coarseHi; bHi = Math.min(range, coarseHi + step);
-  for (let i = 0; i < ITER; i++) {
-    const mid = (bLo + bHi) / 2;
-    if (passes(mid)) bLo = mid; else bHi = mid;
-  }
-  const hi = bLo;
-
-  return { lo, hi, passable: true };
+  return { lo: overallLo, hi: overallHi, passable: true };
 }
 
 // ── 인라인 힌트 바 ───────────────────────────────────────────
@@ -1047,8 +1029,8 @@ function updateRepSummary(range, repLimit = 3) {
   const sVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[gv('s1'),gv('s2')],[gv('s3'),gv('s4')]);
 
   // 통과 불가 여부 확인 (힌트가 참고 상태 = 어떤 S5를 넣어도 부적합)
-  const zr = computeRepZ5Range([gv('z1'),gv('z2')],[gv('z3'),gv('z4')], range);
-  const sr = computeRepZ5Range([gv('s1'),gv('s2')],[gv('s3'),gv('s4')], range);
+  const zr = computeRepZ5Range([gv('z1'),gv('z2')],[gv('z3'),gv('z4')], range, repLimit);
+  const sr = computeRepZ5Range([gv('s1'),gv('s2')],[gv('s3'),gv('s4')], range, repLimit);
   const zImpossible = range > 0 && !zr.passable;
   const sImpossible = range > 0 && !sr.passable;
   // 음수 입력도 부적합
