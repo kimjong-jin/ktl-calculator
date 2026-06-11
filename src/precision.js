@@ -212,33 +212,37 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
     //   B18 = ROUND(meanRate, 1)           — 상대오차(%)
     //   B19 = ROUND(B16/배출기준*100, 1)    — 배출기준 대비(%)
     const discharge = Number(opts.discharge) || 0;
+    const highVar = !!opts.highVariability;
     const r2 = v => Math.round(v * 100) / 100;
     const r1 = v => Math.round(v * 10) / 10;
     const fi  = r2(meanFi);          // B16
     const rate = r1(meanRate);       // B18
-    // Case 5 (법, 최우선): 변동성이 큰 시료 → 상대오차 ≤ 15% AND 절대오차 ≤ 0.5 mg/L "둘 다" 만족
-    if (opts.highVariability) {
-      return { parameter: param, labMean, siteMean, limit: 15, absLimit: 0.5, useRate: true,
-               meanFi, meanRate, fi, rate, useDischarge: false, highVariability: true,
-               auto: false, pass: rate <= 15 && fi <= 0.5 };
+
+    // Case 5: 변동성이 큰 시료인 경우 → 15.0% 이하와 절대값 0.5 mg/L 이하를 모두 만족해야 함
+    if (highVar) {
+      const pass = rate <= 15.0 && fi <= 0.5;
+      return { parameter: param, labMean, siteMean, limit: 15, useRate: true,
+               meanFi, meanRate, fi, rate, discharge, useDischarge: false,
+               highVariability: true, auto: false, pass };
     }
+
     // Case 1 (엑셀 1순위): 배출기준 있고 labMean < 배출기준/2 → Fi/배출기준×100 ≤ 15%
     if (discharge > 0 && labMean < discharge / 2) {
       const dischargeRate = r1(fi / discharge * 100);   // B19
       return { parameter: param, labMean, siteMean, limit: 15, useRate: false,
                meanFi, meanRate, fi, rate, dischargeRate, discharge, useDischarge: true,
-               auto: false, pass: dischargeRate <= 15 };
+               highVariability: false, auto: false, pass: dischargeRate <= 15 };
     }
-    // Case 2: labMean < 3 → 절대오차 ≤ 0.45 mg/L
+    // Case 2: labMean <= 3.0 → 절대오차 ≤ 0.45 mg/L (주의: 고시 기준은 "3.0 mg/L 이하")
     // Case 3: else        → 상대오차 ≤ 15%
     let limit, useRate, pass;
-    if (labMean < 3) {
+    if (labMean <= 3.0) {
       limit = 0.45; useRate = false; pass = fi <= 0.45;
     } else {
       limit = 15; useRate = true;  pass = rate <= 15;
     }
     return { parameter: param, labMean, siteMean, limit, useRate, meanFi, meanRate, fi, rate,
-             useDischarge: false, auto: false, pass };
+             useDischarge: false, highVariability: false, auto: false, pass };
   }
 
   if (param === 'PH') {

@@ -72,7 +72,7 @@ function getFields(code) {
     'm1','m2','m3',            // 직선성
     'ci1','ai1','ai2','ci2','ai3','ai4','fdis', // 현장적용
   ];
-  if (code === 'TOC') base.push('resp'); // TOC만 응답시간
+  if (code === 'TOC') base.push('resp', 'highvar'); // TOC만 응답시간 및 변동성 큰 시료
   if (IS_COD(code)) base.push('codmax','codmin'); // COD 포도당변동성
   return base;
 }
@@ -247,7 +247,16 @@ function saveData(id) {
   if (!tab) return;
   const fields = getFields(tab.code);
   const s = {};
-  fields.forEach(f => { const el = document.getElementById(`pv_${f}`); if (el) s[f] = el.value; });
+  fields.forEach(f => {
+    const el = document.getElementById(`pv_${f}`);
+    if (el) {
+      if (el.type === 'checkbox') {
+        s[f] = el.checked;
+      } else {
+        s[f] = el.value;
+      }
+    }
+  });
   try { localStorage.setItem(`ktl-pv-${id}`, JSON.stringify(s)); } catch {}
 }
 function loadData(id) {
@@ -1352,7 +1361,7 @@ function buildFormBasic(code) {
       <div class="pv-discharge-wrap .field__label">⚠️ TOC 배출허용기준 (mg/L)</div>
       ${ni('fdis','배출기준값 mg/L — 없으면 0 입력')}
       <label class="pv-highvar">
-        <input type="checkbox" id="pv_highvar">
+        <input type="checkbox" id="pv_highvar" ${stored['highvar'] === true ? 'checked' : ''}>
         <span>변동성이 큰 시료 — 15% 이하 <b>AND</b> 절대오차 0.5 mg/L 이하 둘 다 만족 (법)</span>
       </label>
     </div>
@@ -1656,11 +1665,13 @@ function buildCertResultRows(tab) {
     addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error)}%`,lin.pass);
     const ci1=gd('ci1'),ci2=gd('ci2'),ai1=gd('ai1'),ai2=gd('ai2'),ai3=gd('ai3'),ai4=gd('ai4');
     if(ci1||ci2||ai1||ai2||ai3||ai4){
-      const fRes=fieldApplication(tab.code,[ai1,ai2,ai3,ai4],[ci1,ci2],{discharge:gd('fdis')});
-      const fv=fRes.useDischarge
-        ?`Fi/배출기준 ${fmt(fRes.dischargeRate,1)}% (기준 ≤15%)`
-        :fRes.useRate?`오차율 ${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`
-        :`절대오차 ${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`;
+      const fRes=fieldApplication(tab.code,[ai1,ai2,ai3,ai4],[ci1,ci2],{discharge:gd('fdis'), highVariability: d['highvar'] === true});
+      const fv=fRes.highVariability
+        ?`변동성 큰 시료: 오차율 ${fmt(fRes.meanRate,1)}% (≤15%) AND 절대오차 ${fmt(fRes.meanFi,3)} mg/L (≤0.5)`
+        :fRes.useDischarge
+          ?`Fi/배출기준 ${fmt(fRes.dischargeRate,1)}% (기준 ≤15%)`
+          :fRes.useRate?`오차율 ${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`
+          :`절대오차 ${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`;
       addRow(`${tab.code} 현장적용계수`,fv,fRes.pass);
     }
     if(IS_COD(tab.code)&&(gd('codmax')||gd('codmin'))){
