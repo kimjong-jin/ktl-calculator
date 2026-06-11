@@ -53,6 +53,7 @@ export function sampleStd(arr) {
 }
 
 const pct = (numer, denom) => (denom !== 0 ? Math.abs(numer / denom) * 100 : 0);
+const roundTo = (v, d) => { const f = 10 ** d; return Math.round(v * f) / f; };
 
 /* ── ① 반복성 ─────────────────────────────────────────────
  * TOC/TN/TP/SS/COD: [Z1,Z3,Z5] / [S1,S3,S5]
@@ -98,7 +99,9 @@ export function linearity(range, mVals, ref) {
   const avg = mean(mVals);
   const reference = ref !== undefined ? ref : (0.9 * range) / 2;
   const error = pct(avg - reference, reference);
-  return { avg, ref: reference, error, pass: error <= PRECISION_CRITERIA.linearity };
+  // 엑셀 직선성 값은 ROUND(오차,1) 후 판정 (D50/B33 등) — 경계 일치
+  const errR = roundTo(error, PRECISION_CRITERIA.linearityRound);
+  return { avg, ref: reference, error, pass: errR <= PRECISION_CRITERIA.linearity };
 }
 
 /* ── ③-pH 직선성 (4·7·10 고정 3점) ────────────────────────
@@ -109,14 +112,16 @@ export function phLinearity(vals) {
   const minV = Math.min(...vals);
   const range = 14; // pH 고정 측정범위
   const error = pct(maxV - minV, range);
-  return { max: maxV, min: minV, error, pass: error <= PRECISION_CRITERIA.linearity };
+  const errR = roundTo(error, PRECISION_CRITERIA.linearityRound);
+  return { max: maxV, min: minV, error, pass: errR <= PRECISION_CRITERIA.linearity };
 }
 
 /* ── ③-DO 직선성 ────────────────────────────────────────────
  * max-min / range * 100 ≤ 5% */
 export function doLinearity(maxVal, minVal, range) {
   const error = pct(maxVal - minVal, range);
-  return { max: maxVal, min: minVal, error, pass: error <= PRECISION_CRITERIA.linearity };
+  const errR = roundTo(error, PRECISION_CRITERIA.linearityRound);
+  return { max: maxVal, min: minVal, error, pass: errR <= PRECISION_CRITERIA.linearity };
 }
 
 /* ── ④ pH 온도보상시험 ─────────────────────────────────────

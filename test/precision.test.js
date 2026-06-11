@@ -220,6 +220,12 @@ check('TU 직선성 — S1=100, M=55 → 오차 10% 부적합', () => {
   assert.ok(near(l.error, 10));
   assert.equal(l.pass, false);
 });
+check('TU 직선성 — 오차 5.04% → 반올림 5.0 ≤5 적합 (엑셀 ROUND(,1))', () => {
+  // |52.52-50|/50*100 = 5.04% → ROUND(,1)=5.0 ≤ 5 → 적합 (반올림 안 하면 부적합)
+  const l = linearity(10, [52.52], 50);
+  assert.ok(l.error > 5);
+  assert.equal(l.pass, true);
+});
 check('TU 직선성 — ref 미지정 시 TMS 대체공식(range×0.45) 적용', () => {
   // linRef=undefined → reference = 0.9*10/2 = 4.5
   const l = linearity(10, [4.5]);
