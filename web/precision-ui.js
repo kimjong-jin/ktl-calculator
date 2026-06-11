@@ -355,10 +355,10 @@ function rt1(label, val, pass, unit='') {
 // ── 계산: 기본형 (TOC/TN/TP/SS/COD) ─────────────────────
 // Z6/Z7 모두 입력 시 [Z5,Z6,Z7] 사용, 그 외 4콤보 자동선택 (Z6만 입력은 무시)
 function pickRepVals(z5, z6, z7, initVals, finVals) {
-  if (isNaN(z5) || z5 <= 0) return [];
-  const z6ok = !isNaN(z6) && z6 > 0, z7ok = !isNaN(z7) && z7 > 0;
+  if (isNaN(z5)) return [];
+  const z6ok = !isNaN(z6), z7ok = !isNaN(z7);
   if (z6ok && z7ok) return [z5, z6, z7];
-  const iv = initVals.filter(v=>v>0), fv = finVals.filter(v=>v>0);
+  const iv = initVals.filter(v=>!isNaN(v)), fv = finVals.filter(v=>!isNaN(v));
   if (!iv.length || !fv.length) return [z5];
   let best = {s:-1, a:null, b:null};
   for (const a of iv) for (const b of fv) {
@@ -371,9 +371,9 @@ function pickRepVals(z5, z6, z7, initVals, finVals) {
 // pickRepVals와 동일한 로직으로 어떤 필드가 선택됐는지 레이블까지 반환
 function pickRepWithLabels(refVal, refLabel, extVals, extLabels, initPairs, finPairs) {
   // extVals = [z6,z7] or [s6,s7], extLabels = ['Z6','Z7'] etc.
-  if (!Number.isFinite(refVal) || refVal <= 0) return null;
-  const z6ok = Number.isFinite(extVals[0]) && extVals[0] > 0;
-  const z7ok = Number.isFinite(extVals[1]) && extVals[1] > 0;
+  if (!Number.isFinite(refVal)) return null;
+  const z6ok = Number.isFinite(extVals[0]);
+  const z7ok = Number.isFinite(extVals[1]);
   if (z6ok && z7ok) {
     return [
       {label: refLabel,        val: refVal},
@@ -381,8 +381,8 @@ function pickRepWithLabels(refVal, refLabel, extVals, extLabels, initPairs, finP
       {label: extLabels[1],    val: extVals[1]},
     ];
   }
-  const iv = initPairs.filter(p => p.val > 0);
-  const fv = finPairs.filter(p => p.val > 0);
+  const iv = initPairs.filter(p => !isNaN(p.val));
+  const fv = finPairs.filter(p => !isNaN(p.val));
   if (!iv.length || !fv.length) return [{label: refLabel, val: refVal}];
   let best = {s: -1, a: null, b: null};
   for (const a of iv) for (const b of fv) {
@@ -401,19 +401,19 @@ function calcBasic(tab) {
   const range = g('range');
   if (!range) return;
 
-  const zRepVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
-  const sRepVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
+  const zRepVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[gv('z1'),gv('z2')],[gv('z3'),gv('z4')]);
+  const sRepVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[gv('s1'),gv('s2')],[gv('s3'),gv('s4')]);
   const rep = repeatability(zRepVals, sRepVals, range);
   document.getElementById('pv-res-rep').innerHTML = repCards(rep, zRepVals, sRepVals);
 
   // 드리프트: 초기[Z1,Z2] → 최종[Z3,Z4] / 초기[S1,S2] → 최종[S3,S4]
-  const dr = drift(range, [g('z1'),g('z2')], [g('z3'),g('z4')], [g('s1'),g('s2')], [g('s3'),g('s4')]);
+  const dr = drift(range, [gv('z1'),gv('z2')], [gv('z3'),gv('z4')], [gv('s1'),gv('s2')], [gv('s3'),gv('s4')]);
   document.getElementById('pv-res-drift').innerHTML =
     gauge(dr.zeroDrift, PRECISION_CRITERIA.zeroDrift, '제로드리프트') +
     gauge(dr.spanDrift, PRECISION_CRITERIA.spanDrift, '스팬드리프트');
 
   // 직선성: M1,M2,M3
-  const lin = linearity(range, [g('m1'),g('m2'),g('m3')]);
+  const lin = linearity(range, [gv('m1'),gv('m2'),gv('m3')]);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
       ${row('기준값', fmt(lin.ref,3))}
@@ -422,10 +422,10 @@ function calcBasic(tab) {
     </div>` +
     gauge(lin.error, PRECISION_CRITERIA.linearity, '직선성');
 
-  // 측정범위 검사: 초과 체크 + 표준용액 0값 체크 (0은 측정 불가 → 부적합)
-  const stdFields = ['z1','z2','z3','z4','s1','s2','s3','s4','z5','z6','z7','s5','s6','s7','m1','m2','m3'];
-  const zeroEntered = stdFields.filter(id => { const v=gv(id); return !isNaN(v) && v===0; });
-  const allMeasured = [g('s1'),g('s2'),g('s3'),g('s4'),g('s5'),g('m1'),g('m2'),g('m3')].filter(v=>v>0);
+  // 측정범위 검사: 초과 체크 + 표준용액 0값 체크 (0은 측정 불가 → 부적합, 제로용액 z1~z7은 제외)
+  const nonZeroFields = ['s1','s2','s3','s4','s5','s6','s7','m1','m2','m3'];
+  const zeroEntered = nonZeroFields.filter(id => { const v=gv(id); return !isNaN(v) && v===0; });
+  const allMeasured = [gv('s1'),gv('s2'),gv('s3'),gv('s4'),gv('s5'),gv('m1'),gv('m2'),gv('m3')].filter(v=>v>0);
   const rangeExceeded = allMeasured.some(v => v > range);
   const rangeBlock = document.getElementById('pv-res-range-block');
   const rangeEl = document.getElementById('pv-res-range');
@@ -451,11 +451,11 @@ function calcBasic(tab) {
 
 
   // 현장적용계수
-  const ci1=g('ci1'),ci2=g('ci2'),ai1=g('ai1'),ai2=g('ai2'),ai3=g('ai3'),ai4=g('ai4');
+  const ci1=gv('ci1'),ci2=gv('ci2'),ai1=gv('ai1'),ai2=gv('ai2'),ai3=gv('ai3'),ai4=gv('ai4');
   let fieldPass = null;
   const fieldBlock = document.getElementById('pv-res-field-block');
-  if (ci1||ci2||ai1||ai2||ai3||ai4) {
-    const fRes = fieldApplication(tab.code, [ai1,ai2,ai3,ai4], [ci1,ci2], {discharge:g('fdis')});
+  if (!isNaN(ci1)||!isNaN(ci2)||!isNaN(ai1)||!isNaN(ai2)||!isNaN(ai3)||!isNaN(ai4)) {
+    const fRes = fieldApplication(tab.code, [ai1,ai2,ai3,ai4], [ci1,ci2], {discharge:gv('fdis')});
     document.getElementById('pv-res-field').innerHTML =
       `<div class="pv-lines">
         ${row('수분석 평균 (Ai)', fmt(fRes.labMean,3))}
@@ -927,9 +927,15 @@ function updateInlineHints(code) {
     sh('s3', s3Lo, s3Hi, s3);
     sh('s4', s4Lo, s4Hi, s4);
 
-    // Z5/S5: 4콤보 std/range ≤ 3% 실제 통과 범위
-    const z5r = computeRepZ5Range([z1,z2],[z3,z4], range);
-    const s5r = computeRepZ5Range([s1,s2],[s3,s4], range);
+    // Z5/S5 통과범위 힌트:
+    //  - Z6/Z7(S6/S7) 둘 다 입력 → 별도측정 방식([Z5,Z6,Z7]) 기준으로 Z5 통과범위 계산
+    //  - 아니면 → 드리프트 유도 4콤보(Z1~Z4) 기준
+    // (Z6/Z7 입력 시 실제 판정은 별도측정인데 힌트가 드리프트 좁은범위라 빨갛게 뜨던 버그 수정)
+    const z6=gv('z6'), z7=gv('z7'), s6=gv('s6'), s7=gv('s7');
+    const z6z7 = !isNaN(z6) && z6>0 && !isNaN(z7) && z7>0;
+    const s6s7 = !isNaN(s6) && s6>0 && !isNaN(s7) && s7>0;
+    const z5r = z6z7 ? computeRepZ5Range([z6],[z7], range) : computeRepZ5Range([z1,z2],[z3,z4], range);
+    const s5r = s6s7 ? computeRepZ5Range([s6],[s7], range) : computeRepZ5Range([s1,s2],[s3,s4], range);
     if (z5r.passable) setHint('z5', z5r.lo, z5r.hi, z5);
     else setHintRef('z5', z5r.lo, z5);
     if (s5r.passable) setHint('s5', s5r.lo, s5r.hi, s5);
@@ -939,11 +945,11 @@ function updateInlineHints(code) {
     // std([Z5,Z6,Z6]) = |Z6-Z5|/√3 ≤ 3 → |Z6-Z5| ≤ 3√3 ≈ 5.196
     // Z5 미입력 시 힌트 없음
     const repAbs = range * 0.03 * Math.sqrt(3);
-    if (!isNaN(z5) && z5 > 0) {
+    if (!isNaN(z5)) {
       setHint('z6', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z6'));
       setHint('z7', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z7'));
     }
-    if (!isNaN(s5) && s5 > 0) {
+    if (!isNaN(s5)) {
       setHint('s6', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s6'));
       setHint('s7', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s7'));
     }
@@ -970,11 +976,11 @@ function updateInlineHints(code) {
     const z5=gv('z5'), s5=gv('s5');
     const repAbs = range * 0.02 * Math.sqrt(3);
     const clamp = (v, r) => isNaN(v) ? NaN : Math.max(0, Math.min(r, v));
-    if (!isNaN(z5) && z5 > 0) {
+    if (!isNaN(z5)) {
       setHint('z6', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z6'));
       setHint('z7', clamp(z5-repAbs, range), clamp(z5+repAbs, range), gv('z7'));
     }
-    if (!isNaN(s5) && s5 > 0) {
+    if (!isNaN(s5)) {
       setHint('s6', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s6'));
       setHint('s7', clamp(s5-repAbs, range), clamp(s5+repAbs, range), gv('s7'));
     }
@@ -1037,12 +1043,12 @@ function updateDriftSummary(range) {
 function updateRepSummary(range, repLimit = 3) {
   const el = document.getElementById('pv_rep_summary');
   if (!el) return;
-  const zVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[g('z1'),g('z2')],[g('z3'),g('z4')]);
-  const sVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[g('s1'),g('s2')],[g('s3'),g('s4')]);
+  const zVals = pickRepVals(gv('z5'),gv('z6'),gv('z7'),[gv('z1'),gv('z2')],[gv('z3'),gv('z4')]);
+  const sVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[gv('s1'),gv('s2')],[gv('s3'),gv('s4')]);
 
   // 통과 불가 여부 확인 (힌트가 참고 상태 = 어떤 S5를 넣어도 부적합)
-  const zr = computeRepZ5Range([g('z1'),g('z2')],[g('z3'),g('z4')], range);
-  const sr = computeRepZ5Range([g('s1'),g('s2')],[g('s3'),g('s4')], range);
+  const zr = computeRepZ5Range([gv('z1'),gv('z2')],[gv('z3'),gv('z4')], range);
+  const sr = computeRepZ5Range([gv('s1'),gv('s2')],[gv('s3'),gv('s4')], range);
   const zImpossible = range > 0 && !zr.passable;
   const sImpossible = range > 0 && !sr.passable;
   // 음수 입력도 부적합
