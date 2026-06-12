@@ -47,9 +47,11 @@ export function mean(arr) {
 }
 
 export function sampleStd(arr) {
-  if (arr.length < 2) return 0;
-  const m = mean(arr);
-  return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1));
+  // mean과 동일하게 non-finite(null/NaN/Infinity) 제외 — 안 거르면 null이 0으로 취급돼 표준편차 폭증
+  const a = arr.filter(v => Number.isFinite(v));
+  if (a.length < 2) return 0;
+  const m = mean(a);
+  return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1));
 }
 
 const pct = (numer, denom) => (denom !== 0 ? Math.abs(numer / denom) * 100 : 0);

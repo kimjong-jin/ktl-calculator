@@ -1676,8 +1676,14 @@ function buildCertResultRows(tab) {
       const gRes=codGlucoseVariability(gd('codmax'),gd('codmin'),range);
       addRow(`포도당변동성 ≤ ${PRECISION_CRITERIA.codGlucose}%`,`${fmt(gRes.error)}%`,gRes.pass);
     }
-    const resp=gd('resp'),respLimit=gd('resp_limit');
-    if(resp&&respLimit) addRow(`응답시간(T90) ≤ ${fmt(respLimit,0)}초`,`${fmt(resp,0)}초`,resp<=respLimit);
+    if(tab.code==='TOC'){
+      // TOC 응답시간: 고정 15분 기준 (계산기와 동일) — resp_limit 없음
+      const resp=gd('resp');
+      if(resp) addRow('응답시간 ≤ 15분',`${fmt(resp,1)}분`,resp<=15);
+    } else {
+      const resp=gd('resp'),respLimit=gd('resp_limit');
+      if(resp&&respLimit) addRow(`응답시간(T90) ≤ ${fmt(respLimit,0)}초`,`${fmt(resp,0)}초`,resp<=respLimit);
+    }
   }
   return { rows, allPass };
 }
@@ -1780,6 +1786,7 @@ function openCertPrintWindow(pagesHTML) {
 function showCert(tabId) {
   const tab = tabs.find(t => t.id === tabId);
   if (!tab) return;
+  saveData(tabId);  // 출력 전 현재 입력값 저장 — 성적서가 옛 데이터 쓰는 것 방지
   const date = new Date().getFullYear() + '년';
 
   // 기존 오버레이 제거
