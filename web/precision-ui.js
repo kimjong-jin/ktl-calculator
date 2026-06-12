@@ -1635,6 +1635,12 @@ function buildCertResultRows(tab) {
     addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error, 1)}%`,lin.pass);
     const tc = phTemperatureComp({t10:gd('pht10'),t15:gd('pht15'),t20:gd('pht20'),t25:gd('pht25'),t30:gd('pht30')});
     if(tc.pass!==null) addRow(`온도보상 max-min ≤ ${PRECISION_CRITERIA.phTempComp}`,fmt(tc.range,3),tc.pass);
+    // pH 현장적용계수: |Ai평균-Ci| ≤ 0.20 (계산기와 동일)
+    const fci1=gd('phci1'),fci2=gd('phci2'),fai1=gd('phai1'),fai2=gd('phai2'),fai3=gd('phai3'),fai4=gd('phai4');
+    if(fci1!=null||fci2!=null||fai1!=null||fai2!=null||fai3!=null||fai4!=null){
+      const fRes=fieldApplication('PH',[fai1,fai2,fai3,fai4],[fci1,fci2]);
+      addRow('pH 현장적용계수 |Ai-Ci| ≤ 0.20',`${fmt(fRes.fi,2)}`,fRes.pass);
+    }
   } else if (IS_DO(tab.code)) {
     const rep = repeatability([],[gd('dos1'),gd('dos2'),gd('dos3')], 20);
     const dr = drift(20,[gd('dozi')],[gd('dozf')],[gd('dosi')],[gd('dosf')]);
@@ -1647,6 +1653,9 @@ function buildCertResultRows(tab) {
       const tc = doTemperatureComp(gd('dot20'),gd('dot30'));
       addRow(`DO 온도보상 |편차| ≤ ${tc.limit} mg/L`,`${fmt(tc.maxDev,2)} mg/L`,tc.pass);
     }
+    // DO 응답시간: 고정 120초 (계산기와 동일)
+    const dResp=gd('resp');
+    if(dResp!=null) addRow('응답시간 ≤ 120초',`${fmt(dResp,0)}초`,dResp<=120);
   } else {
     const range=gd('range'),isWater=IS_WATER(tab.code);
     const zRepVals=pickRepVals(gd('z5'),gd('z6'),gd('z7'),[gd('z1'),gd('z2')],[gd('z3'),gd('z4')]);
@@ -1677,12 +1686,14 @@ function buildCertResultRows(tab) {
       addRow(`포도당변동성 ≤ ${PRECISION_CRITERIA.codGlucose}%`,`${fmt(gRes.error)}%`,gRes.pass);
     }
     if(tab.code==='TOC'){
-      // TOC 응답시간: 고정 15분 기준 (계산기와 동일) — resp_limit 없음
+      // TOC 응답시간: 고정 15분 기준 (계산기와 동일)
       const resp=gd('resp');
       if(resp) addRow('응답시간 ≤ 15분',`${fmt(resp,1)}분`,resp<=15);
-    } else {
-      const resp=gd('resp'),respLimit=gd('resp_limit');
-      if(resp&&respLimit) addRow(`응답시간(T90) ≤ ${fmt(respLimit,0)}초`,`${fmt(resp,0)}초`,resp<=respLimit);
+    } else if(isWater){
+      // TU/Cl 응답: 응답값 ≥ S1×0.5 (계산기와 동일, resp_skip 시 생략)
+      const resp=gd('resp'), s1=gd('s1'), respLimit=s1?s1*0.5:null;
+      if(d['resp_skip']!==true && resp!=null && respLimit!=null)
+        addRow('응답값 ≥ S1×0.5',`${fmt(resp,2)} (기준 ≥ ${fmt(respLimit,2)})`,resp>=respLimit);
     }
   }
   return { rows, allPass };
