@@ -427,7 +427,7 @@ function calcBasic(tab) {
     `<div class="pv-lines">
       ${row('기준값', fmt(lin.ref,3))}
       ${row('평균', fmt(lin.avg,3))}
-      ${row('오차', `${fmt(lin.error,2)}%`)}
+      ${row('오차', `${fmt(lin.error,1)}%`)}
     </div>` +
     gauge(lin.error, PRECISION_CRITERIA.linearity, '직선성');
 
@@ -555,7 +555,7 @@ function calcPH(tab) {
       ${row('pH4 측정', fmt(gv('phm4'),2))}
       ${row('pH7 측정', fmt(gv('phm7'),2))}
       ${row('pH10 측정', fmt(gv('phm10'),2))}
-      ${row('max-min', fmt(lin.max-lin.min,3))} ${row('오차/범위', `${fmt(lin.error)}%`)}
+      ${row('max-min', fmt(lin.max-lin.min,3))} ${row('오차/범위', `${fmt(lin.error, 1)}%`)}
     </div><div class="pv-badges">
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
@@ -627,7 +627,7 @@ function calcDO(tab) {
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
       ${row('최댓값', fmt(gv('domax'),3))} ${row('최솟값', fmt(gv('domin'),3))}
-      ${row('max-min/범위', `${fmt(lin.error)}%`)}
+      ${row('max-min/범위', `${fmt(lin.error, 1)}%`)}
     </div><div class="pv-badges">
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
@@ -695,7 +695,7 @@ function calcWater(tab) {
   const lin = linearity(range, [gv('m1')], linRef);
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
-      ${row('기준값 (S1÷2)', fmt(lin.ref,3))} ${row('주입농도 M', fmt(gv('m1'),3))} ${row('오차', `${fmt(lin.error)}%`)}
+      ${row('기준값 (S1÷2)', fmt(lin.ref,3))} ${row('주입농도 M', fmt(gv('m1'),3))} ${row('오차', `${fmt(lin.error, 1)}%`)}
     </div><div class="pv-badges">
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
@@ -1632,7 +1632,7 @@ function buildCertResultRows(tab) {
     addRow(`pH7 반복성 RSD ≤ ${rep.limit}%`,`${fmt(rep.zero.rsd)}%`,rep.zero.pass);
     addRow(`pH4 반복성 RSD ≤ ${rep.limit}%`,`${fmt(rep.span.rsd)}%`,rep.span.pass);
     addRow(`드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroPass);
-    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error)}%`,lin.pass);
+    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error, 1)}%`,lin.pass);
     const tc = phTemperatureComp({t10:gd('pht10'),t15:gd('pht15'),t20:gd('pht20'),t25:gd('pht25'),t30:gd('pht30')});
     if(tc.pass!==null) addRow(`온도보상 max-min ≤ ${PRECISION_CRITERIA.phTempComp}`,fmt(tc.range,3),tc.pass);
   } else if (IS_DO(tab.code)) {
@@ -1642,11 +1642,10 @@ function buildCertResultRows(tab) {
     addRow(`DO 반복성 RSD ≤ ${rep.limit}%`,`${fmt(rep.span.rsd)}%`,rep.span.pass);
     addRow(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroPass);
     addRow(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`,`${fmt(dr.spanDrift)}%`,dr.spanPass);
-    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error)}%`,lin.pass);
+    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error, 1)}%`,lin.pass);
     if(gd('dot20')||gd('dot30')){
-      const tc = doTemperatureComp(gd('dot20'),gd('dot30'),DO_SPAN_TABLE[25]);
-      addRow(`20℃ 온도보상 ≤ ${PRECISION_CRITERIA.doTempComp}%`,`${fmt(tc.t20.error)}%`,tc.t20.pass);
-      addRow(`30℃ 온도보상 ≤ ${PRECISION_CRITERIA.doTempComp}%`,`${fmt(tc.t30.error)}%`,tc.t30.pass);
+      const tc = doTemperatureComp(gd('dot20'),gd('dot30'));
+      addRow(`DO 온도보상 |편차| ≤ ${tc.limit} mg/L`,`${fmt(tc.maxDev,2)} mg/L`,tc.pass);
     }
   } else {
     const range=gd('range'),isWater=IS_WATER(tab.code);
@@ -1661,7 +1660,7 @@ function buildCertResultRows(tab) {
     addRow(`고농도 반복성 RSD ≤ ${rep.limit}%`,rep.span.pass===null?'—':`${fmt(rep.span.rsd)}%`,rep.span.pass);
     addRow(`제로드리프트 ≤ ${driftLim}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroPass);
     addRow(`스팬드리프트 ≤ ${driftLim}%`,`${fmt(dr.spanDrift)}%`,dr.spanPass);
-    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error)}%`,lin.pass);
+    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error, 1)}%`,lin.pass);
     const ci1=gd('ci1'),ci2=gd('ci2'),ai1=gd('ai1'),ai2=gd('ai2'),ai3=gd('ai3'),ai4=gd('ai4');
     if(ci1||ci2||ai1||ai2||ai3||ai4){
       const fRes=fieldApplication(tab.code,[ai1,ai2,ai3,ai4],[ci1,ci2],{discharge:gd('fdis'), highVariability: d['highvar'] === true});
