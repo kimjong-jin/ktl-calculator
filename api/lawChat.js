@@ -161,10 +161,12 @@ export default async function handler(req, res) {
     const knNodes = searchKnowledge(message, 5, 3);
     if (knNodes.length > 0) {
       knowledgeUsed = true;
-      // 노드에서 시행일 추출 (가장 최신 날짜)
+      // 노드에서 시행일 추출 → 현재 시행 중(오늘 이하)인 것만, 그중 최신.
+      // 미래 시행 예정일(아직 시행 전 개정조항 등)은 "기준" 라벨에서 제외.
+      const todayKST = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
       const dates = knNodes.flatMap(n =>
         [...(n.excerpt || "").matchAll(/시행[：:]\s*(\d{4}-\d{2}-\d{2})/g)].map(m => m[1])
-      ).sort().reverse();
+      ).filter(d => d <= todayKST).sort().reverse();
       if (dates.length > 0) knowledgeVersion = dates[0];
       const versionNote = knowledgeVersion
         ? `\n\n[지식 베이스 기준: ${knowledgeVersion} 시행 법령]`
