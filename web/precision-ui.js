@@ -795,7 +795,7 @@ function renderLegal(el, d) {
 function computeRepZ5Range(initVals, finVals, range, limit = 3) {
   const iv = initVals.filter(v => !isNaN(v));
   const fv = finVals.filter(v => !isNaN(v));
-  if (!iv.length || !fv.length || !(range > 0)) return { lo: NaN, hi: NaN, passable: false };
+  if (!iv.length || !fv.length || !(range > 0)) return { lo: NaN, hi: NaN, passable: false, impossible: false };
 
   // 엑셀 ROUND(rsd, 1) <= limit 판정을 고려한 허용 최대 std 계산 (rsd < limit + 0.05)
   const limitWithRound = limit + 0.0499;
@@ -812,7 +812,7 @@ function computeRepZ5Range(initVals, finVals, range, limit = 3) {
       const insideSqrt = sMaxSq - dSqTerm;
       if (insideSqrt < 0) {
         // 이미 2점 간의 편차가 너무 커서 어떤 Z5를 대입해도 기준을 만족할 수 없음
-        return { lo: NaN, hi: NaN, passable: false };
+        return { lo: NaN, hi: NaN, passable: false, impossible: true };
       }
       const w = Math.sqrt(3 * insideSqrt);
       const c = (a + b) / 2;
@@ -829,10 +829,10 @@ function computeRepZ5Range(initVals, finVals, range, limit = 3) {
   overallHi = Math.min(range, overallHi);
 
   if (overallLo > overallHi) {
-    return { lo: NaN, hi: NaN, passable: false };
+    return { lo: NaN, hi: NaN, passable: false, impossible: true };
   }
 
-  return { lo: overallLo, hi: overallHi, passable: true };
+  return { lo: overallLo, hi: overallHi, passable: true, impossible: false };
 }
 
 // ── 인라인 힌트 바 ───────────────────────────────────────────
@@ -852,7 +852,7 @@ function setHint(id, lo, hi, cur) {
 }
 
 // 통과 불가 참고점 — 어떤 값을 넣어도 부적합
-function setHintRef(id, ref, cur) {
+function setHintRef(id, ref, cur, impossible = false) {
   const el = document.getElementById(`pv_hint_${id}`);
   if (!el) return;
   // 음수 입력 = 명백히 잘못된 값 → 빨간 오류 표시
@@ -861,8 +861,13 @@ function setHintRef(id, ref, cur) {
     el.textContent = '⚠ 음수 불가';
     return;
   }
+  if (impossible) {
+    el.className = 'pv-zs-range-hint pv-zs-range-hint--ng';
+    el.textContent = '어떤값도 부적합';
+    return;
+  }
   if (isNaN(ref)) { el.className = 'pv-zs-range-hint'; el.textContent = ''; return; }
-  el.className = 'pv-zs-range-hint pv-zs-range-hint--ref';
+  el.className = 'pv-zs-range-hint pv-zs-range-hint--ng';
   el.textContent = '어떤값도 부적합';
 }
 
@@ -939,9 +944,9 @@ function updateInlineHints(code) {
     const z5r = z6z7 ? computeRepZ5Range([z6],[z7], range, repLimit) : computeRepZ5Range([z1,z2],[z3,z4], range, repLimit);
     const s5r = s6s7 ? computeRepZ5Range([s6],[s7], range, repLimit) : computeRepZ5Range([s1,s2],[s3,s4], range, repLimit);
     if (z5r.passable) setHint('z5', z5r.lo, z5r.hi, z5);
-    else setHintRef('z5', z5r.lo, z5);
+    else setHintRef('z5', z5r.lo, z5, z5r.impossible);
     if (s5r.passable) setHint('s5', s5r.lo, s5r.hi, s5);
-    else setHintRef('s5', s5r.lo, s5);
+    else setHintRef('s5', s5r.lo, s5, s5r.impossible);
 
     // Z6/Z7: Z5 기준값 ± range × repLimit% × √3
     const repAbs = range * (repLimit / 100) * Math.sqrt(3);
@@ -1025,10 +1030,13 @@ function updateRepSummary(range, repLimit = 3) {
   const sVals = pickRepVals(gv('s5'),gv('s6'),gv('s7'),[gv('s1'),gv('s2')],[gv('s3'),gv('s4')]);
 
   // 통과 불가 여부 확인 (힌트가 참고 상태 = 어떤 S5를 넣어도 부적합)
-  const zr = computeRepZ5Range([gv('z1'),gv('z2')],[gv('z3'),gv('z4')], range, repLimit);
-  const sr = computeRepZ5Range([gv('s1'),gv('s2')],[gv('s3'),gv('s4')], range, repLimit);
-  const zImpossible = range > 0 && !zr.passable;
-  const sImpossible = range > 0 && !sr.passable;
+  const z6 = gv('z6'), z7 = gv('z7'), s6 = gv('s6'), s7 = gv('s7');
+  const z6z7 = !isNaN(z6) && !isNaN(z7);
+  const s6s7 = !isNaN(s6) && !isNaN(s7);
+  const zr = z6z7 ? computeRepZ5Range([z6],[z7], range, repLimit) : computeRepZ5Range([gv('z1'),gv('z2')],[gv('z3'),gv('z4')], range, repLimit);
+  const sr = s6s7 ? computeRepZ5Range([s6],[s7], range, repLimit) : computeRepZ5Range([gv('s1'),gv('s2')],[gv('s3'),gv('s4')], range, repLimit);
+  const zImpossible = range > 0 && zr.impossible;
+  const sImpossible = range > 0 && sr.impossible;
   // 음수 입력도 부적합
   const z5v = gv('z5'), s5v = gv('s5');
   const zNeg = !isNaN(z5v) && z5v < 0;
@@ -1953,8 +1961,6 @@ function init() {
   document.getElementById('pv-save-btn')?.addEventListener('click', saveToServer);
   document.getElementById('pv-load-btn')?.addEventListener('click', loadFromServer);
   document.getElementById('pv-form-area')?.addEventListener('input', e => {
-    if (e.target.type === 'number' && e.target.value !== '' && parseFloat(e.target.value) < 0)
-      e.target.value = '';
     scheduleAutoSave();
   });
   // 측정값 입력칸: 포커스 해제 시 입력값 중 최대 소수 자리로 전체 정렬
