@@ -108,10 +108,22 @@ export async function revokeToken(tokenId) {
 /** 코드 목록. issuer 지정 시 해당 발급자(또는 발급자 없는 레거시) 항목만 반환. */
 export async function listTokens(issuer) {
   const map = await readCodes();
+  const now = Math.floor(Date.now() / 1000);
+  let changed = false;
+  for (const [id, e] of Object.entries(map)) {
+    if (e.exp <= now) {
+      delete map[id];
+      changed = true;
+    }
+  }
+  if (changed) {
+    await writeCodes(map);
+  }
+
   if (!issuer) return map;
   const out = {};
   for (const [id, e] of Object.entries(map)) {
-    if ((e.issuer || '') === issuer) out[id] = e;
+    if ((e.issuer || e.label || '') === issuer) out[id] = e;
   }
   return out;
 }
@@ -128,9 +140,28 @@ export async function clearTokensByIssuer(issuer) {
   const map = await readCodes();
   let removed = 0;
   for (const [id, e] of Object.entries(map)) {
-    if ((e.issuer || '') === issuer) { delete map[id]; removed++; }
+    if ((e.issuer || e.label || '') === issuer) { delete map[id]; removed++; }
   }
   if (removed) await writeCodes(map);
+  return removed;
+}
+
+/** 만료된 토큰을 일괄 제거 (issuer가 있으면 해당 issuer 것만) */
+export async function clearExpiredTokens(issuer) {
+  const map = await readCodes();
+  const now = Math.floor(Date.now() / 1000);
+  let removed = 0;
+  for (const [id, e] of Object.entries(map)) {
+    if (e.exp <= now) {
+      if (!issuer || (e.issuer || e.label || '') === issuer) {
+        delete map[id];
+        removed++;
+      }
+    }
+  }
+  if (removed > 0) {
+    await writeCodes(map);
+  }
   return removed;
 }
 

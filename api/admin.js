@@ -9,7 +9,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { verifyToken, generateInviteToken } from '../src/authService.js';
-import { registerToken, revokeToken, listTokens, clearAllTokens, clearTokensByIssuer } from '../src/tokenStore.js';
+import { registerToken, revokeToken, listTokens, clearAllTokens, clearTokensByIssuer, clearExpiredTokens } from '../src/tokenStore.js';
 import { listTestItems, getSheetNames, getDataFileName } from '../src/excelClient.js';
 import { getLimits, setLimit, getUsage, resetUsage } from '../src/chatRateLimit.js';
 const _dbOk = existsSync(join(process.cwd(), 'Version11_(2026).xlsx'))
@@ -29,10 +29,13 @@ function requireAdmin(req) {
 }
 
 // 전체 토큰을 조회할 수 있는 슈퍼관리자(소유자). 환경변수로 추가 가능.
-const SUPER_ADMINS = (process.env.SUPER_ADMIN_IDS || '김종진')
+const SUPER_ADMINS = (process.env.SUPER_ADMIN_IDS || '')
   .split(',').map(s => s.trim()).filter(Boolean);
-// id 없는 로그인(레거시 공용 ADMIN_PASSWORD)은 소유자로 간주 → 전체 조회
-const isSuperAdmin = (id) => !id || SUPER_ADMINS.includes(id);
+// id가 명시적으로 존재하고 SUPER_ADMINS 배열에 포함된 경우에만 슈퍼관리자로 인정합니다.
+const isSuperAdmin = (id) => {
+  if (!id) return false;
+  return SUPER_ADMINS.includes(id);
+};
 
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -80,7 +83,7 @@ export default async function handler(req, res) {
         if (!isSuperAdmin(id)) {
           const all = await listTokens();
           const entry = all[tokenId];
-          if (entry && (entry.issuer || '') !== id) {
+          if (entry && (entry.issuer || entry.label || '') !== id) {
             return res.status(403).json({ error: '본인이 발급한 코드만 삭제할 수 있습니다.' });
           }
         }
@@ -98,6 +101,18 @@ export default async function handler(req, res) {
         if (isSuperAdmin(id)) await clearAllTokens();
         else await clearTokensByIssuer(id);
         return res.status(200).json({ ok: true });
+      } catch (e) {
+        return res.status(500).json({ error: e instanceof Error ? e.message : '실패' });
+      }
+    }
+
+    // 만료된 토큰 일괄 제거 (비-슈퍼관리자는 본인 발급분만)
+    if (body?.action === 'clear_expired') {
+      try {
+        const id = adminIdentity(req)?.id || '';
+        const issuer = isSuperAdmin(id) ? null : id;
+        const count = await clearExpiredTokens(issuer);
+        return res.status(200).json({ ok: true, count });
       } catch (e) {
         return res.status(500).json({ error: e instanceof Error ? e.message : '실패' });
       }

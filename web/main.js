@@ -348,8 +348,7 @@ function initSvcTabs(role) {
   // 관리자: 항상 표시 (테스트 목적)
   // 일반 사용자: ktl-chat-enabled = 'true' 일 때만 표시
   if (fab) {
-    const mode = localStorage.getItem('ktl-chat-mode')
-      || (localStorage.getItem('ktl-chat-enabled') === 'true' ? 'active' : 'maintenance');
+    const mode = localStorage.getItem('ktl-chat-mode') || 'active';
     fab.hidden = !(mode === 'active' || (mode === 'maintenance' && role === 'admin'));
     document.body.dataset.role = role; // setChatMode에서 FAB 즉시 반영에 사용
   }
@@ -408,6 +407,8 @@ function init(role) {
   });
 
   initSvcTabs(role);
+  initChat();
+  chatInited = true;
 
   void (async () => {
     renderStatusChip($('status-chip'), 'checking');

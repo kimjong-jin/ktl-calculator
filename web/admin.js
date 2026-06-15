@@ -14,9 +14,8 @@ let calcDataReceipts = new Set();
 let currentAdminId = '';   // 인증 토큰의 id = 로그인한 관리자 본인 이름
 
 const STAFF_NAMES = ['김종진','권민경','김성대','김수철','정슬기','강준','정진욱'];
-const SUPER_ADMINS = ['김종진'];   // 전체 조회 가능한 소유자 (서버 SUPER_ADMIN_IDS와 일치)
-// id 없는 로그인(레거시 공용 비번)은 소유자로 간주
-function isSuperAdmin() { return !currentAdminId || SUPER_ADMINS.includes(currentAdminId); }
+let isSuperAdminUser = false; // 서버 통신 결과로 갱신됨
+function isSuperAdmin() { return isSuperAdminUser; }
 // 토큰의 발급자 식별 (신규 issuer 우선, 레거시 label 폴백)
 function tokenIssuer(t) { return t.issuer || t.label || ''; }
 
@@ -175,9 +174,16 @@ export async function initAdmin(token) {
   try {
     const res = await fetch('/api/admin?action=list_tokens', { headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) {
-      const { tokens } = await res.json();
+      const { tokens, isSuper } = await res.json();
+      isSuperAdminUser = !!isSuper; // 서버 권한 동기화
+
+      // 권한 확정에 따른 로컬스토리지 재필터링 (비-슈퍼 어드민 격리 강제)
+      let local = loadTokenList();
+      if (currentAdminId && !isSuperAdmin()) {
+        local = local.filter(t => tokenIssuer(t) === currentAdminId);
+      }
+
       const now = Math.floor(Date.now() / 1000);
-      const local = loadTokenList();
       const localIds = new Set(local.map(t => t.id || t.token?.split('.')[0]));
       // Blob에만 있는 토큰(parser.work 발급)을 localStorage에 추가
       let changed = false;
@@ -611,7 +617,6 @@ function render(wrap, d) {
     <div class="admin-section">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <h3 class="admin-section__title" style="margin:0">발급된 접속 코드 목록</h3>
-        <button class="btn btn--mini btn--ghost" id="clear-expired-btn">만료 코드 정리</button>
         <button class="btn btn--mini btn--ghost" id="dedup-btn">중복 정리</button>
         <button class="btn btn--mini btn--danger" id="clear-all-btn">전체 삭제</button>
       </div>
@@ -738,10 +743,6 @@ function bindEvents(wrap, access) {
   makeCopyBtn('copy-short-url-btn', 'issue-short-url');
   makeCopyBtn('copy-url-btn', 'issue-url');
   makeCopyBtn('copy-code-btn', 'issue-code');
-  document.getElementById('clear-expired-btn')?.addEventListener('click', () => {
-    saveTokenList(loadTokenList().filter(t => !isExpired(t.expiresAt)));
-    refreshTokenList();
-  });
   document.getElementById('clear-all-btn')?.addEventListener('click', async () => {
     if (!confirm('발급된 접속 코드를 전체 삭제하시겠습니까?\n모든 고객의 접속이 즉시 차단됩니다.')) return;
     const btn = document.getElementById('clear-all-btn');
@@ -816,7 +817,7 @@ function bindEvents(wrap, access) {
       delBtn.textContent = '삭제 중…';
       delBtn.disabled = true;
       // Blob revoke 먼저 완료 후 localStorage 제거 (순서 역전 방지)
-      const tokenKey = entry?.id || entry?.token?.split('.')[0] || '';
+      const tokenKey = entry?.token?.split('.')[0] || entry?.id || '';
       if (tokenKey) {
         try {
           await fetch('/api/admin', {
@@ -1036,11 +1037,11 @@ async function issueToken(access) {
     });
     const data = await res.json();
     if (!res.ok) { alert(data.error || '토큰 생성 실패'); return; }
-    const origin = location.origin;
+        const origin = location.origin;
     const url    = `${origin}/?t=${data.inviteToken}`;
     const no     = loadTokenList().length + 1;
     addToList({
-      id: data.inviteToken.slice(-16), no, token: data.inviteToken, url, days, label,
+      id: data.inviteToken.split('.')[0], no, token: data.inviteToken, url, days, label,
       issuer: data.issuer || issuer,
       pw: data.pw || '',
       createdAt: new Date().toISOString(),
