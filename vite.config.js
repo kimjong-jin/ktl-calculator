@@ -28,7 +28,7 @@ import {
   getClaydoxTargets,
   buildClaydoxPayload,
 } from './src/claydoxMappings.js';
-import { verifyAccess, verifyToken } from './src/authService.js';
+import { verifyAccess, verifyToken, sign } from './src/authService.js';
 
 /** 요청 본문(JSON)을 읽어 파싱한다. */
 function readJsonBody(req) {
