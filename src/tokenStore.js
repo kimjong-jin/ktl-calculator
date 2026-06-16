@@ -105,7 +105,8 @@ export async function revokeToken(tokenId) {
   return true;
 }
 
-/** 코드 목록. issuer 지정 시 해당 발급자(또는 발급자 없는 레거시) 항목만 반환. */
+/** 코드 목록. issuer 지정 시 해당 발급자 항목만 반환(소유 기준 = issuer 만, label 은 메모라 매칭 금지).
+ *  발급자 없는 레거시 토큰은 비-슈퍼관리자에 노출 안 됨 → 슈퍼관리자(issuer 미지정 호출)만 전체 조회. */
 export async function listTokens(issuer) {
   const map = await readCodes();
   const now = Math.floor(Date.now() / 1000);
@@ -123,7 +124,7 @@ export async function listTokens(issuer) {
   if (!issuer) return map;
   const out = {};
   for (const [id, e] of Object.entries(map)) {
-    if ((e.issuer || e.label || '') === issuer) out[id] = e;
+    if ((e.issuer || '') === issuer) out[id] = e;
   }
   return out;
 }
@@ -140,7 +141,7 @@ export async function clearTokensByIssuer(issuer) {
   const map = await readCodes();
   let removed = 0;
   for (const [id, e] of Object.entries(map)) {
-    if ((e.issuer || e.label || '') === issuer) { delete map[id]; removed++; }
+    if ((e.issuer || '') === issuer) { delete map[id]; removed++; }
   }
   if (removed) await writeCodes(map);
   return removed;
@@ -153,7 +154,7 @@ export async function clearExpiredTokens(issuer) {
   let removed = 0;
   for (const [id, e] of Object.entries(map)) {
     if (e.exp <= now) {
-      if (!issuer || (e.issuer || e.label || '') === issuer) {
+      if (!issuer || (e.issuer || '') === issuer) {
         delete map[id];
         removed++;
       }

@@ -83,7 +83,7 @@ export default async function handler(req, res) {
         if (!isSuperAdmin(id)) {
           const all = await listTokens();
           const entry = all[tokenId];
-          if (entry && (entry.issuer || entry.label || '') !== id) {
+          if (entry && (entry.issuer || '') !== id) {
             return res.status(403).json({ error: '본인이 발급한 코드만 삭제할 수 있습니다.' });
           }
         }
