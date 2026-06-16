@@ -67,16 +67,42 @@ function showAuthError(msg) {
   el.textContent = msg ?? '';
 }
 
-// 비밀번호 변경 모달 (첫 로그인 강제)
-function setupPwChangeModal(userName, onDone) {
+function tokenName(token) {
+  if (!token || !token.includes('.')) return '';
+  try {
+    const decoded = JSON.parse(atob(token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/')));
+    return decoded.id || '';
+  } catch { return ''; }
+}
+
+// 비밀번호 변경 모달 (isForce 파라미터 추가)
+function setupPwChangeModal(userName, onDone, isForce = true) {
   const modal = $('pw-change-modal');
+  const titleEl = $('pwc-title');
+  const descEl = $('pwc-desc');
   const curEl  = $('pwc-cur');
   const newEl  = $('pwc-new');
   const new2El = $('pwc-new2');
   const msgEl  = $('pwc-msg');
   const btn    = $('pwc-btn');
+  const cancelBtn = $('pwc-cancel-btn');
+  
   if (!modal) return;
   modal.style.display = 'flex';
+  
+  if (isForce) {
+    if (titleEl) titleEl.textContent = '🔑 초기 비밀번호 변경 필요';
+    if (descEl) descEl.textContent = '보안을 위해 초기 비밀번호를 변경해주세요. 변경 후 다시 로그인합니다.';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+  } else {
+    if (titleEl) titleEl.textContent = '🔑 비밀번호 변경';
+    if (descEl) descEl.textContent = '현재 비밀번호와 새 비밀번호를 입력해주세요.';
+    if (cancelBtn) {
+      cancelBtn.style.display = 'block';
+      cancelBtn.onclick = () => { modal.style.display = 'none'; };
+    }
+  }
+
   curEl.value = ''; newEl.value = ''; new2El.value = ''; msgEl.style.display = 'none';
   curEl.focus();
 
@@ -109,8 +135,9 @@ function setupPwChangeModal(userName, onDone) {
     } catch { showMsg('서버에 연결할 수 없습니다'); }
     finally { btn.disabled = false; btn.textContent = '비밀번호 변경'; }
   }
-  btn.addEventListener('click', submit);
-  new2El.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  
+  btn.onclick = submit;
+  new2El.onkeydown = e => { if (e.key === 'Enter') submit(); };
 }
 
 function showNameConfirmModal(applicantName, receiptNo, siteName, onConfirmed) {
@@ -400,6 +427,24 @@ function init(role) {
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
     applyTheme(next);
   });
+
+  // 비밀번호 변경 버튼 연동 (일반 사용자/임시 토큰 접속 시 숨김, name 매칭 시 활성화)
+  const token = getStoredToken();
+  const userName = tokenName(token) || localStorage.getItem('ktl-calc-username') || '';
+  const pwcTrigger = $('pwc-btn-trigger');
+  if (pwcTrigger) {
+    if (userName) {
+      pwcTrigger.removeAttribute('hidden');
+      pwcTrigger.addEventListener('click', () => {
+        setupPwChangeModal(userName, () => {
+          try { localStorage.removeItem('ktl-auth'); } catch {}
+          location.reload();
+        }, false); // isForce = false 로 일반 변경 모드 실행
+      });
+    } else {
+      pwcTrigger.setAttribute('hidden', '');
+    }
+  }
 
   $('logout-btn')?.addEventListener('click', () => {
     try { localStorage.removeItem('ktl-auth'); } catch { /* 무시 */ }

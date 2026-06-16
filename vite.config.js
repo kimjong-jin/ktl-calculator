@@ -218,6 +218,64 @@ async function handleApi(req, res, next) {
       }
     }
 
+    // /api/userAuth — Mac Studio 사용자 인증 프록시 (DEV 전용)
+    if (req.method === 'POST' && url.pathname === '/api/userAuth') {
+      const STUDIO_BASE = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || 'http://59.20.58.2:3333').replace(/\/$/, '');
+      try {
+        const body = await readJsonBody(req);
+        const name = String(body.name || '').trim();
+        const password = String(body.password || '').trim();
+        if (!name || !password) return sendJson(res, 400, { error: 'name, password 필수' });
+
+        const r = await fetch(`${STUDIO_BASE}/api/users/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, password }),
+          signal: AbortSignal.timeout(8000),
+        });
+        const data = await r.json();
+        if (!r.ok) return sendJson(res, 401, { error: data.error || '인증 실패' });
+
+        const exp = Math.floor((Date.now() + 30 * 86400000) / 1000);
+        const token = sign({ exp, role: 'admin', id: name }, process.env.AUTH_SECRET || 'secret');
+        return sendJson(res, 200, {
+          token,
+          exp,
+          role: 'admin',
+          name: data.name,
+          mustChange: !!data.mustChange,
+        });
+      } catch (e) {
+        console.error('[ktl-calculator-web] userAuth 오류:', e instanceof Error ? e.message : e);
+        return sendJson(res, 503, { error: `Mac Studio 연결 실패: ${e instanceof Error ? e.message : e}` });
+      }
+    }
+
+    // /api/changePassword — Mac Studio 비밀번호 변경 프록시 (DEV 전용)
+    if (req.method === 'POST' && url.pathname === '/api/changePassword') {
+      const STUDIO_BASE = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || 'http://59.20.58.2:3333').replace(/\/$/, '');
+      try {
+        const body = await readJsonBody(req);
+        const { name, currentPassword, newPassword } = body;
+        if (!name || !currentPassword || !newPassword)
+          return sendJson(res, 400, { error: 'name, currentPassword, newPassword 필수' });
+        if (newPassword.length < 4)
+          return sendJson(res, 400, { error: '새 비밀번호는 4자 이상이어야 합니다' });
+
+        const r = await fetch(`${STUDIO_BASE}/api/users/change-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, currentPassword, newPassword }),
+          signal: AbortSignal.timeout(8000),
+        });
+        const data = await r.json();
+        return sendJson(res, r.status, data);
+      } catch (e) {
+        console.error('[ktl-calculator-web] changePassword 오류:', e instanceof Error ? e.message : e);
+        return sendJson(res, 503, { error: `Mac Studio 연결 실패: ${e instanceof Error ? e.message : e}` });
+      }
+    }
+
     return sendJson(res, 404, { error: '존재하지 않는 API 경로입니다.' });
   } catch (e) {
     // 내부 스택은 노출하지 않고 검증 메시지만 전달한다.

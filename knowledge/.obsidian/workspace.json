@@ -11,10 +11,14 @@
             "id": "f0569fba17afd26d",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "그래프 뷰"
+              "type": "markdown",
+              "state": {
+                "file": "법령/법령-환경측정기기고시.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "법령-환경측정기기고시"
             }
           }
         ]
@@ -147,8 +151,9 @@
       "bases:새 베이스 생성하기": false
     }
   },
-  "active": "9d65714895d17178",
+  "active": "f0569fba17afd26d",
   "lastOpenFiles": [
+    "정도검사/정도검사-항목별기준.md",
     "search-index.json",
     "embeddings.json",
     "공통/용어-관계도.md",
@@ -175,7 +180,6 @@
     "먹는물공정시험기준/ES05000-총칙-정도보증.md",
     "먹는물공정시험기준",
     "공통/KTL-서비스안내.md",
-    "정도검사/정도검사-항목별기준.md",
     "법령/법령-물환경보전법-TMS조항.md",
     "법령/법령-고시-별표3-수질정도검사점검표.md",
     "법령/법령-고시-별표7의1-정도검사주기-2013년이전.md",
@@ -183,7 +187,6 @@
     "성능시험/성능시험-항목별기준.md.tmp.3092.92b00e3f7b95",
     "공통",
     "법령",
-    "표준용액",
-    "형식승인"
+    "표준용액"
   ]
 }
