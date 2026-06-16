@@ -18,7 +18,10 @@ let isSuperAdminUser = false; // 서버 통신 결과로 갱신됨
 function isSuperAdmin() { return isSuperAdminUser; }
 // 토큰의 발급자 식별 = issuer 만 사용 (label 은 메모라 소유자 매칭 금지 — 서버와 일관).
 // 발급자 없는 레거시 토큰은 issuer='' → 비-슈퍼관리자엔 비노출(슈퍼관리자만 전체조회).
-function tokenIssuer(t) { return t.issuer || ''; }
+function tokenIssuer(t) {
+  if (t.label && STAFF_NAMES.includes(t.label)) return t.label;
+  return t.issuer || '';
+}
 
 function loadCopied() {
   try { return JSON.parse(localStorage.getItem(COPIED_KEY) || '{}'); } catch { return {}; }
@@ -30,7 +33,7 @@ function markCopied(tokenId) {
 }
 function isCopied(tokenId) { return !!loadCopied()[tokenId]; }
 
-function getActiveTab() { return localStorage.getItem(TAB_KEY) || '전체'; }
+function getActiveTab() { return localStorage.getItem(TAB_KEY) || getAdminUser(); }
 function setActiveTab(name) { localStorage.setItem(TAB_KEY, name); }
 
 // 비-슈퍼 관리자는 본인 이름으로 고정. 슈퍼관리자만 드롭다운으로 전환 가능.
@@ -294,19 +297,16 @@ function decodeTokenUserId(inviteToken) {
 function renderStaffTabs() {
   const canViewAll = isSuperAdmin();
   const user = getAdminUser();
-  const fullAdmin = canViewAll && user === '김종진';
-  if (!fullAdmin) setActiveTab(user);
+  if (!canViewAll) setActiveTab(user);
   let active = getActiveTab();
-  // '전체' 탭 없음 — 김종진 탭이 전체 역할
-  if (fullAdmin && (active === '전체' || !STAFF_NAMES.includes(active))) {
-    active = '김종진';
-    setActiveTab('김종진');
+  const allowedTabs = canViewAll ? ['전체', ...STAFF_NAMES] : [user];
+  if (!allowedTabs.includes(active)) {
+    active = user;
+    setActiveTab(user);
   }
-  const tabs = canViewAll ? STAFF_NAMES : [user];
-  const tabsHtml = tabs.map(name => {
+  const tabsHtml = allowedTabs.map(name => {
     const isActive = name === active;
-    // 김종진 탭 = 전체 카운트
-    const count = (fullAdmin && name === '김종진')
+    const count = (name === '전체')
       ? loadTokenList().length
       : loadTokenList().filter(t => tokenIssuer(t) === name).length;
     return `<button class="staff-tab${isActive ? ' staff-tab--active' : ''}" data-tab="${name}">
@@ -336,9 +336,9 @@ function renderStaffTabs() {
 function renderTokenTable(chatLimits, chatUsage) {
   const canViewAll = isSuperAdmin();
   const user = getAdminUser();
-  const activeTab = (canViewAll && user === '김종진') ? getActiveTab() : user;
+  const activeTab = canViewAll ? getActiveTab() : user;
   const allList = loadTokenList();
-  const list = (canViewAll && user === '김종진' && activeTab === '김종진')
+  const list = (canViewAll && activeTab === '전체')
     ? allList
     : allList.filter(t => tokenIssuer(t) === activeTab);
   const defaultLimit = chatLimits?.default ?? 50;
@@ -988,21 +988,20 @@ function updateCountBadge() {
 function refreshTokenList() {
   const canViewAll = isSuperAdmin();
   const user = getAdminUser();
-  const fullAdmin = canViewAll && user === '김종진';
-  if (!fullAdmin) setActiveTab(user);
+  if (!canViewAll) setActiveTab(user);
   let active = getActiveTab();
-  if (fullAdmin && (active === '전체' || !STAFF_NAMES.includes(active))) {
-    active = '김종진';
-    setActiveTab('김종진');
+  const allowedTabs = canViewAll ? ['전체', ...STAFF_NAMES] : [user];
+  if (!allowedTabs.includes(active)) {
+    active = user;
+    setActiveTab(user);
   }
-  const tabs = canViewAll ? STAFF_NAMES : [user];
 
   // 탭 버튼만 갱신 (컨테이너 유지 → 이벤트 리스너 보존)
   const tabsDiv = document.getElementById('staff-tabs');
   if (tabsDiv) {
-    tabsDiv.innerHTML = tabs.map(name => {
+    tabsDiv.innerHTML = allowedTabs.map(name => {
       const isActive = name === active;
-      const count = (fullAdmin && name === '김종진')
+      const count = (name === '전체')
         ? loadTokenList().length
         : loadTokenList().filter(t => tokenIssuer(t) === name).length;
       return `<button class="staff-tab${isActive ? ' staff-tab--active' : ''}" data-tab="${name}">

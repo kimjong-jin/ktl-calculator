@@ -428,12 +428,13 @@ function init(role) {
     applyTheme(next);
   });
 
-  // 비밀번호 변경 버튼 연동 (일반 사용자/임시 토큰 접속 시 숨김, name 매칭 시 활성화)
+  // 비밀번호 변경 버튼 연동 (일반 사용자/임시 토큰 접속 시 숨김, 관리자 로그인 시에만 본인 이름으로 활성화)
   const token = getStoredToken();
-  const userName = tokenName(token) || localStorage.getItem('ktl-calc-username') || '';
+  const isStaff = tokenRole(token) === 'admin';
+  const userName = tokenName(token);
   const pwcTrigger = $('pwc-btn-trigger');
   if (pwcTrigger) {
-    if (userName) {
+    if (isStaff && userName) {
       pwcTrigger.removeAttribute('hidden');
       pwcTrigger.addEventListener('click', () => {
         setupPwChangeModal(userName, () => {
