@@ -29,7 +29,9 @@ function requireAdmin(req) {
 }
 
 // 전체 토큰을 조회할 수 있는 슈퍼관리자(소유자). 환경변수로 추가 가능.
-const SUPER_ADMINS = (process.env.SUPER_ADMIN_IDS || '')
+// 기본값 '김종진' 유지 — SUPER_ADMIN_IDS env 미설정 시 슈퍼관리자 잠금 방지.
+// env로 운영하려면 Vercel에 SUPER_ADMIN_IDS 설정 후 이 기본값 제거 가능.
+const SUPER_ADMINS = (process.env.SUPER_ADMIN_IDS || '김종진')
   .split(',').map(s => s.trim()).filter(Boolean);
 // id가 명시적으로 존재하고 SUPER_ADMINS 배열에 포함된 경우에만 슈퍼관리자로 인정합니다.
 const isSuperAdmin = (id) => {
