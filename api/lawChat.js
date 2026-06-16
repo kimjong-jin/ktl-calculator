@@ -105,6 +105,32 @@ async function readBody(req) {
   });
 }
 
+// 관리자 스킬을 Mac Studio(영구 저장)에서 서버사이드로 읽어 적용 — 모든 사용자 챗에 반영.
+// 매 요청 호출을 피하려고 60초 메모리 캐시. 실패 시 마지막 캐시 유지(챗은 계속 동작).
+const _MAC = process.env.PHOTO_STORAGE_URL || process.env.MAC_STUDIO_URL || "http://59.20.58.2:3333";
+const _MAC_KEY = process.env.MAC_ADMIN_KEY || "";
+let _skillCache = { at: 0, text: "" };
+async function fetchMacStudioSkills() {
+  if (!_MAC_KEY) return "";
+  const now = Date.now();
+  if (now - _skillCache.at < 60000) return _skillCache.text;
+  try {
+    const r = await fetch(`${_MAC}/api/calc-skills`, {
+      headers: { "X-Calc-Key": _MAC_KEY }, signal: AbortSignal.timeout(4000),
+    });
+    if (r.ok) {
+      const skills = await r.json();
+      const text = (Array.isArray(skills) ? skills : [])
+        .filter(s => s && s.active)
+        .map(s => `[스킬: ${s.title} — 작성: ${s.author}]\n${s.content}`)
+        .join("\n\n---\n\n");
+      _skillCache = { at: now, text };
+      return text;
+    }
+  } catch { /* 실패 시 캐시 사용 */ }
+  return _skillCache.text;
+}
+
 export default async function handler(req, res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -150,7 +176,8 @@ export default async function handler(req, res) {
   // 관리자 등록 전문 지식 — 서버 env var(영구) + 요청 페이로드(세션)
   const envSkill = process.env.ADMIN_SKILL_CONTEXT || "";
   const reqSkill = typeof body?.adminSkill === "string" ? body.adminSkill.slice(0, 4000) : "";
-  const combinedSkill = [envSkill, reqSkill].filter(Boolean).join("\n\n---\n\n");
+  const serverSkill = await fetchMacStudioSkills();   // Mac Studio 저장 스킬(서버 적용)
+  const combinedSkill = [envSkill, serverSkill, reqSkill].filter(Boolean).join("\n\n---\n\n");
   const systemPrompt = combinedSkill
     ? SYSTEM + `\n\n[관리자 등록 전문 지식 — 반드시 우선 적용]\n${combinedSkill}`
     : SYSTEM;
@@ -216,7 +243,7 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: `AI 오류: ${msg}` });
     }
     const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성하지 못했습니다.";
-    const skillActive = !!(envSkill || reqSkill);
+    const skillActive = !!combinedSkill;
     const usage = data?.usageMetadata;
     const tokens = usage ? {
       input: usage.promptTokenCount ?? 0,
