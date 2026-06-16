@@ -33,11 +33,14 @@ function requireAdmin(req) {
 //   Vercel 환경변수 SUPER_ADMIN_IDS 에 해당 id 를 명시(쉼표구분).
 const SUPER_ADMINS = (process.env.SUPER_ADMIN_IDS || '')
   .split(',').map(s => s.trim()).filter(Boolean);
-// 슈퍼관리자 = '관리자로 접속'했을 때만 (마스터 ADMIN_PASSWORD 로그인 → 토큰에 id 없음).
-//  - id 없음(마스터 관리자 접속) → 슈퍼관리자(전체 조회)
-//  - id 있음(개인 staff: 김종진 등) → 본인 발급분만 (SUPER_ADMIN_IDS env 에 명시된 경우만 예외)
+// 슈퍼관리자 = '관리자로 접속'했을 때만 (전체 조회).
+//  - id 없음(마스터 ADMIN_PASSWORD 로그인) → 슈퍼관리자
+//  - id == '관리자' 계정(또는 ADMIN_ID env) → 슈퍼관리자
+//  - 개인 staff(김종진 등) → 본인 발급분만 (SUPER_ADMIN_IDS env 명시 시만 예외)
+const ADMIN_ID = (process.env.ADMIN_ID || '').trim();
 const isSuperAdmin = (id) => {
   if (!id) return true;
+  if (id === '관리자' || (ADMIN_ID && id === ADMIN_ID)) return true;
   return SUPER_ADMINS.includes(id);
 };
 
