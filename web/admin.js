@@ -129,7 +129,26 @@ function loadSkills() {
   try { return JSON.parse(localStorage.getItem(SKILLS_KEY) || '[]'); } catch { return []; }
 }
 function saveSkills(list) {
-  try { localStorage.setItem(SKILLS_KEY, JSON.stringify(list)); } catch {}
+  try { localStorage.setItem(SKILLS_KEY, JSON.stringify(list)); } catch {}  // 로컬 캐시
+  // Mac Studio 서버에 영속 저장 (모든 기기·관리자 공유). 실패해도 캐시 유지.
+  if (adminToken) {
+    fetch('/api/manageSkills', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ skills: list }),
+    }).catch(() => {});
+  }
+}
+// 서버(Mac Studio)에서 스킬 목록을 받아 localStorage 캐시 갱신
+async function syncSkillsFromServer() {
+  if (!adminToken) return;
+  try {
+    const res = await fetch('/api/manageSkills', { headers: { Authorization: `Bearer ${adminToken}` } });
+    if (res.ok) {
+      const skills = await res.json();
+      if (Array.isArray(skills)) { try { localStorage.setItem(SKILLS_KEY, JSON.stringify(skills)); } catch {} }
+    }
+  } catch {}
 }
 function genId() {
   return 'sk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -165,6 +184,7 @@ function daysLeft(expiresAt) {
 // ── 초기화 ──────────────────────────────────────────────────
 export async function initAdmin(token) {
   adminToken = token;
+  syncSkillsFromServer();   // Mac Studio 스킬을 localStorage 캐시로 동기화(비차단)
   currentAdminId = decodeTokenUserId(token) || '';   // 본인 이름 (userAuth 로그인 시)
   // 만료된 토큰 localStorage에서 자동 정리
   let cleaned = loadTokenList().filter(t => !isExpired(t.expiresAt));
