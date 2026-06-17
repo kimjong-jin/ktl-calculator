@@ -141,12 +141,39 @@ async function saveToServer() {
     const time = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'});
     setSaveStatus(`✅ 서버 저장됨 ${time} (만료: ${exp})`);
     try { localStorage.setItem('ktl-calc-last-save', JSON.stringify({receiptNo:calcReceiptNo,userName:calcUserName,at:Date.now()})); } catch {}
+    try { localStorage.removeItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`); } catch {}  // 성공 → 대기분 제거
   } catch {
-    // 오프라인 폴백: localStorage에 저장
-    try { localStorage.setItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`, JSON.stringify(bundle)); } catch {}
-    setSaveStatus('💾 로컬 저장됨 (서버 연결 실패)', 'warn');
+    // 오프라인 폴백: 서버 미도달 → 이 PC에만 임시 저장 + 재전송 대기열에 메타와 함께 보관
+    try {
+      localStorage.setItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`,
+        JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, siteName: calcSiteName, bundle, at: Date.now() }));
+    } catch {}
+    // ⚠️ 성공처럼 보이지 않게 빨간 경고로 (고객 착각 방지)
+    setSaveStatus('⚠️ 서버 저장 실패 — 인터넷 확인 후 [저장] 다시 눌러주세요 (현재 이 PC에만 임시 저장됨)', 'error');
   }
 }
+
+// 오프라인 중 저장 실패분을 서버에 자동 재전송 (재연결/로드 시). 성공하면 대기분 삭제.
+async function retryOfflineSaves() {
+  const keys = [];
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('ktl-calc-offline-')) keys.push(k); } } catch {}
+  for (const k of keys) {
+    let p; try { p = JSON.parse(localStorage.getItem(k)); } catch { continue; }
+    if (!p || !p.receiptNo || !p.userName || !p.bundle) continue;   // 구형식(메타 없음)은 자동재전송 대상 아님
+    try {
+      const res = await fetch('/api/calcData', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiptNo: p.receiptNo, userName: p.userName, siteName: p.siteName || '', data: p.bundle, ttlDays: 10 }),
+      });
+      if (res.ok) {
+        try { localStorage.removeItem(k); } catch {}
+        if (p.receiptNo === calcReceiptNo && p.userName === calcUserName)
+          setSaveStatus('✅ 미전송분 서버 자동 저장 완료', 'ok');
+      }
+    } catch { /* 여전히 오프라인 → 다음 기회에 */ }
+  }
+}
+if (typeof window !== 'undefined') window.addEventListener('online', retryOfflineSaves);
 
 function isAdmin() {
   try {
@@ -200,8 +227,14 @@ async function loadFromServer() {
       // 오프라인 폴백 확인
       const local = localStorage.getItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`);
       if (local) {
-        restoreBundle(JSON.parse(local));
-        setSaveStatus('💾 로컬 데이터 복원됨 (서버에 없음)', 'warn');
+        let parsed; try { parsed = JSON.parse(local); } catch { parsed = null; }
+        const b = parsed && (parsed.bundle || (parsed.tabs ? parsed : null));   // 신/구 포맷 모두
+        if (b) {
+          restoreBundle(b);
+          setSaveStatus('⚠️ 이 PC의 임시 데이터 복원 — 아직 서버 미저장! [저장] 눌러주세요', 'error');
+        } else {
+          setSaveStatus('❌ 저장된 데이터가 없습니다.', 'error');
+        }
       } else {
         setSaveStatus('❌ 저장된 데이터가 없습니다.', 'error');
       }
@@ -2017,6 +2050,7 @@ function init() {
     if (!isPrimaryUser && calcReceiptNo) loadFromServer();   // 확인용 전환 시 즉시 최신 반영
   });
   applyAccessMode();   // 초기 권한 적용
+  retryOfflineSaves();   // 미전송(오프라인) 저장분이 있으면 서버에 자동 재전송
   document.getElementById('pv-form-area')?.addEventListener('input', e => {
     scheduleAutoSave();
   });
