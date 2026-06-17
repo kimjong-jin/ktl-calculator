@@ -30,7 +30,7 @@ async function tryInviteLogin(onSuccess) {
       storeToken(data.token);
       window.history.replaceState(null, '', location.pathname);
       if (data.applicantName) {
-        showNameConfirmModal(data.applicantName, data.receiptNo || '', data.siteName || '', () => onSuccess(data.role || 'user'));
+        showNameConfirmModal(data.applicantName, data.receiptNo || '', data.siteName || '', () => onSuccess(data.role || 'user'), data.token);
       } else {
         onSuccess(data.role || 'user');
       }
@@ -140,7 +140,7 @@ function setupPwChangeModal(userName, onDone, isForce = true) {
   new2El.onkeydown = e => { if (e.key === 'Enter') submit(); };
 }
 
-function showNameConfirmModal(applicantName, receiptNo, siteName, onConfirmed) {
+function showNameConfirmModal(applicantName, receiptNo, siteName, onConfirmed, sessionToken) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
 
@@ -224,6 +224,15 @@ function showNameConfirmModal(applicantName, receiptNo, siteName, onConfirmed) {
         siteEl.dispatchEvent(new Event('input'));
       }
     } catch { /* 무시 */ }
+    // 이름이 바뀌었으면 서버(Blob 토큰 단일출처)에 영속화 → 다음 로그인 + 관리자 패널 모두 반영.
+    // 실패(오프라인) 시 localStorage 캐시는 유지(즉시 표시).
+    if (sessionToken && name && name !== applicantName) {
+      fetch('/api/updateName', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({ name }),
+      }).catch(() => {});
+    }
     document.body.removeChild(overlay);
     onConfirmed(name);
   };
@@ -296,7 +305,7 @@ function setupAuthGate(onSuccess) {
       if (!res.ok) { showAuthError(data.error || '비밀번호가 올바르지 않습니다.'); return; }
       storeToken(data.token);
       if (data.applicantName) {
-        showNameConfirmModal(data.applicantName, data.receiptNo || '', data.siteName || '', () => onSuccess(data.role || 'user'));
+        showNameConfirmModal(data.applicantName, data.receiptNo || '', data.siteName || '', () => onSuccess(data.role || 'user'), data.token);
       } else {
         onSuccess(data.role || 'user');
       }

@@ -166,6 +166,16 @@ export async function clearExpiredTokens(issuer) {
   return removed;
 }
 
+/** 토큰의 신청자명(유지관리담당자) 갱신. 사용자가 이름 정정 시 서버 영속화. */
+export async function updateApplicantName(tokenId, applicantName) {
+  const map = await readCodes();
+  const e = map[tokenId];
+  if (!e) return false;
+  e.applicantName = String(applicantName || '').slice(0, 40);
+  await writeCodes(map);
+  return true;
+}
+
 /** 접수번호로 토큰 즉시 무효화 (로컬 삭제 시 연동) */
 export async function revokeTokenByReceiptNo(receiptNo) {
   if (!receiptNo) return false;
