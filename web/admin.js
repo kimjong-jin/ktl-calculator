@@ -114,16 +114,31 @@ function getChatMode() {
   // 구 버전 마이그레이션 (ktl-chat-enabled)
   return localStorage.getItem('ktl-chat-enabled') === 'true' ? 'active' : 'maintenance';
 }
+const CHAT_PENDING_KEY = 'ktl-chat-mode-pending';
+// 서버에 모드 저장. 실패(오프라인·서버불가) 시 캐시(localStorage)에 보류 → 온라인되면 재시도.
+function pushChatModeToServer(mode) {
+  if (!adminToken) { try { localStorage.setItem(CHAT_PENDING_KEY, mode); } catch {} return; }
+  const markPending = () => { try { localStorage.setItem(CHAT_PENDING_KEY, mode); } catch {} };
+  fetch('/api/chatMode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({ mode }),
+  }).then(r => {
+    if (r.ok) { try { localStorage.removeItem(CHAT_PENDING_KEY); } catch {} }
+    else markPending();
+  }).catch(markPending);   // 오프라인 → 캐시에 잠시 보관
+}
+// 보류된 모드가 있으면 서버에 재동기화 (initAdmin·online 이벤트에서 호출)
+function syncPendingChatMode() {
+  let p = null;
+  try { p = localStorage.getItem(CHAT_PENDING_KEY); } catch {}
+  if (p && adminToken) pushChatModeToServer(p);
+}
+if (typeof window !== 'undefined') window.addEventListener('online', syncPendingChatMode);
+
 function setChatMode(mode) {
-  localStorage.setItem(CHAT_KEY, mode);
-  // 서버(Mac Studio)에 저장 → 모든 사용자에 반영 (단일 출처)
-  if (adminToken) {
-    fetch('/api/chatMode', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify({ mode }),
-    }).catch(() => {});
-  }
+  localStorage.setItem(CHAT_KEY, mode);   // 캐시(즉시 반영용)
+  pushChatModeToServer(mode);             // 서버 저장(실패 시 보류·재시도)
   // 즉시 FAB 반영 (role 확인)
   const role = document.body.dataset.role || 'user';
   const fab = document.getElementById('chat-fab');
@@ -193,6 +208,7 @@ function daysLeft(expiresAt) {
 export async function initAdmin(token) {
   adminToken = token;
   syncSkillsFromServer();   // Mac Studio 스킬을 localStorage 캐시로 동기화(비차단)
+  syncPendingChatMode();    // 오프라인 중 보류된 채팅모드 변경을 서버에 재동기화
   currentAdminId = decodeTokenUserId(token) || '';   // 본인 이름 (userAuth 로그인 시)
   // 만료된 토큰 localStorage에서 자동 정리
   let cleaned = loadTokenList().filter(t => !isExpired(t.expiresAt));

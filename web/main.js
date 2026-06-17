@@ -374,12 +374,15 @@ function closeChat() {
 async function applyChatModeFromServer(role) {
   const fab = $('chat-fab');
   if (!fab) return;
-  let mode = 'maintenance';
+  // 오프라인/서버불가 시 마지막으로 받은 캐시값(localStorage)을 사용. 성공했을 때만 캐시 갱신.
+  let mode = localStorage.getItem('ktl-chat-mode') || 'maintenance';
   try {
     const r = await fetch('/api/chatMode');
-    if (r.ok) { const d = await r.json(); if (d && d.mode) mode = d.mode; }
-  } catch {}
-  try { localStorage.setItem('ktl-chat-mode', mode); } catch {}
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.mode) { mode = d.mode; try { localStorage.setItem('ktl-chat-mode', mode); } catch {} }
+    }
+  } catch { /* 오프라인 → 캐시값 유지 */ }
   fab.hidden = !(mode === 'active' || (mode === 'maintenance' && role === 'admin'));
 }
 
