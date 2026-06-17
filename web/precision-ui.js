@@ -101,9 +101,14 @@ function bundleState() {
 }
 
 function restoreBundle(bundle) {
+  // 보던 탭 유지: 현재 활성 탭의 라벨(예: TN-2)이 새 목록에도 있으면 그 탭을 유지.
+  // (10초 자동 불러오기 때 주 사용자의 활성 탭으로 화면이 튀지 않도록)
+  const prevTab = tabs.find(t => t.id === activeId);
+  const prevLabel = prevTab ? prevTab.label : null;
   tabs.forEach(t => { try { localStorage.removeItem(`ktl-pv-${t.id}`); } catch {} });
   tabs = (bundle.tabs || []);
-  activeId = bundle.activeId || (tabs.length ? tabs[0].id : null);
+  const keep = prevLabel ? tabs.find(t => t.label === prevLabel) : null;
+  activeId = keep ? keep.id : (bundle.activeId || (tabs.length ? tabs[0].id : null));
   Object.entries(bundle.fields || {}).forEach(([id, f]) => {
     try { localStorage.setItem(`ktl-pv-${id}`, JSON.stringify(f)); } catch {}
   });
