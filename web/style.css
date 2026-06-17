@@ -782,6 +782,12 @@ select.field__control {
   font-size: 14px; color: var(--text-dim); margin: 0 0 20px; line-height: 1.6;
 }
 .auth-btn { width: 100%; margin-top: 10px; }
+.auth-toggle-link {
+  display: block; width: 100%; margin-top: 14px; background: none; border: none;
+  color: var(--accent-base); font-size: 13px; font-weight: 500; text-decoration: underline;
+  cursor: pointer; padding: 4px; transition: color .15s;
+}
+.auth-toggle-link:hover { color: var(--accent-deep); }
 .auth-err { margin-top: 10px; text-align: left; }
 
 /* ── 서비스 탭 ──────────────────────────────────────────────────────────── */

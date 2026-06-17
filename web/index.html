@@ -13,10 +13,11 @@
       <div class="auth-card">
         <div class="auth-logo">KTL</div>
         <h1 class="auth-title">KTL 정도검사 시스템</h1>
-        <p class="auth-sub">아이디와 비밀번호를 입력하세요.</p>
-        <input id="auth-id" class="field__control" type="text" placeholder="아이디" autocomplete="username" style="margin-bottom:8px" />
-        <input id="auth-pass" class="field__control" type="password" placeholder="비밀번호" autocomplete="current-password" />
+        <p class="auth-sub" id="auth-sub">접속 코드 또는 비밀번호를 입력하세요.</p>
+        <input id="auth-id" class="field__control" type="text" placeholder="아이디" autocomplete="username" style="display:none; margin-bottom:8px;" />
+        <input id="auth-pass" class="field__control" type="password" placeholder="접속 코드 또는 비밀번호" autocomplete="current-password" />
         <button id="auth-btn" class="btn btn--primary auth-btn" type="button">접속하기</button>
+        <button id="auth-admin-toggle" type="button" class="auth-toggle-link">관리자 로그인 (아이디 입력)</button>
         <p id="auth-err" class="error auth-err" hidden></p>
       </div>
     </div>

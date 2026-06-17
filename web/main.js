@@ -254,14 +254,42 @@ function setupAuthGate(onSuccess) {
   const idEl   = $('auth-id');
   const passEl = $('auth-pass');
   const btn    = $('auth-btn');
+  const toggleEl = $('auth-admin-toggle');
   if (!passEl || !btn) return;
-  idEl ? idEl.focus() : passEl.focus();
+
+  if (idEl && idEl.style.display !== 'none') {
+    idEl.focus();
+  } else {
+    passEl.focus();
+  }
+
+  if (toggleEl) {
+    toggleEl.addEventListener('click', () => {
+      showAuthError('');
+      if (!idEl) return;
+      if (idEl.style.display === 'none') {
+        idEl.style.display = 'block';
+        idEl.value = '';
+        const authSub = $('auth-sub');
+        if (authSub) authSub.textContent = '아이디와 비밀번호를 입력하세요.';
+        toggleEl.textContent = '고객 로그인 (접속 코드만 입력)';
+        idEl.focus();
+      } else {
+        idEl.style.display = 'none';
+        idEl.value = '';
+        const authSub = $('auth-sub');
+        if (authSub) authSub.textContent = '접속 코드 또는 비밀번호를 입력하세요.';
+        toggleEl.textContent = '관리자 로그인 (아이디 입력)';
+        passEl.focus();
+      }
+    });
+  }
 
   async function attempt() {
     btn.disabled = true;
     btn.textContent = '확인 중…';
     showAuthError('');
-    const name = idEl?.value.trim() || '';
+    const name = (idEl && idEl.style.display !== 'none') ? idEl.value.trim() : '';
     const password = passEl.value;
 
     try {
