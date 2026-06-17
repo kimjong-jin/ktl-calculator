@@ -300,7 +300,7 @@ function applyAccessMode() {
   clearInterval(primaryTimer); clearInterval(viewerTimer);
   if (primary && !isAdmin()) {
     primaryTimer = setInterval(() => { if (calcReceiptNo && calcUserName) saveToServer(); }, 60_000);  // 쓰기: 1분 자동저장
-  } else if (!primary) {
+  } else if (!primary && !isAdmin()) {
     viewerTimer = setInterval(() => { if (calcReceiptNo) loadFromServer(); }, 10_000);                 // 읽기: 10초 자동 불러오기
   }
   const btn = document.getElementById('pv-primary-btn');
