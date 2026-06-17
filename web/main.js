@@ -486,6 +486,9 @@ function applyTheme(theme) {
 // ── 초기화 ─────────────────────────────────────────────────────────────────
 
 function init(role) {
+  if (typeof window.reinitCalculator === 'function') {
+    window.reinitCalculator();
+  }
   if (role === 'admin' && typeof window.resetCalculatorForAdmin === 'function') {
     window.resetCalculatorForAdmin();
   }
