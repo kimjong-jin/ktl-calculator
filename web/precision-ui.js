@@ -976,16 +976,25 @@ function updateInlineHints(code) {
 function updateLinSummary(range, s1ForWater) {
   const el = document.getElementById('pv_lin_summary');
   if (!el) return;
+  if (!range) { el.className = 'pv-lin-summary'; el.innerHTML = ''; return; }
   const ref = (s1ForWater > 0) ? s1ForWater / 2 : range * 0.45;
+  const f = v => Number(v).toFixed(2);
+  const lo = ref * 0.95, hi = ref * 1.05;
   const vals = [gv('m1'), gv('m2'), gv('m3')].filter(v => !isNaN(v));
-  if (!range || vals.length === 0) { el.className = 'pv-lin-summary'; el.innerHTML = ''; return; }
+
+  // 측정범위만 들어와도 기준값·목표는 바로 표시 (range로 계산됨). 측정값 들어오면 평균·적합 추가.
+  if (vals.length === 0) {
+    el.className = 'pv-lin-summary';
+    el.innerHTML =
+      `<span class="pv-lin-summary__label">기준값 ${f(ref)}</span>` +
+      `<span class="pv-lin-summary__sep">·</span>` +
+      `<span class="pv-lin-summary__range">목표 ${f(lo)} ~ ${f(hi)}</span>`;
+    return;
+  }
 
   const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
   const error = Math.abs((avg - ref) / ref * 100);
   const pass = error <= 5.0;
-  const f = v => Number(v).toFixed(2);
-  const lo = ref * 0.95, hi = ref * 1.05;
-
   el.className = 'pv-lin-summary pv-lin-summary--' + (pass ? 'ok' : 'ng');
   el.innerHTML =
     `<span class="pv-lin-summary__label">평균 ${f(avg)}</span>` +
