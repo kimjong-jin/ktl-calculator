@@ -178,10 +178,12 @@ export async function clearExpiredTokens(issuer) {
 export async function updateApplicantName(tokenId, applicantName) {
   const map = await readCodes();
   const e = map[tokenId];
-  if (!e) return false;
+  if (!e) return null;
+  const oldName = e.applicantName || '';
+  const receiptNo = e.receiptNo || '';
   e.applicantName = String(applicantName || '').slice(0, 40);
   await writeCodes(map);
-  return true;
+  return { oldName, receiptNo };
 }
 
 /** 접수번호로 토큰 즉시 무효화 (로컬 삭제 시 연동) */

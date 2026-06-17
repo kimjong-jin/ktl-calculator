@@ -250,9 +250,9 @@ export async function initAdmin(token) {
           // id를 Blob tokenId로 통일 (다음 sync부터 정확히 매칭되도록)
           if (existing.id !== tokenId) { existing.id = tokenId; changed = true; }
           if (!existing.pw && e.pw)               { existing.pw = e.pw;               changed = true; }
-          if (!existing.receiptNo && e.receiptNo) { existing.receiptNo = e.receiptNo; changed = true; }
-          if (!existing.siteName && e.siteName)   { existing.siteName  = e.siteName;  changed = true; }
-          if (!existing.applicantName && e.applicantName) { existing.applicantName = e.applicantName; changed = true; }
+          if (e.receiptNo && existing.receiptNo !== e.receiptNo) { existing.receiptNo = e.receiptNo; changed = true; }
+          if (e.siteName && existing.siteName !== e.siteName)   { existing.siteName  = e.siteName;  changed = true; }
+          if (e.applicantName && existing.applicantName !== e.applicantName) { existing.applicantName = e.applicantName; changed = true; }
           if (!existing.label && e.label)         { existing.label = e.label; changed = true; }
           if (!existing.issuer && e.issuer)       { existing.issuer = e.issuer; changed = true; }
           if (!existing.createdAt) { existing.createdAt = createdAt; existing.days = days; changed = true; }
@@ -754,8 +754,7 @@ function bindEvents(wrap, access) {
 
   // 새로고침
   document.getElementById('admin-refresh')?.addEventListener('click', () => {
-    wrap.innerHTML = '<p class="admin-loading">새로고침 중…</p>';
-    loadAndRender(wrap);
+    initAdmin(adminToken);
   });
 
   // 담당자 탭 클릭
@@ -887,6 +886,14 @@ function bindEvents(wrap, access) {
             body: JSON.stringify({ action: 'revoke_token', tokenId: tokenKey }),
           });
         } catch {}
+      }
+      if (entry && entry.receiptNo) {
+        // 삭제한 접수번호가 현재 계산기에 띄워져 있다면 화면도 강제 청소
+        const receiptEl = document.getElementById('pv-receipt-no');
+        const currentReceiptNo = receiptEl ? receiptEl.value.trim() : '';
+        if (currentReceiptNo === entry.receiptNo && typeof window.resetCalculatorForAdmin === 'function') {
+          window.resetCalculatorForAdmin();
+        }
       }
       removeFromList(delId);
       refreshTokenList();

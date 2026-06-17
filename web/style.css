@@ -1846,3 +1846,78 @@ select.field__control {
   }
 }
 
+/* ── 모바일 파라미터 탭 4개 정렬 ─────────────────────────────────── */
+@media (max-width: 600px) {
+  .pv-item-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4px !important;
+    width: 100% !important;
+  }
+  .pv-tab-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0 !important;
+    position: relative !important;
+    width: 100% !important;
+  }
+  .pv-item-tab {
+    flex: 1 !important;
+    padding: 6px 16px 6px 4px !important; /* 우측 삭제 버튼(x) 공간 확보를 위해 패딩 지정 */
+    font-size: 11px !important;
+    min-height: 32px !important;
+    border-radius: var(--r-sm) !important;
+    text-align: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative !important;
+    box-sizing: border-box;
+  }
+  /* 모바일에서 상태 도트(OK/FAIL) 위치를 왼쪽 위로 조정하여 삭제 버튼과 겹침 방지 */
+  .pv-item-tab[data-pass="ok"]::after {
+    left: 3px !important;
+    right: auto !important;
+    top: 3px !important;
+  }
+  .pv-item-tab[data-pass="bad"]::after {
+    left: 3px !important;
+    right: auto !important;
+    top: 3px !important;
+  }
+  .pv-tab-del {
+    position: absolute !important;
+    right: 2px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background: rgba(0,0,0,0.05) !important;
+    border-radius: 50% !important;
+    width: 14px !important;
+    height: 14px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    z-index: 2 !important;
+    border: none !important;
+  }
+  .pv-item-tab.is-active ~ .pv-tab-del {
+    background: rgba(255,255,255,0.2) !important;
+    color: #fff !important;
+  }
+  .pv-tab-del:hover {
+    background: var(--fail-bg) !important;
+    color: var(--fail) !important;
+  }
+  .pv-item-tab.is-active ~ .pv-tab-del:hover {
+    background: var(--fail) !important;
+    color: #fff !important;
+  }
+}
+
+
