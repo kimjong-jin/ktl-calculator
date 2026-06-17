@@ -2019,7 +2019,7 @@ function init() {
       <div class="pv-save-field">
         <label class="pv-save-label" for="pv-receipt-no">접수번호</label>
         <input id="pv-receipt-no" class="field__control pv-save-input" type="text"
-               placeholder="26-031078-01-1" value="${calcReceiptNo}" autocomplete="off" />
+               placeholder="26-031078-01" value="${calcReceiptNo}" autocomplete="off" />
       </div>
       <div class="pv-save-field">
         <label class="pv-save-label" for="pv-user-name">사용자</label>
