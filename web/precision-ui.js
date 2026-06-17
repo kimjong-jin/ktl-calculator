@@ -227,7 +227,7 @@ function scheduleAutoSave() {
 // ── 접속자 권한 모드 ────────────────────────────────────────
 // 주 사용자/관리자: 읽기·쓰기·저장·불러오기 + 10초 자동 저장.
 // 확인용(제2 접속자): 읽기·불러오기만(쓰기·저장 불가) + 10초 자동 불러오기.
-function isPrimary() { return isPrimaryUser || isAdmin(); }
+function isPrimary() { return isPrimaryUser; }   // 누구나 버튼 누르면 주 사용자(관리자 특례 없음)
 function applyAccessMode() {
   const primary = isPrimary();
   // 측정 입력칸 잠금(확인용은 쓰기 불가). 접수번호/사용자/현장명은 form-area 밖이라 불러오기용으로 유지.
@@ -247,9 +247,8 @@ function applyAccessMode() {
     btn.classList.toggle('pv-primary-on', primary);
     btn.textContent = primary ? '👑 주 사용자' : '👁 확인용';
     btn.title = primary
-      ? '쓰기·저장 가능 (10초 자동 저장)'
+      ? '쓰기·저장 가능 (10초 자동 저장) — 눌러서 확인용으로 전환'
       : '읽기·불러오기만 (10초 자동 불러오기) — 눌러서 주 사용자로 전환';
-    btn.disabled = isAdmin();   // 관리자는 항상 주 사용자(전환 불가)
   }
 }
 
@@ -2005,8 +2004,7 @@ function init() {
   document.getElementById('pv-save-btn')?.addEventListener('click', saveToServer);
   document.getElementById('pv-load-btn')?.addEventListener('click', loadFromServer);
   document.getElementById('pv-primary-btn')?.addEventListener('click', () => {
-    if (isAdmin()) return;                 // 관리자는 항상 주 사용자
-    isPrimaryUser = !isPrimaryUser;
+    isPrimaryUser = !isPrimaryUser;        // 누구나 토글 (누르면 주 사용자)
     try { localStorage.setItem('ktl-calc-primary', isPrimaryUser ? '1' : '0'); } catch {}
     applyAccessMode();
     if (!isPrimaryUser && calcReceiptNo) loadFromServer();   // 확인용 전환 시 즉시 최신 반영
