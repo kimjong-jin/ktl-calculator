@@ -244,7 +244,7 @@ function applyAccessMode() {
   }
   const btn = document.getElementById('pv-primary-btn');
   if (btn) {
-    btn.textContent = '👑 주 사용자';                  // 라벨 고정 — 항상 '주 사용자'
+    btn.textContent = primary ? '주사용자 종료' : '주사용자 전환';   // 동작 기준 라벨
     btn.classList.toggle('pv-primary-on', primary);
     btn.classList.toggle('btn--primary', primary);     // 활성: 채움 강조
     btn.classList.toggle('btn--ghost', !primary);      // 비활성: 흐림
@@ -1947,7 +1947,7 @@ function init() {
                placeholder="현장명" value="${calcSiteName}" autocomplete="off" />
       </div>
       <div class="pv-save-actions">
-        <button id="pv-primary-btn" class="btn btn--ghost btn--mini" type="button">👑 주 사용자</button>
+        <button id="pv-primary-btn" class="btn btn--ghost btn--mini" type="button">주사용자 전환</button>
         <button id="pv-load-btn" class="btn btn--ghost btn--mini" type="button">📂 불러오기</button>
         <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
       </div>
