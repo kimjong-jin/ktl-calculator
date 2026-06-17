@@ -116,6 +116,14 @@ function getChatMode() {
 }
 function setChatMode(mode) {
   localStorage.setItem(CHAT_KEY, mode);
+  // 서버(Mac Studio)에 저장 → 모든 사용자에 반영 (단일 출처)
+  if (adminToken) {
+    fetch('/api/chatMode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ mode }),
+    }).catch(() => {});
+  }
   // 즉시 FAB 반영 (role 확인)
   const role = document.body.dataset.role || 'user';
   const fab = document.getElementById('chat-fab');

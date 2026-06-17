@@ -370,14 +370,27 @@ function closeChat() {
   }, 280);
 }
 
+// 서버(/api/chatMode)에서 채팅 모드를 받아 FAB 표시 갱신. 실패 시 안전 기본(관리자만/숨김).
+async function applyChatModeFromServer(role) {
+  const fab = $('chat-fab');
+  if (!fab) return;
+  let mode = 'maintenance';
+  try {
+    const r = await fetch('/api/chatMode');
+    if (r.ok) { const d = await r.json(); if (d && d.mode) mode = d.mode; }
+  } catch {}
+  try { localStorage.setItem('ktl-chat-mode', mode); } catch {}
+  fab.hidden = !(mode === 'active' || (mode === 'maintenance' && role === 'admin'));
+}
+
 function initSvcTabs(role) {
   const fab = $('chat-fab');
-  // 관리자: 항상 표시 (테스트 목적)
-  // 일반 사용자: ktl-chat-enabled = 'true' 일 때만 표시
+  // 채팅 표시는 서버(/api/chatMode) 단일 출처로 결정 → admin 설정이 모든 사용자에 반영.
+  // active=전원 / maintenance=관리자만 / inactive=전원 숨김. 서버 응답 전까진 숨김(안전).
   if (fab) {
-    const mode = localStorage.getItem('ktl-chat-mode') || 'active';
-    fab.hidden = !(mode === 'active' || (mode === 'maintenance' && role === 'admin'));
     document.body.dataset.role = role; // setChatMode에서 FAB 즉시 반영에 사용
+    fab.hidden = true;
+    applyChatModeFromServer(role);
   }
 
   if (role === 'admin') {
