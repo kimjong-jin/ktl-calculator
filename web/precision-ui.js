@@ -244,11 +244,13 @@ function applyAccessMode() {
   }
   const btn = document.getElementById('pv-primary-btn');
   if (btn) {
+    btn.textContent = '👑 주 사용자';                  // 라벨 고정 — 항상 '주 사용자'
     btn.classList.toggle('pv-primary-on', primary);
-    btn.textContent = primary ? '👑 주 사용자' : '👁 확인용';
+    btn.classList.toggle('btn--primary', primary);     // 활성: 채움 강조
+    btn.classList.toggle('btn--ghost', !primary);      // 비활성: 흐림
     btn.title = primary
-      ? '쓰기·저장 가능 (10초 자동 저장) — 눌러서 확인용으로 전환'
-      : '읽기·불러오기만 (10초 자동 불러오기) — 눌러서 주 사용자로 전환';
+      ? '주 사용자 활성 — 쓰기·저장·10초 자동저장. 다시 누르면 해제(읽기 전용).'
+      : '읽기 전용 상태. 눌러서 주 사용자 활성화(쓰기·저장).';
   }
 }
 
@@ -1945,7 +1947,7 @@ function init() {
                placeholder="현장명" value="${calcSiteName}" autocomplete="off" />
       </div>
       <div class="pv-save-actions">
-        <button id="pv-primary-btn" class="btn btn--ghost btn--mini" type="button">👁 확인용</button>
+        <button id="pv-primary-btn" class="btn btn--ghost btn--mini" type="button">👑 주 사용자</button>
         <button id="pv-load-btn" class="btn btn--ghost btn--mini" type="button">📂 불러오기</button>
         <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
       </div>
