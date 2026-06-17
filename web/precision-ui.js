@@ -398,6 +398,53 @@ function parseSpokenNumber(raw) {
   if (!Number.isFinite(Number(s))) return null;
   return (neg ? '-' : '') + s;
 }
+
+// ── 🎙️ 음성 입력: 포커스된 칸 추적 + 헤더 마이크 핸들러 (모듈 1회 등록) ──
+// init() 재실행과 무관하게 동작하도록 document 전역 + 모듈 변수로 둔다.
+let lastVoiceTarget = null;
+let lastVoiceMode = null;   // 'number' | 'text'
+if (typeof document !== 'undefined') {
+  document.addEventListener('focusin', e => {
+    const el = e.target;
+    if (!el || el.tagName !== 'INPUT') return;
+    if (el.type === 'number' && el.closest('#pv-form-area')) {
+      lastVoiceTarget = el; lastVoiceMode = 'number';          // 측정값 → 숫자
+    } else if (el.id === 'pv-user-name' || el.id === 'pv-site-name') {
+      lastVoiceTarget = el; lastVoiceMode = 'text';            // 사용자/현장명 → 텍스트
+    }
+    // 접수번호(pv-receipt-no)는 형식 코드라 음성 제외
+  });
+}
+// chat.js 헤더 마이크가 호출. 포커스된 칸을 채우면 true. transcripts: 후보 배열|문자열.
+if (typeof window !== 'undefined') {
+  window.__pvVoiceFill = function(transcripts) {
+    const target = lastVoiceTarget;
+    if (!target || !document.body.contains(target)) return false;
+    const arr = Array.isArray(transcripts) ? transcripts : [transcripts];
+    let value = null;
+    if (lastVoiceMode === 'text') {
+      value = (arr[0] || '').trim().replace(/[.。·・\s]+$/, '').trim();   // 이름/현장명: 그대로
+      if (!value) return false;
+    } else {
+      const cands = [];
+      for (const tr of arr) {
+        const n = parseSpokenNumber(tr);
+        if (n !== null) cands.push({ n, hasDot: /[.,，．。·・]|점|쩜|콤마|포인트|point|dot/.test(tr) });
+      }
+      const dotted = cands.find(c => c.hasDot);   // 소수점 포함 후보 우선
+      value = dotted ? dotted.n : (cands[0] ? cands[0].n : null);
+      if (value === null) return false;
+    }
+    target.value = value;
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+    target.classList.add('pv-field-highlight');
+    setTimeout(() => target.classList.remove('pv-field-highlight'), 1000);
+    const lbl = (target.closest('label')?.textContent
+      || (target.id === 'pv-user-name' ? '사용자' : target.id === 'pv-site-name' ? '현장명' : '입력칸')).trim().slice(0, 12);
+    if (typeof setSaveStatus === 'function') setSaveStatus(`✅ 음성 입력: ${lbl} = ${value}`, 'ok');
+    return true;
+  };
+}
 function saveData(id) {
   const tab = tabs.find(t => t.id === id);
   if (!tab) return;
@@ -2210,55 +2257,7 @@ function init() {
     if (formArea) alignMeasureInputs(formArea);
   });
 
-  // ── 🎙️ 음성 숫자 입력 (상단 헤더 마이크 1개로 통합) ──────────────
-  // 입력칸을 누른 뒤 상단 🎙️ 마이크로 숫자를 말하면 그 칸에 입력된다.
-  // 마지막으로 포커스된 입력칸을 기억(마이크를 누르면 포커스가 옮겨가므로 미리 저장).
-  let lastVoiceTarget = null;
-  let lastVoiceMode = null;   // 'number' | 'text'
-  const pvPage = panel.querySelector('.pv-page') || panel;
-  pvPage.addEventListener('focusin', e => {
-    const el = e.target;
-    if (!el || el.tagName !== 'INPUT') return;
-    // 측정값(숫자) 칸 → 숫자 모드
-    if (el.type === 'number' && el.closest('#pv-form-area')) {
-      lastVoiceTarget = el; lastVoiceMode = 'number';
-    // 사용자·현장명 → 텍스트(이름/명칭) 모드
-    } else if (el.id === 'pv-user-name' || el.id === 'pv-site-name') {
-      lastVoiceTarget = el; lastVoiceMode = 'text';
-    }
-    // 접수번호(pv-receipt-no)는 형식 코드라 음성 대상에서 제외(직접 입력/칩 사용)
-  });
-  // chat.js 헤더 마이크가 호출. 포커스된 칸을 채우면 true. transcripts: 후보 배열|문자열.
-  window.__pvVoiceFill = function(transcripts) {
-    const target = lastVoiceTarget;
-    if (!target || !document.body.contains(target)) return false;
-    const arr = Array.isArray(transcripts) ? transcripts : [transcripts];
-    let value = null;
-    if (lastVoiceMode === 'text') {
-      // 이름/현장명: 첫 후보 그대로(끝의 마침표·공백만 정리)
-      value = (arr[0] || '').trim().replace(/[.。·・\s]+$/, '').trim();
-      if (!value) return false;
-    } else {
-      // 숫자: 소수점 포함 후보 우선(누락 오인식 방지)
-      const cands = [];
-      for (const tr of arr) {
-        const n = parseSpokenNumber(tr);
-        if (n !== null) cands.push({ n, hasDot: /[.,，．。·・]|점|쩜|콤마|포인트|point|dot/.test(tr) });
-      }
-      const dotted = cands.find(c => c.hasDot);
-      value = dotted ? dotted.n : (cands[0] ? cands[0].n : null);
-      if (value === null) return false;
-    }
-    target.value = value;
-    target.dispatchEvent(new Event('input', { bubbles: true }));
-    target.classList.add('pv-field-highlight');
-    setTimeout(() => target.classList.remove('pv-field-highlight'), 1000);
-    const lbl = (target.closest('label')?.textContent
-      || target.previousElementSibling?.textContent
-      || (target.id === 'pv-user-name' ? '사용자' : target.id === 'pv-site-name' ? '현장명' : '입력칸')).trim().slice(0, 12);
-    setSaveStatus(`✅ 음성 입력: ${lbl} = ${value}`, 'ok');
-    return true;
-  };
+  // (🎙️ 음성 입력 추적·핸들러는 모듈 레벨에서 1회 등록 — parseSpokenNumber 아래)
 
   // 관리자 접속 시 화면/캐시 강제 청소용 글로벌 메서드 등록
   window.resetCalculatorForAdmin = function() {
