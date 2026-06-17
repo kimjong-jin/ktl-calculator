@@ -2116,6 +2116,28 @@ function init() {
     const formArea = document.getElementById('pv-form-area');
     if (formArea) alignMeasureInputs(formArea);
   });
+
+  // 관리자 접속 시 화면/캐시 강제 청소용 글로벌 메서드 등록
+  window.resetCalculatorForAdmin = function() {
+    calcReceiptNo = '';
+    calcUserName  = '';
+    calcSiteName  = '';
+    tabs = [];
+    activeId = null;
+    isPrimaryUser = false;
+    adminInMemoryCache = {};
+
+    const receiptEl = document.getElementById('pv-receipt-no');
+    const userEl = document.getElementById('pv-user-name');
+    const siteEl = document.getElementById('pv-site-name');
+    if (receiptEl) receiptEl.value = '';
+    if (userEl) userEl.value = '';
+    if (siteEl) siteEl.value = '';
+
+    applyAccessMode();
+    renderTabs();
+    renderEmpty();
+  };
 }
 
 if (document.readyState === 'loading') {

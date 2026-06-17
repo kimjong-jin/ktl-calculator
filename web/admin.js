@@ -405,7 +405,7 @@ function renderTokenTable(chatLimits, chatUsage) {
         </div>
         ${t.applicantName ? `<div class="token-card__meta">${t.applicantName}</div>` : ''}
         ${t.siteName ? `<div class="token-card__meta">${t.siteName}</div>` : ''}
-        ${t.receiptNo ? `<div class="token-card__meta" style="font-family:monospace;color:#475569">${t.receiptNo}</div>` : ''}
+        ${t.receiptNo ? `<div class="token-card__meta" style="font-family:monospace;color:#38bdf8;cursor:pointer;text-decoration:underline" data-open-no="${t.receiptNo}" title="정도검사 계산기로 불러오기">${t.receiptNo}</div>` : ''}
         ${t.pw ? `<div class="token-card__pw">
           <span style="background:#fff;color:#111;font-family:monospace;font-size:14px;font-weight:900;letter-spacing:2px;padding:3px 8px;border-radius:5px;border:2px solid #333">${t.pw}</span>
           <button class="btn btn--mini" data-copy-pw="${t.pw}" style="background:#0ea5e9;color:#fff;border:none;font-size:11px">복사</button>
@@ -434,7 +434,7 @@ function renderTokenTable(chatLimits, chatUsage) {
             <div style="color:#38bdf8;font-weight:600">${t.label || '–'}</div>
             ${t.applicantName ? `<div style="font-size:11px;color:#94a3b8">${t.applicantName}</div>` : ''}
             ${t.siteName ? `<div style="font-size:11px;color:#64748b">${t.siteName}</div>` : ''}
-            ${t.receiptNo ? `<div style="font-size:11px;color:#475569;font-family:monospace">${t.receiptNo}</div>` : ''}
+            ${t.receiptNo ? `<div style="font-size:11px;color:#38bdf8;font-family:monospace;cursor:pointer;text-decoration:underline" data-open-no="${t.receiptNo}" title="정도검사 계산기로 불러오기">${t.receiptNo}</div>` : ''}
             ${t.receiptNo && !calcDataReceipts.has(t.receiptNo) ? `<div style="font-size:11px;color:#f59e0b;font-weight:600">미사용</div>` : ''}
           </td>
           <td class="token-col--pw">

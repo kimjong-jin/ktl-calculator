@@ -473,6 +473,9 @@ function applyTheme(theme) {
 // ── 초기화 ─────────────────────────────────────────────────────────────────
 
 function init(role) {
+  if (role === 'admin' && typeof window.resetCalculatorForAdmin === 'function') {
+    window.resetCalculatorForAdmin();
+  }
   const saved = (() => { try { return localStorage.getItem('ktl-theme'); } catch { return null; } })();
   if (saved) applyTheme(saved);
 
