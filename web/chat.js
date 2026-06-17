@@ -62,7 +62,7 @@ export function initChat() {
     recognition = new SpeechRecognition();
     recognition.lang = 'ko-KR';
     recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+    recognition.maxAlternatives = 3;
 
     recognition.onstart = () => {
       isRecording = true;
@@ -90,6 +90,16 @@ export function initChat() {
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       if (!transcript) return;
+
+      // 헤더 마이크: 계산기 측정칸이 포커스돼 있으면 그 칸에 숫자 채우기 우선.
+      // (입력칸 클릭 → 헤더 🎙️ → 숫자만 말하기. precision-ui.js 가 처리.)
+      if (activeMicBtn === headerMicBtn && typeof window.__pvVoiceFill === 'function') {
+        const alts = Array.from(event.results[0]).map(a => a.transcript);
+        if (window.__pvVoiceFill(alts)) {
+          showToast('✅ 음성으로 숫자 입력 완료');
+          return;
+        }
+      }
 
       const commands = parseVoiceCommand(transcript);
       if (commands.length > 0) {

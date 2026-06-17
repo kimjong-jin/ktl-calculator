@@ -2087,7 +2087,6 @@ function init() {
       </div>
       <div class="pv-save-actions">
         <button id="pv-primary-btn" class="btn btn--ghost btn--mini" type="button">주사용자 전환</button>
-        <button id="pv-voice-btn" class="btn btn--ghost btn--mini" type="button" title="입력칸을 누른 뒤 이 버튼을 누르고 숫자를 말하세요">🎤 음성입력</button>
         <button id="pv-load-btn" class="btn btn--ghost btn--mini" type="button">📂 불러오기</button>
         <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
         ${isAdm ? `<button id="pv-reset-btn" class="btn btn--ghost btn--mini btn--danger" type="button">🧹 청소</button>` : ''}
@@ -2211,60 +2210,42 @@ function init() {
     if (formArea) alignMeasureInputs(formArea);
   });
 
-  // ── 🎤 음성 입력: 입력칸 클릭 → 마이크 → 숫자만 말하면 그 칸에 입력 ──
+  // ── 🎙️ 음성 숫자 입력 (상단 헤더 마이크 1개로 통합) ──────────────
+  // 입력칸을 누른 뒤 상단 🎙️ 마이크로 숫자를 말하면 그 칸에 입력된다.
+  // 마지막으로 포커스된 입력칸을 기억(마이크를 누르면 포커스가 옮겨가므로 미리 저장).
   let lastVoiceTarget = null;
   const pvPage = panel.querySelector('.pv-page') || panel;
-  // 마지막으로 포커스된 입력칸 기억 (마이크 버튼을 누르면 포커스가 옮겨가므로 미리 저장)
   pvPage.addEventListener('focusin', e => {
     const el = e.target;
-    if (el && el.tagName === 'INPUT' && el.type !== 'checkbox' && el.id !== 'pv-voice-btn') {
+    // 측정값(숫자) 칸만 음성 대상. 접수번호/사용자/현장명(텍스트)은 제외 —
+    // '25-000000-01' 같은 형식은 음성으로 '다시/는' 등이 끼어들어 오인식되므로.
+    if (el && el.tagName === 'INPUT' && el.type === 'number' && el.closest('#pv-form-area')) {
       lastVoiceTarget = el;
     }
   });
-  let voiceRec = null, voiceOn = false;
-  document.getElementById('pv-voice-btn')?.addEventListener('click', () => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { setSaveStatus('⚠️ 이 브라우저는 음성 인식을 지원하지 않습니다 (Chrome 권장)', 'error'); return; }
-    if (!lastVoiceTarget || !document.body.contains(lastVoiceTarget)) {
-      setSaveStatus('⚠️ 먼저 입력칸을 한 번 누른 뒤 음성입력을 눌러주세요.', 'warn'); return;
-    }
-    if (voiceOn) { if (voiceRec) voiceRec.stop(); return; }
+  // chat.js 의 헤더 마이크가 호출. 포커스된 칸에 숫자를 채우면 true 반환.
+  //  transcripts: 음성 인식 후보 문자열 배열(또는 단일 문자열).
+  window.__pvVoiceFill = function(transcripts) {
     const target = lastVoiceTarget;
-    const btn = document.getElementById('pv-voice-btn');
-    voiceRec = new SR();
-    voiceRec.lang = 'ko-KR';
-    voiceRec.interimResults = false;
-    voiceRec.maxAlternatives = 3;
-    voiceRec.onstart = () => { voiceOn = true; if (btn) { btn.classList.add('btn--primary'); btn.textContent = '🔴 듣는 중…'; } setSaveStatus('🎙️ 숫자를 말하세요… (예: 사십사 점 일이삼사)', 'loading'); };
-    voiceRec.onend   = () => { voiceOn = false; if (btn) { btn.classList.remove('btn--primary'); btn.textContent = '🎤 음성입력'; } };
-    voiceRec.onerror = (ev) => {
-      voiceOn = false;
-      setSaveStatus(ev.error === 'not-allowed' ? '⚠️ 마이크 권한을 허용해주세요 (주소창 좌측 자물쇠).' : `⚠️ 음성 인식 오류: ${ev.error}`, 'error');
-    };
-    voiceRec.onresult = (ev) => {
-      // 여러 후보를 모두 파싱해, 계산기 값 특성상 '소수점 포함' 후보를 우선 채택.
-      // (예: '0634'와 '0.634'가 함께 오면 0.634 선택 → 소수점 누락 오인식 방지)
-      let heard = '';
-      const alts = ev.results[0];
-      const cands = [];
-      for (let i = 0; i < alts.length; i++) {
-        const tr = alts[i].transcript;
-        if (!heard) heard = tr;
-        const n = parseSpokenNumber(tr);
-        if (n !== null) cands.push({ n, hasDot: /[.,，．。·・]|점|쩜|콤마|포인트|point|dot/.test(tr) });
-      }
-      const dotted = cands.find(c => c.hasDot);
-      const num = dotted ? dotted.n : (cands[0] ? cands[0].n : null);
-      if (num === null) { setSaveStatus(`⚠️ 숫자로 인식 못함: "${heard}" — 다시 시도해주세요.`, 'error'); return; }
-      target.value = num;
-      target.dispatchEvent(new Event('input', { bubbles: true }));
-      target.classList.add('pv-field-highlight');
-      setTimeout(() => target.classList.remove('pv-field-highlight'), 1000);
-      const lbl = (target.closest('label')?.textContent || target.previousElementSibling?.textContent || '입력칸').trim().slice(0, 12);
-      setSaveStatus(`✅ 음성 입력: ${lbl} = ${num}`, 'ok');
-    };
-    try { voiceRec.start(); } catch { /* 중복 start 무시 */ }
-  });
+    if (!target || !document.body.contains(target)) return false;
+    const arr = Array.isArray(transcripts) ? transcripts : [transcripts];
+    const cands = [];
+    for (const tr of arr) {
+      const n = parseSpokenNumber(tr);
+      if (n !== null) cands.push({ n, hasDot: /[.,，．。·・]|점|쩜|콤마|포인트|point|dot/.test(tr) });
+    }
+    // 계산기 값은 대부분 소수 → 소수점 포함 후보 우선(누락 오인식 방지)
+    const dotted = cands.find(c => c.hasDot);
+    const num = dotted ? dotted.n : (cands[0] ? cands[0].n : null);
+    if (num === null) return false;
+    target.value = num;
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+    target.classList.add('pv-field-highlight');
+    setTimeout(() => target.classList.remove('pv-field-highlight'), 1000);
+    const lbl = (target.closest('label')?.textContent || target.previousElementSibling?.textContent || '입력칸').trim().slice(0, 12);
+    setSaveStatus(`✅ 음성 입력: ${lbl} = ${num}`, 'ok');
+    return true;
+  };
 
   // 관리자 접속 시 화면/캐시 강제 청소용 글로벌 메서드 등록
   window.resetCalculatorForAdmin = function() {
