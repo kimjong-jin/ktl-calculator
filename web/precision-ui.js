@@ -88,6 +88,10 @@ let calcReceiptNo  = '';
 let calcUserName   = '';
 let calcSiteName   = '';
 let autoSaveTimer  = null;
+let isPrimaryUser  = false;   // 주 사용자(쓰기·저장). 토글 버튼으로 설정. 관리자는 항상 주 사용자.
+let primaryTimer   = null;    // 주 사용자: 10초 자동 저장
+let viewerTimer    = null;    // 확인용: 10초 자동 불러오기
+try { isPrimaryUser = localStorage.getItem('ktl-calc-primary') === '1'; } catch {}
 
 function bundleState() {
   if (activeId) saveData(activeId);
@@ -218,6 +222,35 @@ function scheduleAutoSave() {
   if (!calcReceiptNo || !calcUserName) return;
   clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(saveToServer, 30_000);
+}
+
+// ── 접속자 권한 모드 ────────────────────────────────────────
+// 주 사용자/관리자: 읽기·쓰기·저장·불러오기 + 10초 자동 저장.
+// 확인용(제2 접속자): 읽기·불러오기만(쓰기·저장 불가) + 10초 자동 불러오기.
+function isPrimary() { return isPrimaryUser || isAdmin(); }
+function applyAccessMode() {
+  const primary = isPrimary();
+  // 측정 입력칸 잠금(확인용은 쓰기 불가). 접수번호/사용자/현장명은 form-area 밖이라 불러오기용으로 유지.
+  const fa = document.getElementById('pv-form-area');
+  if (fa) fa.querySelectorAll('input, select, textarea, button').forEach(el => { el.disabled = !primary; });
+  const saveBtn = document.getElementById('pv-save-btn');
+  if (saveBtn) saveBtn.style.display = primary ? '' : 'none';
+  // 10초 인터벌 재설정 (중복 방지)
+  clearInterval(primaryTimer); clearInterval(viewerTimer);
+  if (primary) {
+    primaryTimer = setInterval(() => { if (calcReceiptNo && calcUserName) saveToServer(); }, 10_000);
+  } else {
+    viewerTimer = setInterval(() => { if (calcReceiptNo) loadFromServer(); }, 10_000);
+  }
+  const btn = document.getElementById('pv-primary-btn');
+  if (btn) {
+    btn.classList.toggle('pv-primary-on', primary);
+    btn.textContent = primary ? '👑 주 사용자' : '👁 확인용';
+    btn.title = primary
+      ? '쓰기·저장 가능 (10초 자동 저장)'
+      : '읽기·불러오기만 (10초 자동 불러오기) — 눌러서 주 사용자로 전환';
+    btn.disabled = isAdmin();   // 관리자는 항상 주 사용자(전환 불가)
+  }
 }
 
 function saveMeta() {
@@ -1235,6 +1268,7 @@ function switchTab(id) {
   if (g('range')) updateLinSummary(g('range'), IS_WATER(tab.code) ? gv('s1') : undefined);
 
   if (IS_DO(tab.code) || hasData(tab.code)) calculate(id);
+  applyAccessMode();   // 새로 렌더된 입력칸에 권한(잠금) 재적용
 }
 
 function hasData(code) {
@@ -1912,6 +1946,7 @@ function init() {
                placeholder="현장명" value="${calcSiteName}" autocomplete="off" />
       </div>
       <div class="pv-save-actions">
+        <button id="pv-primary-btn" class="btn btn--ghost btn--mini" type="button">👁 확인용</button>
         <button id="pv-load-btn" class="btn btn--ghost btn--mini" type="button">📂 불러오기</button>
         <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
       </div>
@@ -1969,6 +2004,14 @@ function init() {
   });
   document.getElementById('pv-save-btn')?.addEventListener('click', saveToServer);
   document.getElementById('pv-load-btn')?.addEventListener('click', loadFromServer);
+  document.getElementById('pv-primary-btn')?.addEventListener('click', () => {
+    if (isAdmin()) return;                 // 관리자는 항상 주 사용자
+    isPrimaryUser = !isPrimaryUser;
+    try { localStorage.setItem('ktl-calc-primary', isPrimaryUser ? '1' : '0'); } catch {}
+    applyAccessMode();
+    if (!isPrimaryUser && calcReceiptNo) loadFromServer();   // 확인용 전환 시 즉시 최신 반영
+  });
+  applyAccessMode();   // 초기 권한 적용
   document.getElementById('pv-form-area')?.addEventListener('input', e => {
     scheduleAutoSave();
   });
