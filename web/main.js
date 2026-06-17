@@ -358,15 +358,19 @@ function showApp() {
 
 async function guardAuth(onReady) {
   const searchParams = new URLSearchParams(location.search);
-  const bypass = searchParams.get('bypass');
-  if (bypass === 'true' || bypass === 'admin' || bypass === 'user') {
-    const role = bypass === 'user' ? 'user' : 'admin';
-    const mockPayload = { id: 'test', role, exp: Math.floor(Date.now() / 1000) + 3600 };
-    const mockToken = btoa(JSON.stringify(mockPayload)).replace(/=/g, '') + '.dummy.dummy';
-    storeToken(mockToken);
-    showApp();
-    onReady(role);
-    return;
+  // ⚠️ 로컬 개발(localhost) 전용 로그인 우회. import.meta.env.DEV 가 false 인
+  //    프로덕션 빌드에선 이 블록 전체가 제거(트리쉐이킹)되어 절대 동작하지 않음.
+  if (import.meta.env.DEV) {
+    const bypass = searchParams.get('bypass');
+    if (bypass === 'true' || bypass === 'admin' || bypass === 'user') {
+      const role = bypass === 'user' ? 'user' : 'admin';
+      const mockPayload = { id: 'test', role, exp: Math.floor(Date.now() / 1000) + 3600 };
+      const mockToken = btoa(JSON.stringify(mockPayload)).replace(/=/g, '') + '.dummy.dummy';
+      storeToken(mockToken);
+      showApp();
+      onReady(role);
+      return;
+    }
   }
   const hasInviteParam = !!(searchParams.get('t') || searchParams.get('pw'));
   const inviteDone = await tryInviteLogin((role) => { showApp(); onReady(role); });
