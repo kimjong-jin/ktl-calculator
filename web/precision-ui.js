@@ -2036,7 +2036,7 @@ function init() {
         <button id="pv-primary-btn" class="btn btn--ghost btn--mini" type="button">주사용자 전환</button>
         <button id="pv-load-btn" class="btn btn--ghost btn--mini" type="button">📂 불러오기</button>
         <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
-        ${isAdm ? `<button id="pv-reset-btn" class="btn btn--ghost btn--mini btn--danger" type="button">❌ 초기화</button>` : ''}
+        ${isAdm ? `<button id="pv-reset-btn" class="btn btn--ghost btn--mini btn--danger" type="button">🧹 청소</button>` : ''}
       </div>
     </div>
     <div id="pv-admin-receipts-quick" style="display:none; margin-top:12px; border-top:1px dashed var(--border); padding-top:10px;"></div>
@@ -2110,7 +2110,7 @@ function init() {
     if (!isPrimaryUser && calcReceiptNo) loadFromServer();   // 확인용 전환 시 즉시 최신 반영
   });
   document.getElementById('pv-reset-btn')?.addEventListener('click', () => {
-    if (!confirm('입력된 모든 데이터와 탭이 삭제되고 초기화됩니다. 계속하시겠습니까?')) return;
+    if (!confirm('화면의 모든 입력 데이터와 탭을 지우고 깨끗이 청소하시겠습니까?')) return;
     try {
       localStorage.removeItem('ktl-calc-receipt');
       localStorage.removeItem('ktl-calc-username');
@@ -2143,7 +2143,7 @@ function init() {
     renderTabs();
     renderEmpty();
     renderAdminReceiptsQuick();
-    setSaveStatus('🧹 초기화되었습니다.', 'ok');
+    setSaveStatus('🧹 화면이 깨끗하게 청소되었습니다.', 'ok');
   });
   applyAccessMode();   // 초기 권한 적용
   retryOfflineSaves();   // 미전송(오프라인) 저장분이 있으면 서버에 자동 재전송
