@@ -339,10 +339,11 @@ function loadMeta() {
 function nextSubNo() {
   return tabs.length === 0 ? 1 : Math.max(...tabs.map(t => t.subNo || 0)) + 1;
 }
-// 접수번호 — 입력값 그대로 (예: 25-000000-01). 탭 순번(subNo)은 접수번호에 붙이지 않음.
-// (마지막 -01 이 이미 항목 순번이므로 뒤에 -1 을 또 붙이면 오표기)
+// 성적서/탭 툴팁용 접수번호 — 접수번호 + 탭 순번 (예: 25-000000-01-2).
+// 한 접수번호 아래 여러 항목(TOC-1, TN-2…)을 구분하려 성적서엔 순번을 붙임.
+// (입력칸 placeholder 는 순번 없는 26-031078-01 예시를 따로 사용)
 function fullReceiptNo(tab) {
-  return calcReceiptNo ? calcReceiptNo : `(${tab.label})`;
+  return calcReceiptNo ? `${calcReceiptNo}-${tab.subNo}` : `(${tab.label})`;
 }
 function saveData(id) {
   const tab = tabs.find(t => t.id === id);
