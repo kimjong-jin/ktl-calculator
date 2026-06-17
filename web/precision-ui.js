@@ -238,9 +238,9 @@ function applyAccessMode() {
   // 10초 인터벌 재설정 (중복 방지)
   clearInterval(primaryTimer); clearInterval(viewerTimer);
   if (primary) {
-    primaryTimer = setInterval(() => { if (calcReceiptNo && calcUserName) saveToServer(); }, 10_000);
+    primaryTimer = setInterval(() => { if (calcReceiptNo && calcUserName) saveToServer(); }, 60_000);  // 쓰기: 1분 자동저장
   } else {
-    viewerTimer = setInterval(() => { if (calcReceiptNo) loadFromServer(); }, 10_000);
+    viewerTimer = setInterval(() => { if (calcReceiptNo) loadFromServer(); }, 10_000);                 // 읽기: 10초 자동 불러오기
   }
   const btn = document.getElementById('pv-primary-btn');
   if (btn) {
