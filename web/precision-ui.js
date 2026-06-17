@@ -339,9 +339,10 @@ function loadMeta() {
 function nextSubNo() {
   return tabs.length === 0 ? 1 : Math.max(...tabs.map(t => t.subNo || 0)) + 1;
 }
-// 탭의 전체 접수번호 (예: 25-000000-01-2)
+// 접수번호 — 입력값 그대로 (예: 25-000000-01). 탭 순번(subNo)은 접수번호에 붙이지 않음.
+// (마지막 -01 이 이미 항목 순번이므로 뒤에 -1 을 또 붙이면 오표기)
 function fullReceiptNo(tab) {
-  return calcReceiptNo ? `${calcReceiptNo}-${tab.subNo}` : `(${tab.label})`;
+  return calcReceiptNo ? calcReceiptNo : `(${tab.label})`;
 }
 function saveData(id) {
   const tab = tabs.find(t => t.id === id);
