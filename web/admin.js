@@ -84,12 +84,30 @@ async function loadCalcDataList(token) {
           <span style="color:#64748b;font-size:11px">저장 ${updated} | 만료 ${expires}</span>
         </div>
         <div class="calc-data-row__actions">
+          <button class="btn btn--mini" style="background:#0ea5e9;color:#fff;border:none"
+            data-open-no="${d.receiptNo}" data-open-user="${d.userName}">📋 정도검사 열기</button>
           <button class="btn btn--mini" style="background:#dc2626;color:#fff;border:none"
             data-no="${d.receiptNo}" data-user="${d.userName}">삭제</button>
         </div>
       </div>`;
     }).join('');
     listEl.innerHTML = `<div>${rows}</div>`;
+    // 📋 정도검사 열기 — 정도검사 탭으로 전환 후 접수번호·사용자 채우고 불러오기
+    listEl.querySelectorAll('button[data-open-no]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const no = btn.dataset.openNo, user = btn.dataset.openUser || '';
+        const calcTab = document.querySelector('.svc-tab[data-svc="calc"]');
+        if (calcTab) calcTab.click();   // 정도검사 화면으로 전환
+        const setVal = (id, v) => {
+          const el = document.getElementById(id);
+          if (el) { el.value = v; el.dispatchEvent(new Event('input')); }
+        };
+        setVal('pv-receipt-no', no);
+        setVal('pv-user-name', user);
+        // 입력 반영 후 불러오기 클릭 (DOM 갱신 한 틱 양보)
+        setTimeout(() => document.getElementById('pv-load-btn')?.click(), 50);
+      });
+    });
     listEl.querySelectorAll('button[data-no]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const no = btn.dataset.no, user = btn.dataset.user;
