@@ -345,6 +345,55 @@ function nextSubNo() {
 function fullReceiptNo(tab) {
   return calcReceiptNo ? `${calcReceiptNo}-${tab.subNo}` : `(${tab.label})`;
 }
+
+// ── 음성 입력: 말한 내용 → 숫자 문자열 ──────────────────────────
+// "44.1234", "사십사 점 일이삼사", "영 점 육삼사", "공점육삼사", "마이너스 0.5" 등 처리.
+// 정밀도 유지 위해 숫자 '문자열'을 반환(없으면 null).
+function _korChunkToDigits(chunk) {
+  // 소수점 오른쪽처럼 자리수를 그대로 이어붙이는 변환 (일이삼사 → 1234)
+  const d = { 영:0, 공:0, 일:1, 이:2, 삼:3, 사:4, 오:5, 육:6, 륙:6, 칠:7, 팔:8, 구:9 };
+  let out = '';
+  for (const ch of chunk) {
+    if (/\d/.test(ch)) out += ch;
+    else if (ch in d) out += d[ch];
+  }
+  return out;
+}
+function _korChunkToInt(chunk) {
+  // 정수부: 십/백/천/만 복합수 처리 (사십사 → 44). 단위 없으면 자리이어붙이기.
+  if (/^\d+$/.test(chunk)) return chunk;
+  if (!/[십백천만]/.test(chunk)) return _korChunkToDigits(chunk);
+  const d = { 영:0, 공:0, 일:1, 이:2, 삼:3, 사:4, 오:5, 육:6, 륙:6, 칠:7, 팔:8, 구:9 };
+  const u = { 십:10, 백:100, 천:1000 };
+  let total = 0, cur = 0;
+  for (const ch of chunk) {
+    if (/\d/.test(ch)) cur = cur * 10 + Number(ch);
+    else if (ch in d) cur = d[ch];
+    else if (ch in u) { cur = (cur || 1) * u[ch]; total += cur; cur = 0; }
+    else if (ch === '만') { total = (total + cur) * 10000; cur = 0; }
+  }
+  return String(total + cur);
+}
+function parseSpokenNumber(raw) {
+  if (!raw) return null;
+  let t = String(raw).toLowerCase().trim();
+  const neg = /^(마이너스|minus|negative|-)/.test(t);
+  t = t.replace(/^(마이너스|minus|negative|-)\s*/, '');
+  // 소수점 표현 통일
+  t = t.replace(/(소수점|점|쩜|콤마|포인트|point|dot)/g, '.');
+  t = t.replace(/\s+/g, '');
+  if (!t) return null;
+  const parts = t.split('.');
+  const intStr = _korChunkToInt(parts[0] || '0');
+  let s = (intStr === '' ? '0' : intStr);
+  if (parts.length > 1) {
+    const dec = parts.slice(1).map(_korChunkToDigits).join('');
+    if (dec !== '') s += '.' + dec;
+  }
+  if (!/\d/.test(s)) return null;
+  if (!Number.isFinite(Number(s))) return null;
+  return (neg ? '-' : '') + s;
+}
 function saveData(id) {
   const tab = tabs.find(t => t.id === id);
   if (!tab) return;
@@ -2034,6 +2083,7 @@ function init() {
       </div>
       <div class="pv-save-actions">
         <button id="pv-primary-btn" class="btn btn--ghost btn--mini" type="button">주사용자 전환</button>
+        <button id="pv-voice-btn" class="btn btn--ghost btn--mini" type="button" title="입력칸을 누른 뒤 이 버튼을 누르고 숫자를 말하세요">🎤 음성입력</button>
         <button id="pv-load-btn" class="btn btn--ghost btn--mini" type="button">📂 불러오기</button>
         <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
         ${isAdm ? `<button id="pv-reset-btn" class="btn btn--ghost btn--mini btn--danger" type="button">🧹 청소</button>` : ''}
@@ -2155,6 +2205,56 @@ function init() {
     if (!e.target.classList.contains('pv-measure-input')) return;
     const formArea = document.getElementById('pv-form-area');
     if (formArea) alignMeasureInputs(formArea);
+  });
+
+  // ── 🎤 음성 입력: 입력칸 클릭 → 마이크 → 숫자만 말하면 그 칸에 입력 ──
+  let lastVoiceTarget = null;
+  const pvPage = panel.querySelector('.pv-page') || panel;
+  // 마지막으로 포커스된 입력칸 기억 (마이크 버튼을 누르면 포커스가 옮겨가므로 미리 저장)
+  pvPage.addEventListener('focusin', e => {
+    const el = e.target;
+    if (el && el.tagName === 'INPUT' && el.type !== 'checkbox' && el.id !== 'pv-voice-btn') {
+      lastVoiceTarget = el;
+    }
+  });
+  let voiceRec = null, voiceOn = false;
+  document.getElementById('pv-voice-btn')?.addEventListener('click', () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setSaveStatus('⚠️ 이 브라우저는 음성 인식을 지원하지 않습니다 (Chrome 권장)', 'error'); return; }
+    if (!lastVoiceTarget || !document.body.contains(lastVoiceTarget)) {
+      setSaveStatus('⚠️ 먼저 입력칸을 한 번 누른 뒤 음성입력을 눌러주세요.', 'warn'); return;
+    }
+    if (voiceOn) { if (voiceRec) voiceRec.stop(); return; }
+    const target = lastVoiceTarget;
+    const btn = document.getElementById('pv-voice-btn');
+    voiceRec = new SR();
+    voiceRec.lang = 'ko-KR';
+    voiceRec.interimResults = false;
+    voiceRec.maxAlternatives = 3;
+    voiceRec.onstart = () => { voiceOn = true; if (btn) { btn.classList.add('btn--primary'); btn.textContent = '🔴 듣는 중…'; } setSaveStatus('🎙️ 숫자를 말하세요… (예: 사십사 점 일이삼사)', 'loading'); };
+    voiceRec.onend   = () => { voiceOn = false; if (btn) { btn.classList.remove('btn--primary'); btn.textContent = '🎤 음성입력'; } };
+    voiceRec.onerror = (ev) => {
+      voiceOn = false;
+      setSaveStatus(ev.error === 'not-allowed' ? '⚠️ 마이크 권한을 허용해주세요 (주소창 좌측 자물쇠).' : `⚠️ 음성 인식 오류: ${ev.error}`, 'error');
+    };
+    voiceRec.onresult = (ev) => {
+      // 여러 후보 중 숫자로 해석되는 첫 결과 채택
+      let num = null, heard = '';
+      const alts = ev.results[0];
+      for (let i = 0; i < alts.length; i++) {
+        heard = heard || alts[i].transcript;
+        const n = parseSpokenNumber(alts[i].transcript);
+        if (n !== null) { num = n; break; }
+      }
+      if (num === null) { setSaveStatus(`⚠️ 숫자로 인식 못함: "${heard}" — 다시 시도해주세요.`, 'error'); return; }
+      target.value = num;
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+      target.classList.add('pv-field-highlight');
+      setTimeout(() => target.classList.remove('pv-field-highlight'), 1000);
+      const lbl = (target.closest('label')?.textContent || target.previousElementSibling?.textContent || '입력칸').trim().slice(0, 12);
+      setSaveStatus(`✅ 음성 입력: ${lbl} = ${num}`, 'ok');
+    };
+    try { voiceRec.start(); } catch { /* 중복 start 무시 */ }
   });
 
   // 관리자 접속 시 화면/캐시 강제 청소용 글로벌 메서드 등록
