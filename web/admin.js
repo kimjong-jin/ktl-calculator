@@ -84,30 +84,12 @@ async function loadCalcDataList(token) {
           <span style="color:#64748b;font-size:11px">저장 ${updated} | 만료 ${expires}</span>
         </div>
         <div class="calc-data-row__actions">
-          <button class="btn btn--mini" style="background:#0ea5e9;color:#fff;border:none"
-            data-open-no="${d.receiptNo}" data-open-user="${d.userName}">📋 정도검사 열기</button>
           <button class="btn btn--mini" style="background:#dc2626;color:#fff;border:none"
             data-no="${d.receiptNo}" data-user="${d.userName}">삭제</button>
         </div>
       </div>`;
     }).join('');
     listEl.innerHTML = `<div>${rows}</div>`;
-    // 📋 정도검사 열기 — 정도검사 탭으로 전환 후 접수번호·사용자 채우고 불러오기
-    listEl.querySelectorAll('button[data-open-no]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const no = btn.dataset.openNo, user = btn.dataset.openUser || '';
-        const calcTab = document.querySelector('.svc-tab[data-svc="calc"]');
-        if (calcTab) calcTab.click();   // 정도검사 화면으로 전환
-        const setVal = (id, v) => {
-          const el = document.getElementById(id);
-          if (el) { el.value = v; el.dispatchEvent(new Event('input')); }
-        };
-        setVal('pv-receipt-no', no);
-        setVal('pv-user-name', user);
-        // 입력 반영 후 불러오기 클릭 (DOM 갱신 한 틱 양보)
-        setTimeout(() => document.getElementById('pv-load-btn')?.click(), 50);
-      });
-    });
     listEl.querySelectorAll('button[data-no]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const no = btn.dataset.no, user = btn.dataset.user;
@@ -429,6 +411,7 @@ function renderTokenTable(chatLimits, chatUsage) {
           <button class="btn btn--mini" data-copy-pw="${t.pw}" style="background:#0ea5e9;color:#fff;border:none;font-size:11px">복사</button>
         </div>` : ''}
         <div class="token-card__actions">
+          ${t.receiptNo ? `<button class="btn btn--mini" data-open-no="${t.receiptNo}" style="background:#0ea5e9;color:#fff;border:none">📋 정도검사</button>` : ''}
           <button class="btn btn--mini${copied ? ' btn--copied' : ''}" data-copy="${t.id}">${copied ? '복사됨 ✓' : '링크복사'}</button>
           <button class="btn btn--mini btn--danger" data-del="${t.id}">삭제</button>
         </div>
@@ -474,6 +457,7 @@ function renderTokenTable(chatLimits, chatUsage) {
               : `<span style="font-size:12px;color:#94a3b8">–</span>`}
           </td>
           <td class="token-col--actions">
+            ${t.receiptNo ? `<button class="btn btn--mini" data-open-no="${t.receiptNo}" style="background:#0ea5e9;color:#fff;border:none" title="이 접수번호의 정도검사 데이터를 불러옵니다">📋 정도검사</button>` : ''}
             <button class="btn btn--mini${copied ? ' btn--copied' : ''}" data-copy="${t.id}">${copied ? '복사됨 ✓' : '복사'}</button>
             <button class="btn btn--mini btn--danger" data-del="${t.id}">삭제</button>
           </td>
@@ -858,6 +842,20 @@ function bindEvents(wrap, access) {
     const copyPw    = e.target.dataset.copyPw;
     const delId     = e.target.dataset.del;
     const resetUid  = e.target.dataset.resetUid;
+    const openNo    = e.target.dataset.openNo;
+    // 📋 정도검사 — 이 접수번호의 저장 데이터를 정도검사 화면으로 불러오기
+    if (openNo) {
+      const calcTab = document.querySelector('.svc-tab[data-svc="calc"]');
+      if (calcTab) calcTab.click();   // 정도검사 화면으로 전환
+      const setVal = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) { el.value = v; el.dispatchEvent(new Event('input')); }
+      };
+      setVal('pv-receipt-no', openNo);
+      setVal('pv-user-name', '');   // 비움 → 관리자 '접수번호만으로 검색' 경로 사용
+      setTimeout(() => document.getElementById('pv-load-btn')?.click(), 60);
+      return;
+    }
     if (copyPw) {
       try { await navigator.clipboard.writeText(copyPw); } catch {}
       const orig = e.target.textContent;
