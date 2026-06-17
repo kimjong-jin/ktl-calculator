@@ -10,6 +10,14 @@ import { put, head, del } from '@vercel/blob';
 
 const BLOB_KEY = 'access-codes.json';
 
+// 발급자(소유자) 식별: 이 시스템은 발급 '직원명'을 label 에 저장(issuer 필드는 비어있는 경우가 많음).
+// 클라이언트(web/admin.js tokenIssuer)와 동일 규칙 — label 이 직원명이면 그것을, 아니면 issuer.
+const STAFF_NAMES = ['김종진', '권민경', '김성대', '김수철', '정슬기', '강준', '정진욱'];
+export function tokenIssuerOf(e) {
+  if (e && e.label && STAFF_NAMES.includes(e.label)) return e.label;
+  return (e && e.issuer) || '';
+}
+
 /** Blob에서 코드 맵 읽기 (private 스토어) */
 async function readCodes() {
   try {
@@ -124,7 +132,7 @@ export async function listTokens(issuer) {
   if (!issuer) return map;
   const out = {};
   for (const [id, e] of Object.entries(map)) {
-    if ((e.issuer || '') === issuer) out[id] = e;
+    if (tokenIssuerOf(e) === issuer) out[id] = e;
   }
   return out;
 }
@@ -141,7 +149,7 @@ export async function clearTokensByIssuer(issuer) {
   const map = await readCodes();
   let removed = 0;
   for (const [id, e] of Object.entries(map)) {
-    if ((e.issuer || '') === issuer) { delete map[id]; removed++; }
+    if (tokenIssuerOf(e) === issuer) { delete map[id]; removed++; }
   }
   if (removed) await writeCodes(map);
   return removed;
@@ -154,7 +162,7 @@ export async function clearExpiredTokens(issuer) {
   let removed = 0;
   for (const [id, e] of Object.entries(map)) {
     if (e.exp <= now) {
-      if (!issuer || (e.issuer || '') === issuer) {
+      if (!issuer || tokenIssuerOf(e) === issuer) {
         delete map[id];
         removed++;
       }
