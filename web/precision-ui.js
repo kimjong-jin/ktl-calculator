@@ -377,10 +377,14 @@ function _korChunkToInt(chunk) {
 function parseSpokenNumber(raw) {
   if (!raw) return null;
   let t = String(raw).toLowerCase().trim();
+  // 전각 숫자(０-９) → 반각
+  t = t.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
   const neg = /^(마이너스|minus|negative|-)/.test(t);
   t = t.replace(/^(마이너스|minus|negative|-)\s*/, '');
-  // 소수점 표현 통일
+  // 계산기엔 콤마가 없다 → 콤마/구분점 변형은 전부 소수점으로
+  t = t.replace(/[,，、]/g, '.');
   t = t.replace(/(소수점|점|쩜|콤마|포인트|point|dot)/g, '.');
+  t = t.replace(/[．。·・]/g, '.');  // ．。·・ → .
   t = t.replace(/\s+/g, '');
   if (!t) return null;
   const parts = t.split('.');
@@ -2238,14 +2242,19 @@ function init() {
       setSaveStatus(ev.error === 'not-allowed' ? '⚠️ 마이크 권한을 허용해주세요 (주소창 좌측 자물쇠).' : `⚠️ 음성 인식 오류: ${ev.error}`, 'error');
     };
     voiceRec.onresult = (ev) => {
-      // 여러 후보 중 숫자로 해석되는 첫 결과 채택
-      let num = null, heard = '';
+      // 여러 후보를 모두 파싱해, 계산기 값 특성상 '소수점 포함' 후보를 우선 채택.
+      // (예: '0634'와 '0.634'가 함께 오면 0.634 선택 → 소수점 누락 오인식 방지)
+      let heard = '';
       const alts = ev.results[0];
+      const cands = [];
       for (let i = 0; i < alts.length; i++) {
-        heard = heard || alts[i].transcript;
-        const n = parseSpokenNumber(alts[i].transcript);
-        if (n !== null) { num = n; break; }
+        const tr = alts[i].transcript;
+        if (!heard) heard = tr;
+        const n = parseSpokenNumber(tr);
+        if (n !== null) cands.push({ n, hasDot: /[.,，．。·・]|점|쩜|콤마|포인트|point|dot/.test(tr) });
       }
+      const dotted = cands.find(c => c.hasDot);
+      const num = dotted ? dotted.n : (cands[0] ? cands[0].n : null);
       if (num === null) { setSaveStatus(`⚠️ 숫자로 인식 못함: "${heard}" — 다시 시도해주세요.`, 'error'); return; }
       target.value = num;
       target.dispatchEvent(new Event('input', { bubbles: true }));
