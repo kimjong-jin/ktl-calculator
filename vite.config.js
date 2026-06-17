@@ -29,6 +29,7 @@ import {
   buildClaydoxPayload,
 } from './src/claydoxMappings.js';
 import { verifyAccess, verifyToken, sign } from './src/authService.js';
+import { updateApplicantName, listTokens } from './src/tokenStore.js';
 
 /** 요청 본문(JSON)을 읽어 파싱한다. */
 function readJsonBody(req) {
@@ -215,6 +216,133 @@ async function handleApi(req, res, next) {
       } catch (e) {
         console.error('[ktl-calculator-web] calcData 오류:', e instanceof Error ? e.message : e);
         return sendJson(res, 502, { error: `Mac Studio 연결 실패: ${e instanceof Error ? e.message : e}` });
+      }
+    }
+
+    // /api/updateName — 사용자 이름 변경 연동 (DEV 전용)
+    if (url.pathname === '/api/updateName') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST만 허용' });
+      const auth = (req.headers && req.headers['authorization']) || '';
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      const r = verifyToken(token);
+      if (!r.valid || !r.id) return sendJson(res, 401, { error: '인증 필요' });
+
+      const body = await readJsonBody(req);
+      const name = typeof body.name === 'string' ? body.name.trim().slice(0, 40) : '';
+      if (!name) return sendJson(res, 400, { error: 'name 필수' });
+
+      try {
+        const syncRes = await updateApplicantName(r.id, name);
+        if (!syncRes) return sendJson(res, 404, { error: '토큰을 찾을 수 없음' });
+
+        // Mac Studio에 이름 변경 전송
+        if (syncRes.receiptNo && syncRes.oldName && syncRes.oldName !== name) {
+          const BASE = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || '').replace(/\/$/, '');
+          const STUDIO_SECRET = process.env.STUDIO_SECRET || '';
+          if (BASE) {
+            const signal = (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(5000) : undefined;
+            fetch(`${BASE}/api/calc/rename`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-studio-secret': STUDIO_SECRET
+              },
+              body: JSON.stringify({
+                receiptNo: syncRes.receiptNo,
+                oldUserName: syncRes.oldName,
+                newUserName: name
+              }),
+              signal
+            }).catch(err => console.error('[vite updateName] Mac Studio rename error:', err));
+          }
+        }
+        return sendJson(res, 200, { ok: true, name });
+      } catch (e) {
+        return sendJson(res, 503, { error: '저장 실패' });
+      }
+    }
+
+    // /api/admin — 관리자 기능 연동 (DEV 전용)
+    if (url.pathname === '/api/admin') {
+      const auth = (req.headers && req.headers['authorization']) || '';
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      const r = verifyToken(token);
+      if (!r.valid || r.role !== 'admin') {
+        return sendJson(res, 403, { error: '관리자 권한이 필요합니다.' });
+      }
+
+      const id = r.id || '';
+      const SUPER_ADMINS = (process.env.SUPER_ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+      const ADMIN_ID = (process.env.ADMIN_ID || '').trim();
+      const isSuperAdmin = (uid) => {
+        if (!uid) return true;
+        if (uid === '관리자' || (ADMIN_ID && uid === ADMIN_ID)) return true;
+        return SUPER_ADMINS.includes(uid);
+      };
+      const isSuper = isSuperAdmin(id);
+
+      // GET action=list_tokens
+      if (req.method === 'GET' && url.searchParams.get('action') === 'list_tokens') {
+        try {
+          const tokens = isSuper ? await listTokens() : await listTokens(id);
+          return sendJson(res, 200, { tokens, issuer: id, isSuper });
+        } catch (e) {
+          return sendJson(res, 500, { error: e.message });
+        }
+      }
+
+      // GET - 서비스 상태 조회
+      if (req.method === 'GET') {
+        let dbStatus = { connected: false };
+        try {
+          const items = listTestItems().filter(i => /[A-Za-z]/.test(i.item));
+          dbStatus = { connected: true, fileName: getDataFileName(), sheetCount: getSheetNames().length, itemCount: items.length };
+        } catch (e) {
+          dbStatus = { connected: false, error: e.message };
+        }
+
+        const geminiKey = process.env.GEMINI_API_KEY;
+        const days = (() => { const d = parseInt(process.env.ACCESS_DAYS || '10', 10); return Number.isFinite(d) && d > 0 ? d : 10; })();
+        const startRaw = process.env.ACCESS_START || null;
+        let globalExpiry = null;
+        if (startRaw) {
+          const t = Date.parse(startRaw);
+          if (!Number.isNaN(t)) globalExpiry = new Date(t + days * 86_400_000).toISOString().slice(0, 10);
+        }
+
+        return sendJson(res, 200, {
+          db: dbStatus,
+          gemini: { configured: !!geminiKey, status: geminiKey ? 'ok' : 'unconfigured' },
+          skill: { envConfigured: !!process.env.ADMIN_SKILL_CONTEXT, charCount: (process.env.ADMIN_SKILL_CONTEXT || '').length },
+          access: { days, globalExpiry, userPwSet: !!process.env.ACCESS_PASSWORD, adminPwSet: !!process.env.ADMIN_PASSWORD },
+          chatLimits: { keys: {}, default: 50 },
+          chatUsage: {},
+          server: { node: process.version, env: 'development' },
+          ts: new Date().toISOString()
+        });
+      }
+
+      // POST action
+      if (req.method === 'POST') {
+        const body = await readJsonBody(req);
+        if (body?.action === 'revoke_token') {
+          const { tokenId } = body;
+          if (!tokenId) return sendJson(res, 400, { error: 'tokenId 필수' });
+          try {
+            const { revokeToken, tokenIssuerOf } = await import('./src/tokenStore.js');
+            if (!isSuper) {
+              const all = await listTokens();
+              const entry = all[tokenId];
+              if (entry && tokenIssuerOf(entry) !== id) {
+                return sendJson(res, 403, { error: '본인이 발급한 코드만 삭제할 수 있습니다.' });
+              }
+            }
+            const ok = await revokeToken(tokenId);
+            return sendJson(res, 200, { ok, tokenId });
+          } catch (e) {
+            return sendJson(res, 500, { error: e.message });
+          }
+        }
       }
     }
 
