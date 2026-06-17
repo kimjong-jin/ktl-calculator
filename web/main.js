@@ -454,6 +454,9 @@ function initSvcTabs(role) {
       const svc = tab.dataset.svc;
       $('svc-calc').hidden  = svc !== 'calc';
       $('svc-admin').hidden = svc !== 'admin';
+      if (svc === 'calc' && typeof window.refreshAdminReceiptsQuick === 'function') {
+        window.refreshAdminReceiptsQuick();
+      }
       if (svc === 'admin' && !adminInited) {
         document.body.dataset.adminToken = getStoredToken() || '';
         initAdmin(getStoredToken() || '');

@@ -2038,6 +2038,7 @@ function init() {
         <button id="pv-save-btn" class="btn btn--primary btn--mini" type="button">💾 저장</button>
       </div>
     </div>
+    <div id="pv-admin-receipts-quick" style="display:none; margin-top:12px; border-top:1px dashed var(--border); padding-top:10px;"></div>
     <div id="pv-save-status" class="pv-save-status"></div>
   </div>
   <div class="card pv-tab-card">
@@ -2073,6 +2074,8 @@ function init() {
 
   if (activeId) switchTab(activeId);
   else renderEmpty();
+
+  renderAdminReceiptsQuick();
 
   // ── 저장/불러오기 이벤트 ───────────────────────────────
   document.getElementById('pv-receipt-no')?.addEventListener('input', e => {
@@ -2137,7 +2140,64 @@ function init() {
     applyAccessMode();
     renderTabs();
     renderEmpty();
+    renderAdminReceiptsQuick();
   };
+
+  window.refreshAdminReceiptsQuick = function() {
+    renderAdminReceiptsQuick();
+  };
+}
+
+function getActiveReceipts() {
+  try {
+    const list = JSON.parse(localStorage.getItem('ktl-issued-tokens') || '[]');
+    return list.filter(t => t.receiptNo && new Date(t.expiresAt).getTime() > Date.now());
+  } catch {
+    return [];
+  }
+}
+
+function renderAdminReceiptsQuick() {
+  const container = document.getElementById('pv-admin-receipts-quick');
+  if (!container) return;
+  if (!isAdmin()) {
+    container.style.display = 'none';
+    return;
+  }
+  const list = getActiveReceipts();
+  if (list.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  container.innerHTML = `
+    <div style="font-size:12px;font-weight:600;color:var(--text-muted,#94a3b8);margin-bottom:6px;text-align:left;">발행된 접수번호 (클릭 시 즉시 로드):</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start;">
+      ${list.map(t => `
+        <button type="button" class="btn btn--mini btn--ghost pv-quick-chip" data-load-receipt="${t.receiptNo}" title="${t.applicantName || ''} - ${t.siteName || ''}" style="min-width:auto !important; padding:4px 8px; font-size:12px; height:auto; min-height:auto;">
+          🔑 ${t.receiptNo} (${t.applicantName || '고객'})
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  container.querySelectorAll('.pv-quick-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const receiptNo = btn.dataset.loadReceipt;
+      const receiptEl = document.getElementById('pv-receipt-no');
+      const userEl = document.getElementById('pv-user-name');
+      if (receiptEl) {
+        receiptEl.value = receiptNo;
+        receiptEl.dispatchEvent(new Event('input'));
+      }
+      if (userEl) {
+        userEl.value = '';
+        userEl.dispatchEvent(new Event('input'));
+      }
+      loadFromServer();
+    });
+  });
 }
 
 if (document.readyState === 'loading') {
