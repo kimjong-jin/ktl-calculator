@@ -358,12 +358,14 @@ function showApp() {
 
 async function guardAuth(onReady) {
   const searchParams = new URLSearchParams(location.search);
-  if (searchParams.get('bypass') === 'true') {
-    const mockPayload = { id: 'admin', role: 'admin', exp: Math.floor(Date.now() / 1000) + 3600 };
+  const bypass = searchParams.get('bypass');
+  if (bypass === 'true' || bypass === 'admin' || bypass === 'user') {
+    const role = bypass === 'user' ? 'user' : 'admin';
+    const mockPayload = { id: 'test', role, exp: Math.floor(Date.now() / 1000) + 3600 };
     const mockToken = btoa(JSON.stringify(mockPayload)).replace(/=/g, '') + '.dummy.dummy';
     storeToken(mockToken);
     showApp();
-    onReady('admin');
+    onReady(role);
     return;
   }
   const hasInviteParam = !!(searchParams.get('t') || searchParams.get('pw'));
