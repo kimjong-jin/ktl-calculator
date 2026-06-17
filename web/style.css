@@ -1798,3 +1798,51 @@ select.field__control {
   box-shadow: 0 0 0 4px var(--pass-bg);
   transition: all 0.3s ease;
 }
+
+/* ── 발행된 접수번호 퀵 칩스 (관리자용) ──────────────────────────────────── */
+.pv-admin-receipts-title {
+  font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 6px; text-align: left;
+}
+.pv-quick-chips-grid {
+  display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-start;
+}
+.pv-quick-chip {
+  min-width: auto !important; padding: 4px 8px !important; font-size: 12px !important;
+  height: auto !important; min-height: auto !important; box-sizing: border-box;
+  display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2);
+}
+.pv-quick-chip-key {
+  margin-right: 1px;
+}
+.pv-quick-chip-name {
+  color: var(--text-dim); font-size: 11px;
+}
+
+@media (max-width: 600px) {
+  .pv-quick-chips-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    width: 100%;
+  }
+  .pv-quick-chip {
+    width: 100%;
+    padding: 6px 4px !important;
+    font-size: 11px !important;
+    justify-content: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .pv-quick-chip-key {
+    display: none; /* 모바일에서 열쇠 아이콘 생략 */
+  }
+  .pv-quick-chip-name {
+    font-size: 10px;
+    max-width: 42px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+

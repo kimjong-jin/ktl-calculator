@@ -2172,11 +2172,11 @@ function renderAdminReceiptsQuick() {
 
   container.style.display = 'block';
   container.innerHTML = `
-    <div style="font-size:12px;font-weight:600;color:var(--text-muted,#94a3b8);margin-bottom:6px;text-align:left;">발행된 접수번호 (클릭 시 즉시 로드):</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start;">
+    <div class="pv-admin-receipts-title">발행된 접수번호 (클릭 시 즉시 로드):</div>
+    <div class="pv-quick-chips-grid">
       ${list.map(t => `
-        <button type="button" class="btn btn--mini btn--ghost pv-quick-chip" data-load-receipt="${t.receiptNo}" title="${t.applicantName || ''} - ${t.siteName || ''}" style="min-width:auto !important; padding:4px 8px; font-size:12px; height:auto; min-height:auto;">
-          🔑 ${t.receiptNo} (${t.applicantName || '고객'})
+        <button type="button" class="btn btn--mini btn--ghost pv-quick-chip" data-load-receipt="${t.receiptNo}" title="${t.applicantName || ''} - ${t.siteName || ''}">
+          <span class="pv-quick-chip-key">🔑</span><span class="pv-quick-chip-no">${t.receiptNo}</span>${t.applicantName ? `<span class="pv-quick-chip-name">(${t.applicantName})</span>` : ''}
         </button>
       `).join('')}
     </div>
