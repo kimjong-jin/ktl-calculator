@@ -82,6 +82,7 @@ let tabs = [];
 let activeId = null;
 let calcTimer = null;
 let stored = {}; // switchTab에서 loadData(id)로 갱신 — ni(), zsCell()에서 사용
+let adminInMemoryCache = {}; // 관리자 메모리 내 탭 데이터 캐시 (로컬 스토리지 방지)
 
 // ── 저장/불러오기 상태 ──────────────────────────────────
 let calcReceiptNo  = '';
@@ -91,7 +92,7 @@ let autoSaveTimer  = null;
 let isPrimaryUser  = false;   // 주 사용자(쓰기·저장). 토글 버튼으로 설정. 관리자는 항상 주 사용자.
 let primaryTimer   = null;    // 주 사용자: 10초 자동 저장
 let viewerTimer    = null;    // 확인용: 10초 자동 불러오기
-try { isPrimaryUser = localStorage.getItem('ktl-calc-primary') === '1'; } catch {}
+try { isPrimaryUser = isAdmin() ? false : (localStorage.getItem('ktl-calc-primary') === '1'); } catch {}
 
 function bundleState() {
   if (activeId) saveData(activeId);
@@ -103,14 +104,23 @@ function bundleState() {
 function restoreBundle(bundle) {
   // 보던 탭 유지: 현재 활성 탭의 라벨(예: TN-2)이 새 목록에도 있으면 그 탭을 유지.
   // (10초 자동 불러오기 때 주 사용자의 활성 탭으로 화면이 튀지 않도록)
+  const isAdm = isAdmin();
   const prevTab = tabs.find(t => t.id === activeId);
   const prevLabel = prevTab ? prevTab.label : null;
-  tabs.forEach(t => { try { localStorage.removeItem(`ktl-pv-${t.id}`); } catch {} });
+  if (isAdm) {
+    adminInMemoryCache = {};
+  } else {
+    tabs.forEach(t => { try { localStorage.removeItem(`ktl-pv-${t.id}`); } catch {} });
+  }
   tabs = (bundle.tabs || []);
   const keep = prevLabel ? tabs.find(t => t.label === prevLabel) : null;
   activeId = keep ? keep.id : (bundle.activeId || (tabs.length ? tabs[0].id : null));
   Object.entries(bundle.fields || {}).forEach(([id, f]) => {
-    try { localStorage.setItem(`ktl-pv-${id}`, JSON.stringify(f)); } catch {}
+    if (isAdm) {
+      adminInMemoryCache[id] = f;
+    } else {
+      try { localStorage.setItem(`ktl-pv-${id}`, JSON.stringify(f)); } catch {}
+    }
   });
   saveMeta();
   renderTabs();
@@ -140,16 +150,22 @@ async function saveToServer() {
     const exp = new Date(expiresAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'});
     const time = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'});
     setSaveStatus(`✅ 서버 저장됨 ${time} (만료: ${exp})`);
-    try { localStorage.setItem('ktl-calc-last-save', JSON.stringify({receiptNo:calcReceiptNo,userName:calcUserName,at:Date.now()})); } catch {}
-    try { localStorage.removeItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`); } catch {}  // 성공 → 대기분 제거
-  } catch {
-    // 오프라인 폴백: 서버 미도달 → 이 PC에만 임시 저장 + 재전송 대기열에 메타와 함께 보관
-    try {
-      localStorage.setItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`,
-        JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, siteName: calcSiteName, bundle, at: Date.now() }));
-    } catch {}
-    // ⚠️ 성공처럼 보이지 않게 빨간 경고로 (고객 착각 방지)
-    setSaveStatus('⚠️ 서버 저장 실패 — 인터넷 확인 후 [저장] 다시 눌러주세요 (현재 이 PC에만 임시 저장됨)', 'error');
+    if (!isAdmin()) {
+      try { localStorage.setItem('ktl-calc-last-save', JSON.stringify({receiptNo:calcReceiptNo,userName:calcUserName,at:Date.now()})); } catch {}
+      try { localStorage.removeItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`); } catch {}  // 성공 → 대기분 제거
+    }
+  } catch (e) {
+    if (isAdmin()) {
+      setSaveStatus(`❌ 서버 저장 실패: ${e.message}`, 'error');
+    } else {
+      // 오프라인 폴백: 서버 미도달 → 이 PC에만 임시 저장 + 재전송 대기열에 메타와 함께 보관
+      try {
+        localStorage.setItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`,
+          JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, siteName: calcSiteName, bundle, at: Date.now() }));
+      } catch {}
+      // ⚠️ 성공처럼 보이지 않게 빨간 경고로 (고객 착각 방지)
+      setSaveStatus('⚠️ 서버 저장 실패 — 인터넷 확인 후 [저장] 다시 눌러주세요 (현재 이 PC에만 임시 저장됨)', 'error');
+    }
   }
 }
 
@@ -201,13 +217,17 @@ async function loadFromServer() {
         calcUserName = foundUser;
         const userEl = document.getElementById('pv-user-name');
         if (userEl) { userEl.value = foundUser; userEl.dispatchEvent(new Event('input')); }
-        try { localStorage.setItem('ktl-calc-username', foundUser); } catch {}
+        if (!isAdmin()) {
+          try { localStorage.setItem('ktl-calc-username', foundUser); } catch {}
+        }
       }
       if (foundSite) {
         calcSiteName = foundSite;
         const siteEl = document.getElementById('pv-site-name');
         if (siteEl) { siteEl.value = foundSite; siteEl.dispatchEvent(new Event('input')); }
-        try { localStorage.setItem('ktl-site-name', foundSite); } catch {}
+        if (!isAdmin()) {
+          try { localStorage.setItem('ktl-site-name', foundSite); } catch {}
+        }
       }
       restoreBundle(data);
       const time = new Date(updatedAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -247,7 +267,9 @@ async function loadFromServer() {
       calcSiteName = loadedSite;
       const siteEl = document.getElementById('pv-site-name');
       if (siteEl) { siteEl.value = loadedSite; siteEl.dispatchEvent(new Event('input')); }
-      try { localStorage.setItem('ktl-site-name', loadedSite); } catch {}
+      if (!isAdmin()) {
+        try { localStorage.setItem('ktl-site-name', loadedSite); } catch {}
+      }
     }
     const time = new Date(updatedAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
     setSaveStatus(`✅ 불러오기 완료 (마지막 저장: ${time})`);
@@ -257,6 +279,7 @@ async function loadFromServer() {
 }
 
 function scheduleAutoSave() {
+  if (isAdmin()) return;
   if (!calcReceiptNo || !calcUserName) return;
   clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(saveToServer, 30_000);
@@ -275,9 +298,9 @@ function applyAccessMode() {
   if (saveBtn) saveBtn.style.display = primary ? '' : 'none';
   // 10초 인터벌 재설정 (중복 방지)
   clearInterval(primaryTimer); clearInterval(viewerTimer);
-  if (primary) {
+  if (primary && !isAdmin()) {
     primaryTimer = setInterval(() => { if (calcReceiptNo && calcUserName) saveToServer(); }, 60_000);  // 쓰기: 1분 자동저장
-  } else {
+  } else if (!primary) {
     viewerTimer = setInterval(() => { if (calcReceiptNo) loadFromServer(); }, 10_000);                 // 읽기: 10초 자동 불러오기
   }
   const btn = document.getElementById('pv-primary-btn');
@@ -293,10 +316,16 @@ function applyAccessMode() {
 }
 
 function saveMeta() {
+  if (isAdmin()) return;
   try { localStorage.setItem('ktl-tabs', JSON.stringify(tabs.map(({id,code,label,pass,subNo})=>({id,code,label,pass,subNo})))); } catch {}
   try { localStorage.setItem('ktl-tab-active', activeId||''); } catch {}
 }
 function loadMeta() {
+  if (isAdmin()) {
+    tabs = [];
+    activeId = null;
+    return;
+  }
   try { const r = localStorage.getItem('ktl-tabs'); if (r) tabs = JSON.parse(r); } catch {}
   try { activeId = localStorage.getItem('ktl-tab-active') || null; } catch {}
   // 구버전 탭(subNo 없음) 마이그레이션
@@ -329,9 +358,16 @@ function saveData(id) {
       }
     }
   });
-  try { localStorage.setItem(`ktl-pv-${id}`, JSON.stringify(s)); } catch {}
+  if (isAdmin()) {
+    adminInMemoryCache[id] = s;
+  } else {
+    try { localStorage.setItem(`ktl-pv-${id}`, JSON.stringify(s)); } catch {}
+  }
 }
 function loadData(id) {
+  if (isAdmin()) {
+    return adminInMemoryCache[id] || {};
+  }
   try { const r = localStorage.getItem(`ktl-pv-${id}`); return r ? JSON.parse(r) : {}; } catch { return {}; }
 }
 
@@ -347,8 +383,17 @@ function addTab(code) {
   switchTab(id);
 }
 function removeTab(id) {
-  if (tabs.length === 1) { tabs = []; activeId = null; saveMeta(); renderTabs(); renderEmpty(); return; }
-  try { localStorage.removeItem(`ktl-pv-${id}`); } catch {}
+  if (tabs.length === 1) {
+    if (isAdmin()) {
+      delete adminInMemoryCache[id];
+    }
+    tabs = []; activeId = null; saveMeta(); renderTabs(); renderEmpty(); return;
+  }
+  if (isAdmin()) {
+    delete adminInMemoryCache[id];
+  } else {
+    try { localStorage.removeItem(`ktl-pv-${id}`); } catch {}
+  }
   const idx = tabs.findIndex(t => t.id === id);
   tabs.splice(idx, 1);
   if (activeId === id) activeId = tabs[Math.max(0, idx-1)].id;
@@ -1960,10 +2005,11 @@ function init() {
     activeId = tabs.length ? tabs[0].id : null;
   }
 
-  // 저장된 접수번호·사용자 이름 복원
-  calcReceiptNo = localStorage.getItem('ktl-calc-receipt') || '';
-  calcUserName  = localStorage.getItem('ktl-calc-username') || '';
-  calcSiteName  = localStorage.getItem('ktl-site-name') || '';
+  // 저장된 접수번호·사용자 이름 복원 (관리자는 복원하지 않고 빈 값으로 시작)
+  const isAdm = isAdmin();
+  calcReceiptNo = isAdm ? '' : (localStorage.getItem('ktl-calc-receipt') || '');
+  calcUserName  = isAdm ? '' : (localStorage.getItem('ktl-calc-username') || '');
+  calcSiteName  = isAdm ? '' : (localStorage.getItem('ktl-site-name') || '');
 
   panel.innerHTML = `
 <div class="pv-page">
@@ -2029,23 +2075,31 @@ function init() {
   // ── 저장/불러오기 이벤트 ───────────────────────────────
   document.getElementById('pv-receipt-no')?.addEventListener('input', e => {
     calcReceiptNo = e.target.value.trim();
-    try { localStorage.setItem('ktl-calc-receipt', calcReceiptNo); } catch {}
+    if (!isAdm) {
+      try { localStorage.setItem('ktl-calc-receipt', calcReceiptNo); } catch {}
+    }
     scheduleAutoSave();
   });
   document.getElementById('pv-user-name')?.addEventListener('input', e => {
     calcUserName = e.target.value.trim();
-    try { localStorage.setItem('ktl-calc-username', calcUserName); } catch {}
+    if (!isAdm) {
+      try { localStorage.setItem('ktl-calc-username', calcUserName); } catch {}
+    }
     scheduleAutoSave();
   });
   document.getElementById('pv-site-name')?.addEventListener('input', e => {
     calcSiteName = e.target.value.trim();
-    try { localStorage.setItem('ktl-site-name', calcSiteName); } catch {}
+    if (!isAdm) {
+      try { localStorage.setItem('ktl-site-name', calcSiteName); } catch {}
+    }
   });
   document.getElementById('pv-save-btn')?.addEventListener('click', saveToServer);
   document.getElementById('pv-load-btn')?.addEventListener('click', loadFromServer);
   document.getElementById('pv-primary-btn')?.addEventListener('click', () => {
     isPrimaryUser = !isPrimaryUser;        // 누구나 토글 (누르면 주 사용자)
-    try { localStorage.setItem('ktl-calc-primary', isPrimaryUser ? '1' : '0'); } catch {}
+    if (!isAdm) {
+      try { localStorage.setItem('ktl-calc-primary', isPrimaryUser ? '1' : '0'); } catch {}
+    }
     applyAccessMode();
     if (!isPrimaryUser && calcReceiptNo) loadFromServer();   // 확인용 전환 시 즉시 최신 반영
   });
