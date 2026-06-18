@@ -1483,9 +1483,9 @@ function getDefaultPipelineSteps(code) {
       { id: 'ph4c', type: 's', label: '반 고3' },
       { id: 'phdi', type: 'z', label: '드 초기' },
       { id: 'phdf', type: 'z', label: '드 최종' },
-      { id: 'phm4', type: 'z', label: '직 pH4' },
-      { id: 'phm7', type: 'z', label: '직 pH7' },
-      { id: 'phm10', type: 'z', label: '직 pH10' },
+      { id: 'phm4', type: 'm', label: '직 pH4' },
+      { id: 'phm7', type: 'm', label: '직 pH7' },
+      { id: 'phm10', type: 'm', label: '직 pH10' },
       { id: 'pht10', type: 'other', label: '온도 10℃' },
       { id: 'pht15', type: 'other', label: '온도 15℃' },
       { id: 'pht20', type: 'other', label: '온도 20℃' },
@@ -1623,11 +1623,6 @@ function parseSequenceString(code, seqStr) {
         ordered.push(match);
       }
     });
-    defaultSteps.forEach(s => {
-      if (!ordered.some(o => o.id === s.id)) {
-        ordered.push(s);
-      }
-    });
     return ordered;
   }
 
@@ -1654,9 +1649,6 @@ function parseSequenceString(code, seqStr) {
       ordered.push(fSteps[fIdx++]);
     }
   }
-
-  const unused = defaultSteps.filter(s => !ordered.some(o => o.id === s.id));
-  ordered.push(...unused);
 
   return ordered;
 }
