@@ -2026,47 +2026,65 @@ select.field__control {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 14px;
+  font-size: 10px;
   font-weight: 600;
   cursor: pointer;
   background: var(--surface-2);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   color: var(--text-dim);
   transition: all 0.2s ease;
   user-select: none;
-  min-width: 60px;
   position: relative;
 }
-.pv-pipeline-bubble:hover {
-  border-color: var(--accent-base);
-  color: var(--text);
-  transform: translateY(-1px);
+/* 미입력 상태에서도 타입별 색상 테두리로 구분 */
+.pv-pipeline-bubble.type-z {
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #3b82f6;
 }
+.pv-pipeline-bubble.type-s {
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10b981;
+}
+.pv-pipeline-bubble.type-m {
+  border-color: rgba(139, 92, 246, 0.4);
+  color: #8b5cf6;
+}
+.pv-pipeline-bubble.type-other {
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #6366f1;
+}
+.pv-pipeline-bubble:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+.pv-pipeline-bubble.type-z:hover { border-color: #3b82f6; }
+.pv-pipeline-bubble.type-s:hover { border-color: #10b981; }
+.pv-pipeline-bubble.type-m:hover { border-color: #8b5cf6; }
+.pv-pipeline-bubble.type-other:hover { border-color: #6366f1; }
 .pv-pipeline-bubble.is-active {
-  border-color: var(--accent-base);
   box-shadow: 0 0 0 2px var(--glow);
-  color: var(--text);
   background: var(--surface-0);
 }
+/* 입력 완료 상태: 채움 색상 */
 .pv-pipeline-bubble.is-filled {
   color: #ffffff;
 }
 .pv-pipeline-bubble.is-filled.type-z {
-  background: #3b82f6; /* Blue for Zero */
+  background: #3b82f6;
   border-color: #2563eb;
 }
 .pv-pipeline-bubble.is-filled.type-s {
-  background: #10b981; /* Green for Span */
+  background: #10b981;
   border-color: #059669;
 }
 .pv-pipeline-bubble.is-filled.type-m {
-  background: #8b5cf6; /* Purple for Linearity */
+  background: #8b5cf6;
   border-color: #7c3aed;
 }
 .pv-pipeline-bubble.is-filled.type-other {
-  background: #6366f1; /* Indigo for others */
+  background: #6366f1;
   border-color: #4f46e5;
 }
 .pv-pipeline-value {

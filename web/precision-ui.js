@@ -461,6 +461,8 @@ function saveData(id) {
       }
     }
   });
+  // 파이프라인 순서 문자열도 저장 (getFields에 포함되지 않으므로 별도 처리)
+  if (stored['seq'] !== undefined) s['seq'] = stored['seq'];
   if (isAdmin()) {
     adminInMemoryCache[id] = s;
   } else {
@@ -1681,8 +1683,14 @@ function updatePipeline(code) {
   const track = document.getElementById('pv-pipeline-track');
   if (!track) return;
 
-  // 측정순서(seq) 입력이 없어도 기본 순서로 항상 표시 — pH 등 모든 항목 포함.
-  // (seq 있으면 그 순서, 없으면 getDefaultPipelineSteps(code) 기본 순서)
+  // 진행 순서 입력이 없으면 파이프라인 버블을 표시하지 않음
+  const seqStr = stored['seq'];
+  if (!seqStr || seqStr.trim() === '') {
+    track.innerHTML = '';
+    track.style.display = 'none';
+    return;
+  }
+
   const steps = getPipelineSteps(code);
   if (!steps || steps.length === 0) {
     track.innerHTML = '';
@@ -1922,9 +1930,10 @@ function renderGraphsInModal(code) {
     domax: '직선Max', domin: '직선Min'
   };
 
+  // 그래프는 시퀀스 입력과 무관하게 항상 전체 데이터를 기본 순서로 표시
   let driftChartHTML = '';
   if (IS_PH(code)) {
-    const ids = sortSeriesBySequence(code, ['phdi', 'phdf']);
+    const ids = ['phdi', 'phdf'];
     const vals = ids.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
     const xLabels = ids.map(id => labelMap[id] || id.toUpperCase());
     driftChartHTML = drawSVGLineChart(
@@ -1935,8 +1944,8 @@ function renderGraphsInModal(code) {
       xLabels
     );
   } else if (IS_DO(code)) {
-    const zIds = sortSeriesBySequence(code, ['dozi', 'dozf']);
-    const sIds = sortSeriesBySequence(code, ['dosi', 'dosf']);
+    const zIds = ['dozi', 'dozf'];
+    const sIds = ['dosi', 'dosf'];
     const zVals = zIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
     const sVals = sIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
     const xLabels = zIds.map(id => labelMap[id] || id.toUpperCase());
@@ -1949,8 +1958,9 @@ function renderGraphsInModal(code) {
       xLabels
     );
   } else {
-    const zIds = sortSeriesBySequence(code, ['z1', 'z2', 'z3', 'z4']);
-    const sIds = sortSeriesBySequence(code, ['s1', 's2', 's3', 's4']);
+    // 드리프트: 항상 Z1~Z4, S1~S4 전체를 기본 순서로 표시
+    const zIds = ['z1', 'z2', 'z3', 'z4'];
+    const sIds = ['s1', 's2', 's3', 's4'];
     const zVals = zIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
     const sVals = sIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
 
@@ -1988,7 +1998,7 @@ function renderGraphsInModal(code) {
 
   let linChartHTML = '';
   if (IS_PH(code)) {
-    const mIds = sortSeriesBySequence(code, ['phm4', 'phm7', 'phm10']);
+    const mIds = ['phm4', 'phm7', 'phm10'];
     const mVals = mIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
     const refVals = mIds.map(id => id === 'phm4' ? 4 : (id === 'phm7' ? 7 : 10));
     const xLabels = mIds.map(id => labelMap[id] || id.toUpperCase());
@@ -2001,7 +2011,7 @@ function renderGraphsInModal(code) {
       xLabels
     );
   } else if (IS_DO(code)) {
-    const mIds = sortSeriesBySequence(code, ['domin', 'domax']);
+    const mIds = ['domin', 'domax'];
     const mVals = mIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
     const xLabels = mIds.map(id => labelMap[id] || id.toUpperCase());
     linChartHTML = drawSVGLineChart(
@@ -2030,7 +2040,8 @@ function renderGraphsInModal(code) {
       { refLines, bands }
     );
   } else {
-    const mIds = sortSeriesBySequence(code, ['m1', 'm2', 'm3']);
+    // 직선성: 항상 M1~M3 전체 표시
+    const mIds = ['m1', 'm2', 'm3'];
     const mVals = mIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
     const linRef = (0.9 * range) / 2;
     const refLines = [];
@@ -2062,6 +2073,16 @@ function setupPipelineAndGraph(tab) {
 
   const seqVal = stored['seq'] || '';
 
+  // 항목별 다른 placeholder 예시
+  let seqPlaceholder = '예: ZZSSZSZZSSMMM';
+  if (IS_PH(tab.code)) {
+    seqPlaceholder = '예: ph7a,ph4a,phdi,phdf,phm4';
+  } else if (IS_DO(tab.code)) {
+    seqPlaceholder = '예: dos1,dozi,dosi,dozf,dosf';
+  } else if (IS_WATER(tab.code)) {
+    seqPlaceholder = '예: ZZSSZSZZSSM';
+  }
+
   const pipelineHTML = `
     <div class="pv-pipeline-section">
       <div class="pv-pipeline-header">
@@ -2069,7 +2090,7 @@ function setupPipelineAndGraph(tab) {
         <div class="pv-pipeline-controls">
           <div class="pv-pipeline-seq-wrap">
             <span>🔄 진행 순서:</span>
-            <input type="text" class="pv-pipeline-seq-input" id="pv-pipeline-seq" placeholder="예: ZZSSZSZZSSMMM" value="${seqVal}" />
+            <input type="text" class="pv-pipeline-seq-input" id="pv-pipeline-seq" placeholder="${seqPlaceholder}" value="${seqVal}" />
           </div>
           <button type="button" class="pv-graph-btn" id="pv-open-graph-btn">📈 그래프</button>
         </div>
