@@ -389,6 +389,23 @@ select.field__control {
 .btn--mini:hover:not(:disabled) { color: var(--text); border-color: var(--border-strong); }
 .btn--mini:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn--danger:not(:disabled) { color: var(--fail); }
+
+/* 주사용자 전환 토글 — 권한(쓰기·저장) 버튼이라 눈에 띄는 전용 색 */
+#pv-primary-btn {
+  border: 1.5px solid #d29922;            /* 호박(amber) — 파랑/초록/빨강 팔레트와 구분 */
+  background: rgba(210, 153, 34, 0.12);
+  color: #d29922; font-weight: 700;
+}
+#pv-primary-btn:hover:not(:disabled) {
+  background: rgba(210, 153, 34, 0.22);
+  border-color: #e3a92b; color: #e3a92b;
+}
+/* 활성(주사용자 ON) — 채워진 초록으로 '내가 주사용자' 상태 또렷이 */
+#pv-primary-btn.pv-primary-on {
+  background: var(--pass); border-color: var(--pass); color: #fff;
+  box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.18);
+}
+#pv-primary-btn.pv-primary-on:hover:not(:disabled) { background: #46c45a; border-color: #46c45a; color: #fff; }
 .btn--danger:hover:not(:disabled) { border-color: var(--fail); }
 
 .icon-btn {
@@ -2061,7 +2078,9 @@ select.field__control {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3px 8px;
+  padding: 2px 10px;
+  min-height: 38px;
+  min-width: 58px;
   border-radius: 14px;
   font-size: 10px;
   font-weight: 600;
