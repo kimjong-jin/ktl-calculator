@@ -1599,33 +1599,28 @@ function buildFormBasic(code) {
   // 별도측정(2·3차) 열림 상태: 체크 저장됐거나, 기존 Z6/S6/Z7/S7 값이 있으면 열어둔다.
   const repExtraOpen = stored['rep_extra'] === true
     || ['z6','s6','z7','s7'].some(k => { const v = stored[k]; return v != null && String(v).trim() !== '' && Number(v) !== 0; });
-  const isToc = code === 'TOC';
-
-  let headerSections = `
-  <div class="pv-section">
-    <h3 class="pv-section__title">📏 측정범위</h3>
-    <div class="pv-row1">${ni('range','측정범위')}</div>
-  </div>`;
-
+  let headerSection = '';
   if (isToc) {
-    headerSections += `
+    headerSection = `
   <div class="pv-section">
-    <h3 class="pv-section__title">⏱️ 응답시간</h3>
-    <div class="pv-row1">${ni('resp','응답시간(분, ≤15)')}</div>
-  </div>
-  <div class="pv-section">
-    <h3 class="pv-section__title">📋 배출기준</h3>
-    <div class="pv-row1">${ni('fdis','배출기준 mg/L (없으면 0)')}</div>
+    <h3 class="pv-section__title">📏 측정범위 · ⏱️ 응답시간 · 📋 배출기준</h3>
+    <div class="pv-grid3">${ni('range','측정범위')}${ni('resp','응답시간(분, ≤15)')}${ni('fdis','배출기준 mg/L (없으면 0)')}</div>
     <label class="pv-highvar" style="margin-top:8px">
       <input type="checkbox" id="pv_highvar" ${stored['highvar'] === true ? 'checked' : ''}>
       <span>변동성이 큰 시료 — 15% 이하 <b>AND</b> 절대오차 0.5 mg/L 이하 둘 다 만족 (법)</span>
     </label>
   </div>`;
+  } else {
+    headerSection = `
+  <div class="pv-section">
+    <h3 class="pv-section__title">📏 측정범위</h3>
+    <div class="pv-row1">${ni('range','')}</div>
+  </div>`;
   }
 
   return `
 <div class="card pv-form-card">
-  ${headerSections}
+  ${headerSection}
 
   <div class="pv-section">
     <h3 class="pv-section__title">📉 드리프트 <span class="pv-hint">|평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</span></h3>
