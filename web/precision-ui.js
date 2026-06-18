@@ -1881,7 +1881,7 @@ function buildResultsPanel(code) {
     <div id="pv-final"></div>
   </details>
   <details class="pv-collapse">
-    <summary class="pv-collapse__summary">📋 법령근거 · 정도검사기준 <span class="pv-legal-badge">국가법령정보센터</span></summary>
+    <summary class="pv-collapse__summary">법령근거 · 정도검사기준 <span class="pv-legal-badge">국가법령정보센터</span></summary>
     <div id="pv-legal-content" class="pv-legal-content" style="margin-top:10px"></div>
   </details>
   <div style="text-align:right;margin-top:12px">
