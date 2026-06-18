@@ -1950,3 +1950,311 @@ select.field__control {
 .pv-collapse[open] > summary::before { transform: rotate(90deg); }
 .pv-collapse > summary:hover { color: var(--accent-base); }
 .pv-collapse .pv-legal-badge { margin-left: auto; font-weight: 500; }
+
+/* ── 입력 진행도 파이프라인 (Progress Pipeline) ────────────────── */
+.pv-pipeline-section {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pv-pipeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.pv-pipeline-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pv-pipeline-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pv-pipeline-seq-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.pv-pipeline-seq-input {
+  width: 160px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+.pv-pipeline-seq-input:focus {
+  border-color: var(--accent-base);
+  outline: none;
+}
+@media (max-width: 600px) {
+  .pv-pipeline-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .pv-pipeline-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+.pv-pipeline-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.pv-pipeline-bubble {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  transition: all 0.2s ease;
+  user-select: none;
+  min-width: 60px;
+  position: relative;
+}
+.pv-pipeline-bubble:hover {
+  border-color: var(--accent-base);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+.pv-pipeline-bubble.is-active {
+  border-color: var(--accent-base);
+  box-shadow: 0 0 0 2px var(--glow);
+  color: var(--text);
+  background: var(--surface-0);
+}
+.pv-pipeline-bubble.is-filled {
+  color: #ffffff;
+}
+.pv-pipeline-bubble.is-filled.type-z {
+  background: #3b82f6; /* Blue for Zero */
+  border-color: #2563eb;
+}
+.pv-pipeline-bubble.is-filled.type-s {
+  background: #10b981; /* Green for Span */
+  border-color: #059669;
+}
+.pv-pipeline-bubble.is-filled.type-m {
+  background: #8b5cf6; /* Purple for Linearity */
+  border-color: #7c3aed;
+}
+.pv-pipeline-bubble.is-filled.type-other {
+  background: #6366f1; /* Indigo for others */
+  border-color: #4f46e5;
+}
+.pv-pipeline-value {
+  font-size: 9px;
+  font-weight: 400;
+  opacity: 0.85;
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+/* ── 트렌드 그래프 모달 (Trend Chart Modal) ────────────────── */
+.pv-graph-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--accent-base);
+  color: #ffffff;
+  border: 0;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pv-graph-btn:hover {
+  background: var(--accent-deep);
+}
+.pv-graph-btn[disabled] {
+  background: var(--neutral-bg);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.pv-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.pv-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.pv-modal-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2);
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: scale(0.95);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.pv-modal.is-open .pv-modal-card {
+  transform: scale(1);
+}
+.pv-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pv-modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+.pv-modal-close {
+  background: none;
+  border: 0;
+  color: var(--text-dim);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.pv-modal-close:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.pv-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── SVG 그래프 스타일 ────────────────── */
+.pv-chart-container {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 16px;
+  position: relative;
+}
+.pv-chart-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+.pv-chart-svg-wrap {
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  min-height: 180px;
+}
+.pv-chart-svg-wrap svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.pv-chart-no-data {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.pv-chart-grid {
+  stroke: var(--border);
+  stroke-dasharray: 2 2;
+  stroke-width: 1;
+}
+.pv-chart-axis {
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+.pv-chart-text {
+  fill: var(--text-dim);
+  font-size: 10px;
+  font-family: sans-serif;
+  user-select: none;
+}
+.pv-chart-line-z {
+  fill: none;
+  stroke: #3b82f6;
+  stroke-width: 2.5;
+}
+.pv-chart-line-s {
+  fill: none;
+  stroke: #10b981;
+  stroke-width: 2.5;
+}
+.pv-chart-line-m {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 2.5;
+}
+.pv-chart-line-ref {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-dasharray: 4 4;
+  stroke-width: 1.5;
+}
+.pv-chart-dot-z {
+  fill: #3b82f6;
+  stroke: var(--surface-1);
+  stroke-width: 1.5;
+}
+.pv-chart-dot-s {
+  fill: #10b981;
+  stroke: var(--surface-1);
+  stroke-width: 1.5;
+}
+.pv-chart-dot-m {
+  fill: #8b5cf6;
+  stroke: var(--surface-1);
+  stroke-width: 1.5;
+}
+.pv-chart-band-drift {
+  fill: var(--neutral-bg);
+  opacity: 0.35;
+}
+

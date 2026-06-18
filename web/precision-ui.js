@@ -1469,6 +1469,623 @@ function alignMeasureInputs(formArea) {
   });
 }
 
+function getDefaultPipelineSteps(code) {
+  const repExtraOpen = stored['rep_extra'] === true
+    || ['z6','s6','z7','s7'].some(k => { const v = stored[k]; return v != null && String(v).trim() !== '' && Number(v) !== 0; });
+
+  if (IS_PH(code)) {
+    return [
+      { id: 'ph7a', type: 'z', label: 'RSD 저1' },
+      { id: 'ph4a', type: 's', label: 'RSD 고1' },
+      { id: 'ph7b', type: 'z', label: 'RSD 저2' },
+      { id: 'ph4b', type: 's', label: 'RSD 고2' },
+      { id: 'ph7c', type: 'z', label: 'RSD 저3' },
+      { id: 'ph4c', type: 's', label: 'RSD 고3' },
+      { id: 'phdi', type: 'z', label: '드 초기' },
+      { id: 'phdf', type: 'z', label: '드 최종' },
+      { id: 'phm4', type: 'z', label: '직선 pH4' },
+      { id: 'phm7', type: 'z', label: '직선 pH7' },
+      { id: 'phm10', type: 'z', label: '직선 pH10' },
+      { id: 'pht10', type: 'other', label: '온도 10℃' },
+      { id: 'pht15', type: 'other', label: '온도 15℃' },
+      { id: 'pht20', type: 'other', label: '온도 20℃' },
+      { id: 'pht25', type: 'other', label: '온도 25℃' },
+      { id: 'pht30', type: 'other', label: '온도 30℃' },
+      { id: 'phci1', type: 'other', label: '현장 Ci1' },
+      { id: 'phai1', type: 'other', label: '수분 Ai1' },
+      { id: 'phai2', type: 'other', label: '수분 Ai2' },
+      { id: 'phci2', type: 'other', label: '현장 Ci2' },
+      { id: 'phai3', type: 'other', label: '수분 Ai3' },
+      { id: 'phai4', type: 'other', label: '수분 Ai4' }
+    ];
+  }
+
+  if (IS_DO(code)) {
+    return [
+      { id: 'dos1', type: 's', label: 'RSD S1' },
+      { id: 'dos2', type: 's', label: 'RSD S2' },
+      { id: 'dos3', type: 's', label: 'RSD S3' },
+      { id: 'dozi', type: 'z', label: '드 Z초기' },
+      { id: 'dosi', type: 's', label: '드 S초기' },
+      { id: 'dozf', type: 'z', label: '드 Z최종' },
+      { id: 'dosf', type: 's', label: '드 S최종' },
+      { id: 'domax', type: 'm', label: '직선 Max' },
+      { id: 'domin', type: 'm', label: '직선 Min' },
+      { id: 'dot20', type: 'other', label: '온도 20℃' },
+      { id: 'dot30', type: 'other', label: '온도 30℃' },
+      { id: 'resp', type: 'other', label: '응답(초)' }
+    ];
+  }
+
+  const isWater = IS_WATER(code);
+  const steps = [
+    { id: 'z1', type: 'z', label: '드 Z1' },
+    { id: 's1', type: 's', label: '드 S1' },
+    { id: 'z2', type: 'z', label: '드 Z2' },
+    { id: 's2', type: 's', label: '드 S2' },
+    { id: 'z3', type: 'z', label: '드 Z3' },
+    { id: 's3', type: 's', label: '드 S3' },
+    { id: 'z4', type: 'z', label: '드 Z4' },
+    { id: 's4', type: 's', label: '드 S4' },
+    { id: 'z5', type: 'z', label: 'RSD Z5' },
+    { id: 's5', type: 's', label: 'RSD S5' }
+  ];
+
+  if (repExtraOpen) {
+    steps.push(
+      { id: 'z6', type: 'z', label: 'RSD Z6' },
+      { id: 's6', type: 's', label: 'RSD S6' },
+      { id: 'z7', type: 'z', label: 'RSD Z7' },
+      { id: 's7', type: 's', label: 'RSD S7' }
+    );
+  }
+
+  if (isWater) {
+    steps.push({ id: 'm1', type: 'm', label: '직선 M' });
+    const isRespSkip = stored['resp_skip'] === true;
+    if (!isRespSkip) {
+      steps.push({ id: 'resp', type: 'other', label: '응답(초)' });
+    }
+  } else {
+    steps.push(
+      { id: 'm1', type: 'm', label: '직선 M1' },
+      { id: 'm2', type: 'm', label: '직선 M2' },
+      { id: 'm3', type: 'm', label: '직선 M3' }
+    );
+    if (code === 'COD') {
+      steps.push(
+        { id: 'codmax', type: 'other', label: '변동 Max' },
+        { id: 'codmin', type: 'other', label: '변동 Min' }
+      );
+    }
+    if (code === 'TOC') {
+      steps.push({ id: 'resp', type: 'other', label: '응답(분)' });
+    }
+    // Field factor at the end
+    steps.push(
+      { id: 'ci1', type: 'other', label: '현장 Ci1' },
+      { id: 'ai1', type: 'other', label: '수분 Ai1' },
+      { id: 'ai2', type: 'other', label: '수분 Ai2' },
+      { id: 'ci2', type: 'other', label: '현장 Ci2' },
+      { id: 'ai3', type: 'other', label: '수분 Ai3' },
+      { id: 'ai4', type: 'other', label: '수분 Ai4' }
+    );
+  }
+
+  return steps;
+}
+
+function parseSequenceString(code, seqStr) {
+  if (!seqStr || seqStr.trim() === '') return null;
+  const defaultSteps = getDefaultPipelineSteps(code);
+  const normalizedStr = seqStr.toUpperCase().replace(/\s+/g, '');
+  
+  if (seqStr.includes(',') || /[0-9]/.test(seqStr)) {
+    const tokens = seqStr.split(/[\s,]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
+    const ordered = [];
+    tokens.forEach(tok => {
+      const match = defaultSteps.find(s => s.id === tok);
+      if (match && !ordered.some(o => o.id === match.id)) {
+        ordered.push(match);
+      }
+    });
+    defaultSteps.forEach(s => {
+      if (!ordered.some(o => o.id === s.id)) {
+        ordered.push(s);
+      }
+    });
+    return ordered;
+  }
+
+  const ordered = [];
+  const zSteps = defaultSteps.filter(s => s.type === 'z');
+  const sSteps = defaultSteps.filter(s => s.type === 's');
+  const mSteps = defaultSteps.filter(s => s.type === 'm');
+  const rSteps = defaultSteps.filter(s => s.id === 'resp');
+  const fSteps = defaultSteps.filter(s => ['ci1', 'ai1', 'ai2', 'ci2', 'ai3', 'ai4', 'phci1', 'phai1', 'phai2', 'phci2', 'phai3', 'phai4'].includes(s.id));
+
+  let zIdx = 0, sIdx = 0, mIdx = 0, rIdx = 0, fIdx = 0;
+
+  for (let i = 0; i < normalizedStr.length; i++) {
+    const char = normalizedStr[i];
+    if (char === 'Z' && zIdx < zSteps.length) {
+      ordered.push(zSteps[zIdx++]);
+    } else if (char === 'S' && sIdx < sSteps.length) {
+      ordered.push(sSteps[sIdx++]);
+    } else if (char === 'M' && mIdx < mSteps.length) {
+      ordered.push(mSteps[mIdx++]);
+    } else if ((char === 'R' || char === 'T') && rIdx < rSteps.length) {
+      ordered.push(rSteps[rIdx++]);
+    } else if (char === 'F' && fIdx < fSteps.length) {
+      ordered.push(fSteps[fIdx++]);
+    }
+  }
+
+  const unused = defaultSteps.filter(s => !ordered.some(o => o.id === s.id));
+  ordered.push(...unused);
+
+  return ordered;
+}
+
+function getPipelineSteps(code) {
+  const seqStr = stored['seq'];
+  if (seqStr && seqStr.trim() !== '') {
+    return parseSequenceString(code, seqStr);
+  }
+  return getDefaultPipelineSteps(code);
+}
+
+function sortSeriesBySequence(code, seriesIds) {
+  const steps = getPipelineSteps(code);
+  const orderedIds = [];
+  steps.forEach(s => {
+    if (seriesIds.includes(s.id)) {
+      orderedIds.push(s.id);
+    }
+  });
+  seriesIds.forEach(id => {
+    if (!orderedIds.includes(id)) {
+      orderedIds.push(id);
+    }
+  });
+  return orderedIds;
+}
+
+function updatePipeline(code) {
+  const track = document.getElementById('pv-pipeline-track');
+  if (!track) return;
+
+  const steps = getPipelineSteps(code);
+  const activeElId = document.activeElement ? document.activeElement.id : '';
+
+  track.innerHTML = steps.map(step => {
+    const el = document.getElementById(`pv_${step.id}`);
+    const isFilled = el && el.value.trim() !== '';
+    const val = isFilled ? el.value.trim() : '';
+    const isActive = activeElId === `pv_${step.id}`;
+    
+    let displayVal = '';
+    if (isFilled) {
+      const numVal = parseFloat(val);
+      displayVal = isNaN(numVal) ? val : (Number.isInteger(numVal) ? numVal : parseFloat(numVal.toFixed(3)));
+    }
+
+    return `
+      <div class="pv-pipeline-bubble type-${step.type} ${isFilled ? 'is-filled' : ''} ${isActive ? 'is-active' : ''}" 
+           data-id="${step.id}" 
+           title="${step.label}: ${isFilled ? val : '미입력'}">
+        <span class="pv-pipeline-label">${step.label}</span>
+        ${isFilled ? `<span class="pv-pipeline-value">${displayVal}</span>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  track.querySelectorAll('.pv-pipeline-bubble').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fieldId = btn.dataset.id;
+      const input = document.getElementById(`pv_${fieldId}`);
+      if (input) {
+        input.focus();
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  });
+}
+
+function ensureGraphModal() {
+  let modal = document.getElementById('pv-graph-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'pv-graph-modal';
+    modal.className = 'pv-modal';
+    modal.innerHTML = `
+      <div class="pv-modal-card">
+        <div class="pv-modal-header">
+          <h3 class="pv-modal-title">📈 실시간 측정 트렌드 그래프</h3>
+          <button class="pv-modal-close" id="pv-graph-modal-close" type="button">✕</button>
+        </div>
+        <div class="pv-modal-body" id="pv-graph-modal-body">
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector('#pv-graph-modal-close').addEventListener('click', () => {
+      modal.classList.remove('is-open');
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('is-open');
+      }
+    });
+  }
+  return modal;
+}
+
+function drawSVGLineChart(title, series, xLabels, options = {}) {
+  const allVals = [];
+  series.forEach(s => {
+    s.values.forEach(v => {
+      if (v !== null && v !== undefined && !isNaN(v)) allVals.push(v);
+    });
+  });
+  if (options.bands) {
+    options.bands.forEach(b => {
+      if (!isNaN(b.y1)) allVals.push(b.y1);
+      if (!isNaN(b.y2)) allVals.push(b.y2);
+    });
+  }
+  if (options.refLines) {
+    options.refLines.forEach(l => {
+      if (!isNaN(l.y)) allVals.push(l.y);
+    });
+  }
+
+  if (allVals.length === 0) {
+    return `
+      <div class="pv-chart-container">
+        <div class="pv-chart-title">${title}</div>
+        <div class="pv-chart-svg-wrap" style="display:flex; align-items:center; justify-content:center;">
+          <div class="pv-chart-no-data" style="position:static; transform:none;">입력 데이터가 부족하여 그래프를 그릴 수 없습니다.</div>
+        </div>
+      </div>
+    `;
+  }
+
+  let minVal = Math.min(...allVals);
+  let maxVal = Math.max(...allVals);
+  if (minVal === maxVal) {
+    minVal -= 1;
+    maxVal += 1;
+  } else {
+    const margin = (maxVal - minVal) * 0.15;
+    minVal -= margin;
+    maxVal += margin;
+  }
+
+  const width = 500;
+  const height = 220;
+  const paddingLeft = 50;
+  const paddingRight = 20;
+  const paddingTop = 20;
+  const paddingBottom = 40;
+
+  const chartWidth = width - paddingLeft - paddingRight;
+  const chartHeight = height - paddingTop - paddingBottom;
+
+  const getX = (idx) => paddingLeft + (idx / (xLabels.length - 1 || 1)) * chartWidth;
+  const getY = (val) => paddingTop + chartHeight - ((val - minVal) / (maxVal - minVal || 1)) * chartHeight;
+
+  let gridHtml = '';
+  const numGridLines = 4;
+  for (let i = 0; i <= numGridLines; i++) {
+    const yVal = minVal + (i / numGridLines) * (maxVal - minVal);
+    const yPos = getY(yVal);
+    gridHtml += `
+      <line class="pv-chart-grid" x1="${paddingLeft}" y1="${yPos}" x2="${width - paddingRight}" y2="${yPos}" />
+      <text class="pv-chart-text" x="${paddingLeft - 8}" y="${yPos + 4}" text-anchor="end">${yVal.toFixed(2)}</text>
+    `;
+  }
+
+  xLabels.forEach((label, idx) => {
+    const xPos = getX(idx);
+    gridHtml += `
+      <line class="pv-chart-grid" x1="${xPos}" y1="${paddingTop}" x2="${xPos}" y2="${paddingTop + chartHeight}" />
+      <text class="pv-chart-text" x="${xPos}" y="${paddingTop + chartHeight + 18}" text-anchor="middle">${label}</text>
+    `;
+  });
+
+  let bandsHtml = '';
+  if (options.bands) {
+    options.bands.forEach(b => {
+      if (isNaN(b.y1) || isNaN(b.y2)) return;
+      const y1Pos = getY(Math.max(b.y1, minVal));
+      const y2Pos = getY(Math.min(b.y2, maxVal));
+      const rectHeight = Math.abs(y1Pos - y2Pos);
+      const rectY = Math.min(y1Pos, y2Pos);
+      bandsHtml += `
+        <rect class="${b.class || 'pv-chart-band-drift'}" x="${paddingLeft}" y="${rectY}" width="${chartWidth}" height="${rectHeight}" />
+      `;
+    });
+  }
+
+  let refLinesHtml = '';
+  if (options.refLines) {
+    options.refLines.forEach(l => {
+      if (isNaN(l.y)) return;
+      const yPos = getY(l.y);
+      refLinesHtml += `
+        <line class="${l.class || 'pv-chart-line-ref'}" x1="${paddingLeft}" y1="${yPos}" x2="${width - paddingRight}" y2="${yPos}" />
+        <text class="pv-chart-text" x="${width - paddingRight - 4}" y="${yPos - 4}" text-anchor="end" style="font-weight:bold">${l.label || ''}</text>
+      `;
+    });
+  }
+
+  let pathsHtml = '';
+  series.forEach(s => {
+    let pathD = '';
+    let dotsHtml = '';
+    s.values.forEach((v, idx) => {
+      if (v === null || v === undefined || isNaN(v)) return;
+      const xPos = getX(idx);
+      const yPos = getY(v);
+      if (pathD === '') {
+        pathD = `M ${xPos} ${yPos}`;
+      } else {
+        pathD += ` L ${xPos} ${yPos}`;
+      }
+      dotsHtml += `
+        <circle class="${s.dotClass}" cx="${xPos}" cy="${yPos}" r="4" />
+        <text class="pv-chart-text" x="${xPos}" y="${yPos - 8}" text-anchor="middle" style="font-weight:600">${v.toFixed(2)}</text>
+      `;
+    });
+
+    if (pathD !== '') {
+      pathsHtml += `
+        <path class="${s.colorClass}" d="${pathD}" />
+        ${dotsHtml}
+      `;
+    }
+  });
+
+  return `
+    <div class="pv-chart-container">
+      <div class="pv-chart-title">${title}</div>
+      <div class="pv-chart-svg-wrap">
+        <svg viewBox="0 0 ${width} ${height}">
+          ${bandsHtml}
+          ${gridHtml}
+          ${refLinesHtml}
+          ${pathsHtml}
+          <line class="pv-chart-axis" x1="${paddingLeft}" y1="${paddingTop}" x2="${paddingLeft}" y2="${paddingTop + chartHeight}" />
+          <line class="pv-chart-axis" x1="${paddingLeft}" y1="${paddingTop + chartHeight}" x2="${width - paddingRight}" y2="${paddingTop + chartHeight}" />
+        </svg>
+      </div>
+    </div>
+  `;
+}
+
+function renderGraphsInModal(code) {
+  const body = document.getElementById('pv-graph-modal-body');
+  if (!body) return;
+
+  body.innerHTML = '';
+
+  const rangeVal = parseFloat(document.getElementById('pv_range')?.value);
+  const range = isNaN(rangeVal) ? 10 : rangeVal;
+
+  const labelMap = {
+    z1: 'Z1', z2: 'Z2', z3: 'Z3', z4: 'Z4', z5: 'Z5', z6: 'Z6', z7: 'Z7',
+    s1: 'S1', s2: 'S2', s3: 'S3', s4: 'S4', s5: 'S5', s6: 'S6', s7: 'S7',
+    m1: 'M1', m2: 'M2', m3: 'M3',
+    ph7a: 'RSD 저1', ph4a: 'RSD 고1', ph7b: 'RSD 저2', ph4b: 'RSD 고2', ph7c: 'RSD 저3', ph4c: 'RSD 고3',
+    phdi: '초기', phdf: '2시간후',
+    phm4: 'pH4', phm7: 'pH7', phm10: 'pH10',
+    dos1: 'S1', dos2: 'S2', dos3: 'S3',
+    dozi: 'Z초기', dosi: 'S초기', dozf: 'Z2시간', dosf: 'S2시간',
+    domax: '직선Max', domin: '직선Min'
+  };
+
+  let driftChartHTML = '';
+  if (IS_PH(code)) {
+    const ids = sortSeriesBySequence(code, ['phdi', 'phdf']);
+    const vals = ids.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
+    const xLabels = ids.map(id => labelMap[id] || id.toUpperCase());
+    driftChartHTML = drawSVGLineChart(
+      '📉 pH Drift Trend',
+      [
+        { name: 'pH', values: vals, colorClass: 'pv-chart-line-z', dotClass: 'pv-chart-dot-z' }
+      ],
+      xLabels
+    );
+  } else if (IS_DO(code)) {
+    const zIds = sortSeriesBySequence(code, ['dozi', 'dozf']);
+    const sIds = sortSeriesBySequence(code, ['dosi', 'dosf']);
+    const zVals = zIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
+    const sVals = sIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
+    const xLabels = zIds.map(id => labelMap[id] || id.toUpperCase());
+    driftChartHTML = drawSVGLineChart(
+      '📉 DO Zero/Span Drift Trend',
+      [
+        { name: 'Zero', values: zVals, colorClass: 'pv-chart-line-z', dotClass: 'pv-chart-dot-z' },
+        { name: 'Span', values: sVals, colorClass: 'pv-chart-line-s', dotClass: 'pv-chart-dot-s' }
+      ],
+      xLabels
+    );
+  } else {
+    const zIds = sortSeriesBySequence(code, ['z1', 'z2', 'z3', 'z4']);
+    const sIds = sortSeriesBySequence(code, ['s1', 's2', 's3', 's4']);
+    const zVals = zIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
+    const sVals = sIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
+
+    const driftLimit = IS_WATER(code) ? 3 : 5;
+    const driftTol = range * (driftLimit / 100);
+
+    const z1 = parseFloat(document.getElementById('pv_z1')?.value);
+    const z2 = parseFloat(document.getElementById('pv_z2')?.value);
+    const s1 = parseFloat(document.getElementById('pv_s1')?.value);
+    const s2 = parseFloat(document.getElementById('pv_s2')?.value);
+
+    const ziMean = (!isNaN(z1) && !isNaN(z2)) ? (z1 + z2) / 2 : NaN;
+    const siMean = (!isNaN(s1) && !isNaN(s2)) ? (s1 + s2) / 2 : NaN;
+
+    const bands = [];
+    if (!isNaN(ziMean)) {
+      bands.push({ y1: ziMean - driftTol, y2: ziMean + driftTol, class: 'pv-chart-band-drift' });
+    }
+    if (!isNaN(siMean)) {
+      bands.push({ y1: siMean - driftTol, y2: siMean + driftTol, class: 'pv-chart-band-drift' });
+    }
+
+    const xLabels = zIds.map(id => labelMap[id] || id.toUpperCase());
+
+    driftChartHTML = drawSVGLineChart(
+      `📉 Zero/Span Drift Trend (허용범위: ±${driftLimit}%)`,
+      [
+        { name: 'Zero', values: zVals, colorClass: 'pv-chart-line-z', dotClass: 'pv-chart-dot-z' },
+        { name: 'Span', values: sVals, colorClass: 'pv-chart-line-s', dotClass: 'pv-chart-dot-s' }
+      ],
+      xLabels,
+      { bands }
+    );
+  }
+
+  let linChartHTML = '';
+  if (IS_PH(code)) {
+    const mIds = sortSeriesBySequence(code, ['phm4', 'phm7', 'phm10']);
+    const mVals = mIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
+    const refVals = mIds.map(id => id === 'phm4' ? 4 : (id === 'phm7' ? 7 : 10));
+    const xLabels = mIds.map(id => labelMap[id] || id.toUpperCase());
+    linChartHTML = drawSVGLineChart(
+      '📈 pH Linearity (기준값 4, 7, 10 대비)',
+      [
+        { name: 'Measured', values: mVals, colorClass: 'pv-chart-line-m', dotClass: 'pv-chart-dot-m' },
+        { name: 'Reference', values: refVals, colorClass: 'pv-chart-line-ref', dotClass: 'pv-chart-dot-z' }
+      ],
+      xLabels
+    );
+  } else if (IS_DO(code)) {
+    const mIds = sortSeriesBySequence(code, ['domin', 'domax']);
+    const mVals = mIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
+    const xLabels = mIds.map(id => labelMap[id] || id.toUpperCase());
+    linChartHTML = drawSVGLineChart(
+      '📈 DO Linearity (최솟값 ➔ 최댓값)',
+      [
+        { name: 'Measured', values: mVals, colorClass: 'pv-chart-line-m', dotClass: 'pv-chart-dot-m' }
+      ],
+      xLabels
+    );
+  } else if (IS_WATER(code)) {
+    const m1 = parseFloat(document.getElementById('pv_m1')?.value);
+    const s1 = parseFloat(document.getElementById('pv_s1')?.value);
+    const linRef = s1 > 0 ? s1 / 2 : NaN;
+    const refLines = [];
+    const bands = [];
+    if (!isNaN(linRef)) {
+      refLines.push({ y: linRef, label: '기준값 (S1÷2)', class: 'pv-chart-line-ref' });
+      bands.push({ y1: linRef * 0.95, y2: linRef * 1.05, class: 'pv-chart-band-drift' });
+    }
+    linChartHTML = drawSVGLineChart(
+      '📈 직선성 (오차 허용범위: ±5%)',
+      [
+        { name: 'Measured', values: [m1], colorClass: 'pv-chart-line-m', dotClass: 'pv-chart-dot-m' }
+      ],
+      ['주입농도 M'],
+      { refLines, bands }
+    );
+  } else {
+    const mIds = sortSeriesBySequence(code, ['m1', 'm2', 'm3']);
+    const mVals = mIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
+    const linRef = (0.9 * range) / 2;
+    const refLines = [];
+    const bands = [];
+    if (!isNaN(linRef)) {
+      refLines.push({ y: linRef, label: '기준값 (0.45 × Range)', class: 'pv-chart-line-ref' });
+      bands.push({ y1: linRef * 0.95, y2: linRef * 1.05, class: 'pv-chart-band-drift' });
+    }
+    const xLabels = mIds.map(id => labelMap[id] || id.toUpperCase());
+    linChartHTML = drawSVGLineChart(
+      '📈 직선성 (오차 허용범위: ±5%)',
+      [
+        { name: 'Measured', values: mVals, colorClass: 'pv-chart-line-m', dotClass: 'pv-chart-dot-m' }
+      ],
+      xLabels,
+      { refLines, bands }
+    );
+  }
+
+  body.innerHTML = driftChartHTML + linChartHTML;
+}
+
+function setupPipelineAndGraph(tab) {
+  const formCard = document.querySelector('.pv-form-card');
+  if (!formCard) return;
+
+  const existingPipeline = formCard.querySelector('.pv-pipeline-section');
+  if (existingPipeline) existingPipeline.remove();
+
+  const seqVal = stored['seq'] || '';
+
+  const pipelineHTML = `
+    <div class="pv-pipeline-section">
+      <div class="pv-pipeline-header">
+        <span class="pv-pipeline-title">📊 입력 진행도 파이프라인</span>
+        <div class="pv-pipeline-controls">
+          <div class="pv-pipeline-seq-wrap">
+            <span>🔄 진행 순서:</span>
+            <input type="text" class="pv-pipeline-seq-input" id="pv-pipeline-seq" placeholder="예: MMMZZSSZSZZSS" value="${seqVal}" />
+          </div>
+          <button type="button" class="pv-graph-btn" id="pv-open-graph-btn">📈 실시간 그래프</button>
+        </div>
+      </div>
+      <div class="pv-pipeline-track" id="pv-pipeline-track"></div>
+    </div>
+  `;
+  formCard.insertAdjacentHTML('afterbegin', pipelineHTML);
+
+  updatePipeline(tab.code);
+
+  const openGraphBtn = document.getElementById('pv-open-graph-btn');
+  if (openGraphBtn) {
+    openGraphBtn.addEventListener('click', () => {
+      const modal = ensureGraphModal();
+      modal.classList.add('is-open');
+      renderGraphsInModal(tab.code);
+    });
+  }
+
+  const seqInput = document.getElementById('pv-pipeline-seq');
+  if (seqInput) {
+    seqInput.addEventListener('input', () => {
+      stored['seq'] = seqInput.value;
+      saveData(tab.id);
+      updatePipeline(tab.code);
+      const modal = document.getElementById('pv-graph-modal');
+      if (modal && modal.classList.contains('is-open')) {
+        renderGraphsInModal(tab.code);
+      }
+    });
+  }
+
+  const formArea = document.getElementById('pv-form-area');
+  if (formArea) {
+    formArea.querySelectorAll('input').forEach(input => {
+      input.addEventListener('focus', () => {
+        const fieldId = input.id.replace('pv_', '');
+        document.querySelectorAll('.pv-pipeline-bubble').forEach(bubble => {
+          bubble.classList.toggle('is-active', bubble.dataset.id === fieldId);
+        });
+      });
+      input.addEventListener('blur', () => {
+        const fieldId = input.id.replace('pv_', '');
+        const bubble = document.querySelector(`.pv-pipeline-bubble[data-id="${fieldId}"]`);
+        if (bubble) bubble.classList.remove('is-active');
+      });
+    });
+  }
+}
+
 function switchTab(id) {
   if (activeId && activeId !== id) saveData(activeId);
   activeId = id;
@@ -1495,6 +2112,8 @@ function switchTab(id) {
   });
   alignMeasureInputs(formArea);
 
+  setupPipelineAndGraph(tab);
+
   const fields = getFields(tab.code);
   fields.forEach(f => {
     document.getElementById(`pv_${f}`)?.addEventListener('input', () => {
@@ -1502,6 +2121,11 @@ function switchTab(id) {
       updateGuide(tab.code);
       updateInlineHints(tab.code);
       if (g('range')) updateLinSummary(g('range'), IS_WATER(tab.code) ? gv('s1') : undefined);
+      updatePipeline(tab.code);
+      const modal = document.getElementById('pv-graph-modal');
+      if (modal && modal.classList.contains('is-open')) {
+        renderGraphsInModal(tab.code);
+      }
       clearTimeout(calcTimer);
       calcTimer = setTimeout(() => calculate(id), 300);
     });
@@ -1517,6 +2141,7 @@ function switchTab(id) {
     const rows = document.getElementById('pv-rep-extra-rows');
     if (rows) rows.style.display = e.target.checked ? '' : 'none';
     saveData(id);
+    setupPipelineAndGraph(tab);
     scheduleAutoSave();
     clearTimeout(calcTimer);
     calcTimer = setTimeout(() => calculate(id), 50);
