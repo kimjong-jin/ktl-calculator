@@ -1539,18 +1539,18 @@ function getDefaultPipelineSteps(code) {
       { id: 'ph4b', type: 's', label: '반 고2' },
       { id: 'ph7c', type: 'z', label: '반 저3' },
       { id: 'ph4c', type: 's', label: '반 고3' },
-      { id: 'phzi1', type: 'z', label: '드 제로초1' },
-      { id: 'phzi2', type: 'z', label: '드 제로초2' },
-      { id: 'phzi3', type: 'z', label: '드 제로초3' },
-      { id: 'phzf1', type: 'z', label: '드 제로후1' },
-      { id: 'phzf2', type: 'z', label: '드 제로후2' },
-      { id: 'phzf3', type: 'z', label: '드 제로후3' },
-      { id: 'phsi1', type: 's', label: '드 스팬초1' },
-      { id: 'phsi2', type: 's', label: '드 스팬초2' },
-      { id: 'phsi3', type: 's', label: '드 스팬초3' },
-      { id: 'phsf1', type: 's', label: '드 스팬후1' },
-      { id: 'phsf2', type: 's', label: '드 스팬후2' },
-      { id: 'phsf3', type: 's', label: '드 스팬후3' },
+      { id: 'phzi1', type: 'z', label: '드 pH7 초1' },
+      { id: 'phzi2', type: 'z', label: '드 pH7 초2' },
+      { id: 'phzi3', type: 'z', label: '드 pH7 초3' },
+      { id: 'phzf1', type: 'z', label: '드 pH7 후1' },
+      { id: 'phzf2', type: 'z', label: '드 pH7 후2' },
+      { id: 'phzf3', type: 'z', label: '드 pH7 후3' },
+      { id: 'phsi1', type: 's', label: '드 pH4 초1' },
+      { id: 'phsi2', type: 's', label: '드 pH4 초2' },
+      { id: 'phsi3', type: 's', label: '드 pH4 초3' },
+      { id: 'phsf1', type: 's', label: '드 pH4 후1' },
+      { id: 'phsf2', type: 's', label: '드 pH4 후2' },
+      { id: 'phsf3', type: 's', label: '드 pH4 후3' },
       { id: 'phm4a', type: 'm', label: '직 pH4-1' },
       { id: 'phm4b', type: 'm', label: '직 pH4-2' },
       { id: 'phm4c', type: 'm', label: '직 pH4-3' },
@@ -2057,8 +2057,8 @@ function renderGraphsInModal(code) {
     s1: 'S1', s2: 'S2', s3: 'S3', s4: 'S4', s5: 'S5', s6: 'S6', s7: 'S7',
     m1: 'M1', m2: 'M2', m3: 'M3',
     ph7a: '반저1', ph4a: '반고1', ph7b: '반저2', ph4b: '반고2', ph7c: '반저3', ph4c: '반고3',
-    phzi1: '제로초1', phzi2: '제로초2', phzi3: '제로초3', phzf1: '제로후1', phzf2: '제로후2', phzf3: '제로후3',
-    phsi1: '스팬초1', phsi2: '스팬초2', phsi3: '스팬초3', phsf1: '스팬후1', phsf2: '스팬후2', phsf3: '스팬후3',
+    phzi1: 'pH7초1', phzi2: 'pH7초2', phzi3: 'pH7초3', phzf1: 'pH7후1', phzf2: 'pH7후2', phzf3: 'pH7후3',
+    phsi1: 'pH4초1', phsi2: 'pH4초2', phsi3: 'pH4초3', phsf1: 'pH4후1', phsf2: 'pH4후2', phsf3: 'pH4후3',
     phm4a: 'pH4-1', phm4b: 'pH4-2', phm4c: 'pH4-3', phm7a: 'pH7-1', phm7b: 'pH7-2', phm7c: 'pH7-3',
     phm10a: 'pH10-1', phm10b: 'pH10-2', phm10c: 'pH10-3',
     pht10: '10℃', pht15: '15℃', pht20: '20℃', pht25: '25℃', pht30: '30℃',
@@ -2543,14 +2543,14 @@ function buildFormPH() {
     <div class="pv-phgrid pv-phgrid--2">
       <div class="pv-phgrid__head"><span></span><span>제로 pH7 — 초기 / 2시간후</span><span>스팬 pH4 — 초기 / 2시간후</span></div>
       <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">1회</span>
-        <div class="pv-grid2">${ni('phzi1','제로 초기 ①')}${ni('phzf1','제로 2h ①')}</div>
-        <div class="pv-grid2">${ni('phsi1','스팬 초기 ①')}${ni('phsf1','스팬 2h ①')}</div></div>
+        <div class="pv-grid2">${ni('phzi1','pH7 초기 ①')}${ni('phzf1','pH7 2h ①')}</div>
+        <div class="pv-grid2">${ni('phsi1','pH4 초기 ①')}${ni('phsf1','pH4 2h ①')}</div></div>
       <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">2회</span>
-        <div class="pv-grid2">${ni('phzi2','제로 초기 ②')}${ni('phzf2','제로 2h ②')}</div>
-        <div class="pv-grid2">${ni('phsi2','스팬 초기 ②')}${ni('phsf2','스팬 2h ②')}</div></div>
+        <div class="pv-grid2">${ni('phzi2','pH7 초기 ②')}${ni('phzf2','pH7 2h ②')}</div>
+        <div class="pv-grid2">${ni('phsi2','pH4 초기 ②')}${ni('phsf2','pH4 2h ②')}</div></div>
       <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">3회</span>
-        <div class="pv-grid2">${ni('phzi3','제로 초기 ③')}${ni('phzf3','제로 2h ③')}</div>
-        <div class="pv-grid2">${ni('phsi3','스팬 초기 ③')}${ni('phsf3','스팬 2h ③')}</div></div>
+        <div class="pv-grid2">${ni('phzi3','pH7 초기 ③')}${ni('phzf3','pH7 2h ③')}</div>
+        <div class="pv-grid2">${ni('phsi3','pH4 초기 ③')}${ni('phsf3','pH4 2h ③')}</div></div>
     </div>
   </div>
 
@@ -2762,10 +2762,10 @@ const FIELD_LABELS = {
   ci1:'Ci₁(현장)',ci2:'Ci₂(현장)',ai1:'Ai₁(수분석)',ai2:'Ai₂',ai3:'Ai₃',ai4:'Ai₄',
   codmax:'최댓값',codmin:'최솟값',
   ph7a:'pH7 1회',ph4a:'pH4 1회',ph7b:'pH7 2회',ph4b:'pH4 2회',ph7c:'pH7 3회',ph4c:'pH4 3회',
-  phzi1:'제로드리프트 초기1',phzi2:'제로드리프트 초기2',phzi3:'제로드리프트 초기3',
-  phzf1:'제로드리프트 2h1',phzf2:'제로드리프트 2h2',phzf3:'제로드리프트 2h3',
-  phsi1:'스팬드리프트 초기1',phsi2:'스팬드리프트 초기2',phsi3:'스팬드리프트 초기3',
-  phsf1:'스팬드리프트 2h1',phsf2:'스팬드리프트 2h2',phsf3:'스팬드리프트 2h3',
+  phzi1:'제로드리프트(pH7) 초기1',phzi2:'제로드리프트(pH7) 초기2',phzi3:'제로드리프트(pH7) 초기3',
+  phzf1:'제로드리프트(pH7) 2h1',phzf2:'제로드리프트(pH7) 2h2',phzf3:'제로드리프트(pH7) 2h3',
+  phsi1:'스팬드리프트(pH4) 초기1',phsi2:'스팬드리프트(pH4) 초기2',phsi3:'스팬드리프트(pH4) 초기3',
+  phsf1:'스팬드리프트(pH4) 2h1',phsf2:'스팬드리프트(pH4) 2h2',phsf3:'스팬드리프트(pH4) 2h3',
   phm4a:'직선성 pH4-1',phm4b:'직선성 pH4-2',phm4c:'직선성 pH4-3',
   phm7a:'직선성 pH7-1',phm7b:'직선성 pH7-2',phm7c:'직선성 pH7-3',
   phm10a:'직선성 pH10-1',phm10b:'직선성 pH10-2',phm10c:'직선성 pH10-3',
