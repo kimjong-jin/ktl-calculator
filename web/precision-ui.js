@@ -2045,7 +2045,7 @@ function renderGraphsInModal(code) {
     gridHtml += `<text class="pv-chart-text" x="${xPos}" y="${pT + cH + 16}" text-anchor="middle" fill="${tc.dot}" style="font-weight:600;font-size:9px">${s.label}</text>`;
   });
 
-  // 타입별 경로 + 도트 생성
+  // 타입별 그룹 분류 (범례 생성용)
   const typeGroups = {};
   dataSteps.forEach((s, i) => {
     const t = s.type || 'other';
@@ -2054,26 +2054,28 @@ function renderGraphsInModal(code) {
   });
 
   let pathsHtml = '';
-  Object.entries(typeGroups).forEach(([type, points]) => {
-    const tc = typeColorMap[type] || typeColorMap.other;
 
-    // 같은 타입의 점들을 선으로 연결
-    let pathD = '';
-    let dotsHtml = '';
-    points.forEach(p => {
-      const xPos = getX(p.idx);
-      const yPos = getY(p.val);
-      if (pathD === '') pathD = `M ${xPos} ${yPos}`;
-      else pathD += ` L ${xPos} ${yPos}`;
+  // 1. 모든 데이터 포인트를 순서대로 연속 연결하는 단일 선(Path) 생성
+  let pathD = '';
+  dataSteps.forEach((s, i) => {
+    const xPos = getX(i);
+    const yPos = getY(s.val);
+    if (pathD === '') pathD = `M ${xPos} ${yPos}`;
+    else pathD += ` L ${xPos} ${yPos}`;
+  });
 
-      dotsHtml += `<circle cx="${xPos}" cy="${yPos}" r="4.5" fill="${tc.dot}" stroke="white" stroke-width="1.5" />`;
-      dotsHtml += `<text class="pv-chart-text" x="${xPos}" y="${yPos - 9}" text-anchor="middle" fill="${tc.dot}" style="font-weight:700;font-size:9px">${p.val.toFixed(2)}</text>`;
-    });
+  if (pathD) {
+    pathsHtml += `<path d="${pathD}" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />`;
+  }
 
-    if (pathD) {
-      pathsHtml += `<path d="${pathD}" fill="none" stroke="${tc.line}" stroke-width="2" stroke-opacity="0.5" />`;
-      pathsHtml += dotsHtml;
-    }
+  // 2. 각 데이터 포인트의 도트와 수치 텍스트 표시 (타입별 색상 적용)
+  dataSteps.forEach((s, i) => {
+    const xPos = getX(i);
+    const yPos = getY(s.val);
+    const tc = typeColorMap[s.type] || typeColorMap.other;
+
+    pathsHtml += `<circle cx="${xPos}" cy="${yPos}" r="4.5" fill="${tc.dot}" stroke="white" stroke-width="1.5" stroke-opacity="0.8" />`;
+    pathsHtml += `<text class="pv-chart-text" x="${xPos}" y="${yPos - 9}" text-anchor="middle" fill="${tc.dot}" style="font-weight:700;font-size:9px">${s.val.toFixed(2)}</text>`;
   });
 
   // 범례
