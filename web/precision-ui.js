@@ -1681,15 +1681,16 @@ function updatePipeline(code) {
   const track = document.getElementById('pv-pipeline-track');
   if (!track) return;
 
-  const seqStr = stored['seq'];
-  if (!seqStr || seqStr.trim() === '') {
+  // 측정순서(seq) 입력이 없어도 기본 순서로 항상 표시 — pH 등 모든 항목 포함.
+  // (seq 있으면 그 순서, 없으면 getDefaultPipelineSteps(code) 기본 순서)
+  const steps = getPipelineSteps(code);
+  if (!steps || steps.length === 0) {
     track.innerHTML = '';
     track.style.display = 'none';
     return;
   }
   track.style.display = 'flex';
 
-  const steps = getPipelineSteps(code);
   const activeElId = document.activeElement ? document.activeElement.id : '';
 
   track.innerHTML = steps.map(step => {
