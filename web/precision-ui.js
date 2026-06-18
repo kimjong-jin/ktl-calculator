@@ -556,10 +556,10 @@ function g(id) { return parseFloat(document.getElementById(`pv_${id}`)?.value) |
 function gv(id) { return parseFloat(document.getElementById(`pv_${id}`)?.value); } // NaN 허용
 
 function badge(label, pass) {
-  if (pass === null || pass === undefined) return `<div class="pv-badge pv-badge--na">— ${label}</div>`;
+  if (pass === null || pass === undefined) return `<div class="pv-badge pv-badge--na"><span>${label}</span><em>—</em></div>`;
   return pass
-    ? `<div class="pv-badge pv-badge--ok">✅ ${label} 적합</div>`
-    : `<div class="pv-badge pv-badge--bad">❌ ${label} 부적합</div>`;
+    ? `<div class="pv-badge pv-badge--ok"><span>${label}</span><em>적합</em></div>`
+    : `<div class="pv-badge pv-badge--bad"><span>${label}</span><em>부적합</em></div>`;
 }
 function row(k, v) { return `<div class="pv-line"><span>${k}</span><b>${v}</b></div>`; }
 
@@ -576,7 +576,7 @@ function gauge(val, limit, label, lowerIsBetter = true) {
     <span class="pv-sg__val pv-sg__val--${cls}">${r1val.toFixed(1)}%</span>
     <div class="pv-sg__bar"><div class="pv-sg__fill pv-sg__fill--${cls}" style="width:${pct}%"></div></div>
     <span class="pv-sg__limit">기준 ${limit}%</span>
-    <span class="pv-sg__icon">${pass ? '✅' : '❌'}</span>
+    <span class="pv-sg__dot pv-sg__dot--${cls}"></span>
   </div>`;
 }
 
@@ -585,7 +585,6 @@ function repCards(rep, zVals, sVals) {
   function card(label, cls, data, vals) {
     const p = data.pass;
     const pc = p === null || p === undefined ? 'na' : p ? 'ok' : 'bad';
-    const icon = p === null || p === undefined ? '' : p ? '✅' : '❌';
     const verdict = p === null || p === undefined ? '—' : p ? '적합' : '부적합';
     const valsHtml = vals && vals.length
       ? `<div class="pv-rep-card__vals">${vals.map(v=>fmt(v,3)).join(', ')}</div>`
@@ -596,7 +595,7 @@ function repCards(rep, zVals, sVals) {
       <div class="pv-rep-card__mean">평균 <b>${isNaN(data.mean) ? '—' : fmt(data.mean, 3)}</b></div>
       <div class="pv-rep-card__rsd pv-rep-card__rsd--${pc}">${isNaN(data.rsd) ? '측정값 부족' : (Math.round(data.rsd*10)/10).toFixed(1)+'%'}</div>
       <div class="pv-rep-card__limit">기준 RSD ≤ ${rep.limit}%</div>
-      <div class="pv-rep-card__verdict pv-rep-card__verdict--${pc}">${icon} ${verdict}</div>
+      <div class="pv-rep-card__verdict pv-rep-card__verdict--${pc}">${verdict}</div>
     </div>`;
   }
   // zVals===null 이면 Z카드 숨김 (DO 등 Span 전용 항목)
@@ -1055,7 +1054,7 @@ function updateFinal(tab, passes) {
 
   document.getElementById('pv-final').innerHTML =
     `<div class="pv-final-banner pv-final-banner--${tabState || 'none'}">
-      ${tabState === 'ok' ? '✅ 전 항목 적합' : tabState === 'bad' ? '❌ 부적합 항목 있음' : 'ℹ️ 데이터 입력 필요'}
+      <span class="pv-final-dot"></span>${tabState === 'ok' ? '전 항목 적합' : tabState === 'bad' ? '부적합 항목 있음' : '데이터 입력 필요'}
     </div>`;
   document.getElementById('pv-results').hidden = false;
   tab.pass = tabState;

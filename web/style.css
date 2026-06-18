@@ -704,14 +704,16 @@ select.field__control {
 }
 
 .pv-final-banner {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 18px; border-radius: var(--r-lg); text-align: center;
-  font-size: 18px; font-weight: 800; letter-spacing: .01em;
-  border: 1px solid; box-shadow: var(--sh-1);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 17px; border-radius: var(--r-lg); text-align: center;
+  font-size: 16px; font-weight: 700; letter-spacing: .01em;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
 }
-.pv-final-banner--ok { background: var(--pass-bg); color: var(--pass); border-color: color-mix(in srgb, var(--pass) 40%, transparent); }
-.pv-final-banner--bad { background: var(--fail-bg); color: var(--fail); border-color: color-mix(in srgb, var(--fail) 45%, transparent); }
-.pv-final-banner--none { background: var(--surface-2); color: var(--text-dim); border-color: var(--border); }
+.pv-final-dot { flex: 0 0 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); }
+.pv-final-banner--ok .pv-final-dot  { background: var(--pass); }
+.pv-final-banner--bad { color: var(--fail); border-color: color-mix(in srgb, var(--fail) 28%, transparent); }
+.pv-final-banner--bad .pv-final-dot { background: var(--fail); }
+.pv-final-banner--none { color: var(--text-dim); }
 
 /* 추가 버튼 메뉴 */
 .pv-add-wrap { position: relative; }
@@ -772,15 +774,21 @@ select.field__control {
 }
 .pv-line span { color: var(--text-dim); font-size: 12.5px; }
 .pv-line b { font-weight: 700; }
-.pv-badges { display: grid; gap: 7px; }
+.pv-badges { display: grid; gap: 6px; }
 .pv-badge {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 9px;
   padding: 10px 13px; border-radius: var(--r-sm);
-  font-size: 13.5px; font-weight: 600; border: 1px solid var(--border);
+  font-size: 13px; font-weight: 500;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
 }
-.pv-badge--ok { background: var(--pass-bg); color: var(--pass); border-color: color-mix(in srgb, var(--pass) 28%, transparent); }
-.pv-badge--bad { background: var(--fail-bg); color: var(--fail); border-color: color-mix(in srgb, var(--fail) 32%, transparent); }
-.pv-badge--na { background: var(--neutral-bg); color: var(--neutral); border-color: var(--border); }
+.pv-badge::before { content: ''; flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); }
+.pv-badge span { flex: 1; }
+.pv-badge em { font-style: normal; font-weight: 700; color: var(--text-dim); }
+.pv-badge--ok::before  { background: var(--pass); }
+.pv-badge--ok em       { color: var(--pass); }
+.pv-badge--bad::before { background: var(--fail); }
+.pv-badge--bad em      { color: var(--fail); }
+.pv-badge--bad { border-color: color-mix(in srgb, var(--fail) 22%, transparent); }
 
 /* ── 인증 게이트 ────────────────────────────────────────────────────────── */
 .auth-gate {
@@ -1245,8 +1253,8 @@ select.field__control {
   background: var(--surface-2);
   border: 1px solid var(--border); border-top: 2px solid var(--border);
 }
-.pv-rep-card--z { border-top-color: #60a5fa; }
-.pv-rep-card--s { border-top-color: #34d399; }
+.pv-rep-card--z { border-top-color: var(--border-strong); }
+.pv-rep-card--s { border-top-color: var(--border-strong); }
 .pv-rep-card__label {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .06em; color: var(--text-dim); margin-bottom: 4px;
@@ -1258,7 +1266,7 @@ select.field__control {
   font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums;
   line-height: 1.1; margin: 4px 0 2px; letter-spacing: -0.02em;
 }
-.pv-rep-card__rsd--ok  { color: var(--pass); }
+.pv-rep-card__rsd--ok  { color: var(--text); }
 .pv-rep-card__rsd--bad { color: var(--fail); }
 .pv-rep-card__rsd--na  { color: var(--text-dim); }
 .pv-rep-card__limit { font-size: 10px; color: var(--text-dim); }
@@ -1266,9 +1274,10 @@ select.field__control {
   margin-top: 8px; padding: 5px 0; border-radius: var(--r-sm);
   font-size: 11.5px; font-weight: 700; text-align: center; letter-spacing: .03em;
 }
-.pv-rep-card__verdict--ok  { background: var(--pass-bg); color: var(--pass); }
-.pv-rep-card__verdict--bad { background: var(--fail-bg); color: var(--fail); }
-.pv-rep-card__verdict--na  { background: var(--neutral-bg); color: var(--neutral); }
+.pv-rep-card__verdict { background: var(--surface-0); }
+.pv-rep-card__verdict--ok  { color: var(--pass); }
+.pv-rep-card__verdict--bad { color: var(--fail); }
+.pv-rep-card__verdict--na  { color: var(--text-dim); }
 
 /* ── 심플 결과 테이블 (선형·온도 등 소형) ──────────────────── */
 .pv-rt { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -1292,14 +1301,16 @@ select.field__control {
 .pv-sg + .pv-sg { border-top: 1px solid var(--border); }
 .pv-sg__label { flex: 0 0 120px; font-size: 12px; color: var(--text-dim); }
 .pv-sg__val { flex: 0 0 56px; text-align: right; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.pv-sg__val--ok  { color: var(--pass); }
+.pv-sg__val--ok  { color: var(--text); }
 .pv-sg__val--bad { color: var(--fail); }
 .pv-sg__bar { flex: 1; height: 6px; background: var(--surface-0); border-radius: 999px; overflow: hidden; position: relative; }
 .pv-sg__fill { height: 100%; border-radius: 999px; transition: width 0.4s cubic-bezier(.4,0,.2,1); }
-.pv-sg__fill--ok  { background: var(--pass); }
+.pv-sg__fill--ok  { background: var(--border-strong); }
 .pv-sg__fill--bad { background: var(--fail); }
 .pv-sg__limit { flex: 0 0 48px; font-size: 10.5px; color: var(--text-muted); text-align: right; }
-.pv-sg__icon { flex: 0 0 18px; font-size: 13px; }
+.pv-sg__dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); }
+.pv-sg__dot--ok  { background: var(--pass); }
+.pv-sg__dot--bad { background: var(--fail); }
 
 /* ── 결과 블록 헤더 ─────────────────────────────────────────── */
 .pv-res-block__title {
