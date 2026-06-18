@@ -1596,6 +1596,7 @@ function buildForm(code) {
 
 // ── 폼: 기본형 (TOC/TN/TP/SS/COD) ───────────────────────
 function buildFormBasic(code) {
+  const isToc = code === 'TOC';
   // 별도측정(2·3차) 열림 상태: 체크 저장됐거나, 기존 Z6/S6/Z7/S7 값이 있으면 열어둔다.
   const repExtraOpen = stored['rep_extra'] === true
     || ['z6','s6','z7','s7'].some(k => { const v = stored[k]; return v != null && String(v).trim() !== '' && Number(v) !== 0; });
