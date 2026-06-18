@@ -1475,17 +1475,17 @@ function getDefaultPipelineSteps(code) {
 
   if (IS_PH(code)) {
     return [
-      { id: 'ph7a', type: 'z', label: 'RSD 저1' },
-      { id: 'ph4a', type: 's', label: 'RSD 고1' },
-      { id: 'ph7b', type: 'z', label: 'RSD 저2' },
-      { id: 'ph4b', type: 's', label: 'RSD 고2' },
-      { id: 'ph7c', type: 'z', label: 'RSD 저3' },
-      { id: 'ph4c', type: 's', label: 'RSD 고3' },
+      { id: 'ph7a', type: 'z', label: '반 저1' },
+      { id: 'ph4a', type: 's', label: '반 고1' },
+      { id: 'ph7b', type: 'z', label: '반 저2' },
+      { id: 'ph4b', type: 's', label: '반 고2' },
+      { id: 'ph7c', type: 'z', label: '반 저3' },
+      { id: 'ph4c', type: 's', label: '반 고3' },
       { id: 'phdi', type: 'z', label: '드 초기' },
       { id: 'phdf', type: 'z', label: '드 최종' },
-      { id: 'phm4', type: 'z', label: '직선 pH4' },
-      { id: 'phm7', type: 'z', label: '직선 pH7' },
-      { id: 'phm10', type: 'z', label: '직선 pH10' },
+      { id: 'phm4', type: 'z', label: '직 pH4' },
+      { id: 'phm7', type: 'z', label: '직 pH7' },
+      { id: 'phm10', type: 'z', label: '직 pH10' },
       { id: 'pht10', type: 'other', label: '온도 10℃' },
       { id: 'pht15', type: 'other', label: '온도 15℃' },
       { id: 'pht20', type: 'other', label: '온도 20℃' },
@@ -1502,15 +1502,15 @@ function getDefaultPipelineSteps(code) {
 
   if (IS_DO(code)) {
     return [
-      { id: 'dos1', type: 's', label: 'RSD S1' },
-      { id: 'dos2', type: 's', label: 'RSD S2' },
-      { id: 'dos3', type: 's', label: 'RSD S3' },
+      { id: 'dos1', type: 's', label: '반 S1' },
+      { id: 'dos2', type: 's', label: '반 S2' },
+      { id: 'dos3', type: 's', label: '반 S3' },
       { id: 'dozi', type: 'z', label: '드 Z초기' },
       { id: 'dosi', type: 's', label: '드 S초기' },
       { id: 'dozf', type: 'z', label: '드 Z최종' },
       { id: 'dosf', type: 's', label: '드 S최종' },
-      { id: 'domax', type: 'm', label: '직선 Max' },
-      { id: 'domin', type: 'm', label: '직선 Min' },
+      { id: 'domax', type: 'm', label: '직 Max' },
+      { id: 'domin', type: 'm', label: '직 Min' },
       { id: 'dot20', type: 'other', label: '온도 20℃' },
       { id: 'dot30', type: 'other', label: '온도 30℃' },
       { id: 'resp', type: 'other', label: '응답(초)' }
@@ -1527,30 +1527,30 @@ function getDefaultPipelineSteps(code) {
     { id: 's3', type: 's', label: '드 S3' },
     { id: 'z4', type: 'z', label: '드 Z4' },
     { id: 's4', type: 's', label: '드 S4' },
-    { id: 'z5', type: 'z', label: 'RSD Z5' },
-    { id: 's5', type: 's', label: 'RSD S5' }
+    { id: 'z5', type: 'z', label: '반 Z5' },
+    { id: 's5', type: 's', label: '반 S5' }
   ];
 
   if (repExtraOpen) {
     steps.push(
-      { id: 'z6', type: 'z', label: 'RSD Z6' },
-      { id: 's6', type: 's', label: 'RSD S6' },
-      { id: 'z7', type: 'z', label: 'RSD Z7' },
-      { id: 's7', type: 's', label: 'RSD S7' }
+      { id: 'z6', type: 'z', label: '반 Z6' },
+      { id: 's6', type: 's', label: '반 S6' },
+      { id: 'z7', type: 'z', label: '반 Z7' },
+      { id: 's7', type: 's', label: '반 S7' }
     );
   }
 
   if (isWater) {
-    steps.push({ id: 'm1', type: 'm', label: '직선 M' });
+    steps.push({ id: 'm1', type: 'm', label: '직 M' });
     const isRespSkip = stored['resp_skip'] === true;
     if (!isRespSkip) {
       steps.push({ id: 'resp', type: 'other', label: '응답(초)' });
     }
   } else {
     steps.push(
-      { id: 'm1', type: 'm', label: '직선 M1' },
-      { id: 'm2', type: 'm', label: '직선 M2' },
-      { id: 'm3', type: 'm', label: '직선 M3' }
+      { id: 'm1', type: 'm', label: '직 M1' },
+      { id: 'm2', type: 'm', label: '직 M2' },
+      { id: 'm3', type: 'm', label: '직 M3' }
     );
     if (code === 'COD') {
       steps.push(
@@ -1573,6 +1573,40 @@ function getDefaultPipelineSteps(code) {
   }
 
   return steps;
+}
+
+function sortStepsChronologically(steps, code) {
+  let refOrder = [];
+  if (IS_PH(code)) {
+    refOrder = [
+      'phdi',
+      'ph7a', 'ph7b', 'ph7c',
+      'phm4', 'phm7', 'phm10',
+      'phdf',
+      'ph4a', 'ph4b', 'ph4c'
+    ];
+  } else if (IS_DO(code)) {
+    refOrder = [
+      'dozi', 'dosi',
+      'dos1', 'dos2', 'dos3',
+      'dozf', 'dosf'
+    ];
+  } else {
+    refOrder = [
+      'z1', 's1', 'z2', 's2',
+      'z5', 's5', 'z6', 's6', 'z7', 's7',
+      'z3', 's3', 'z4', 's4'
+    ];
+  }
+
+  return [...steps].sort((a, b) => {
+    const idxA = refOrder.indexOf(a.id);
+    const idxB = refOrder.indexOf(b.id);
+    if (idxA === -1 && idxB === -1) return 0;
+    if (idxA === -1) return 1;
+    if (idxB === -1) return -1;
+    return idxA - idxB;
+  });
 }
 
 function parseSequenceString(code, seqStr) {
@@ -1598,8 +1632,8 @@ function parseSequenceString(code, seqStr) {
   }
 
   const ordered = [];
-  const zSteps = defaultSteps.filter(s => s.type === 'z');
-  const sSteps = defaultSteps.filter(s => s.type === 's');
+  const zSteps = sortStepsChronologically(defaultSteps.filter(s => s.type === 'z'), code);
+  const sSteps = sortStepsChronologically(defaultSteps.filter(s => s.type === 's'), code);
   const mSteps = defaultSteps.filter(s => s.type === 'm');
   const rSteps = defaultSteps.filter(s => s.id === 'resp');
   const fSteps = defaultSteps.filter(s => ['ci1', 'ai1', 'ai2', 'ci2', 'ai3', 'ai4', 'phci1', 'phai1', 'phai2', 'phci2', 'phai3', 'phai4'].includes(s.id));
@@ -1655,6 +1689,14 @@ function updatePipeline(code) {
   const track = document.getElementById('pv-pipeline-track');
   if (!track) return;
 
+  const seqStr = stored['seq'];
+  if (!seqStr || seqStr.trim() === '') {
+    track.innerHTML = '';
+    track.style.display = 'none';
+    return;
+  }
+  track.style.display = 'flex';
+
   const steps = getPipelineSteps(code);
   const activeElId = document.activeElement ? document.activeElement.id : '';
 
@@ -1701,7 +1743,7 @@ function ensureGraphModal() {
     modal.innerHTML = `
       <div class="pv-modal-card">
         <div class="pv-modal-header">
-          <h3 class="pv-modal-title">📈 실시간 측정 트렌드 그래프</h3>
+          <h3 class="pv-modal-title">📈 측정 트렌드 그래프</h3>
           <button class="pv-modal-close" id="pv-graph-modal-close" type="button">✕</button>
         </div>
         <div class="pv-modal-body" id="pv-graph-modal-body">
@@ -1879,7 +1921,7 @@ function renderGraphsInModal(code) {
     z1: 'Z1', z2: 'Z2', z3: 'Z3', z4: 'Z4', z5: 'Z5', z6: 'Z6', z7: 'Z7',
     s1: 'S1', s2: 'S2', s3: 'S3', s4: 'S4', s5: 'S5', s6: 'S6', s7: 'S7',
     m1: 'M1', m2: 'M2', m3: 'M3',
-    ph7a: 'RSD 저1', ph4a: 'RSD 고1', ph7b: 'RSD 저2', ph4b: 'RSD 고2', ph7c: 'RSD 저3', ph4c: 'RSD 고3',
+    ph7a: '반 저1', ph4a: '반 고1', ph7b: '반 저2', ph4b: '반 고2', ph7c: '반 저3', ph4c: '반 고3',
     phdi: '초기', phdf: '2시간후',
     phm4: 'pH4', phm7: 'pH7', phm10: 'pH10',
     dos1: 'S1', dos2: 'S2', dos3: 'S3',
@@ -2034,9 +2076,9 @@ function setupPipelineAndGraph(tab) {
         <div class="pv-pipeline-controls">
           <div class="pv-pipeline-seq-wrap">
             <span>🔄 진행 순서:</span>
-            <input type="text" class="pv-pipeline-seq-input" id="pv-pipeline-seq" placeholder="예: MMMZZSSZSZZSS" value="${seqVal}" />
+            <input type="text" class="pv-pipeline-seq-input" id="pv-pipeline-seq" placeholder="예: ZZSSZSZZSSMMM" value="${seqVal}" />
           </div>
-          <button type="button" class="pv-graph-btn" id="pv-open-graph-btn">📈 실시간 그래프</button>
+          <button type="button" class="pv-graph-btn" id="pv-open-graph-btn">📈 그래프</button>
         </div>
       </div>
       <div class="pv-pipeline-track" id="pv-pipeline-track"></div>
