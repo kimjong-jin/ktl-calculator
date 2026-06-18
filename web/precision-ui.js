@@ -477,6 +477,45 @@ function loadData(id) {
 function makeLabel(code, subNo) {
   return `${code}-${subNo}`;
 }
+// 측정범위가 비어 있으면 입력 팝업 (계산의 전제값). range 없는 폼(pH/DO)은 스킵.
+function promptRangeIfEmpty() {
+  const rangeEl = document.getElementById('pv_range');
+  if (!rangeEl) return;
+  const v = rangeEl.value;
+  if (v != null && String(v).trim() !== '' && Number(v) !== 0) return;   // 이미 입력됨
+  if (document.getElementById('pv-range-modal')) return;                  // 중복 방지
+
+  const ov = document.createElement('div');
+  ov.id = 'pv-range-modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#1e293b;border-radius:14px;padding:24px;min-width:280px;max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5)';
+  box.innerHTML = `
+    <div style="font-size:17px;font-weight:700;color:#f1f5f9;margin-bottom:6px">📏 측정범위 입력</div>
+    <div style="font-size:13px;color:#94a3b8;margin-bottom:14px">계산을 위해 측정범위를 먼저 입력하세요.</div>
+    <input id="pv-range-modal-input" type="number" step="any" inputmode="decimal" placeholder="예: 10"
+      style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#f1f5f9;font-size:16px;text-align:center;margin-bottom:14px" />
+    <div style="display:flex;gap:8px">
+      <button id="pv-range-modal-skip" type="button" style="flex:1;padding:10px;border-radius:8px;border:none;background:#334155;color:#cbd5e1;font-size:14px;cursor:pointer">나중에</button>
+      <button id="pv-range-modal-ok" type="button" style="flex:2;padding:10px;border-radius:8px;border:none;background:#0ea5e9;color:#fff;font-size:15px;font-weight:600;cursor:pointer">확인</button>
+    </div>`;
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  const input = box.querySelector('#pv-range-modal-input');
+  input.focus();
+  const close = () => { try { document.body.removeChild(ov); } catch {} };
+  const apply = () => {
+    const val = input.value.trim();
+    if (val === '' || Number(val) === 0) { input.focus(); return; }
+    rangeEl.value = val;
+    rangeEl.dispatchEvent(new Event('input', { bubbles: true }));
+    close();
+  };
+  box.querySelector('#pv-range-modal-ok').onclick = apply;
+  box.querySelector('#pv-range-modal-skip').onclick = close;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') apply(); });
+}
+
 function addTab(code) {
   const subNo = nextSubNo();
   const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2,5)}`;
@@ -484,6 +523,7 @@ function addTab(code) {
   saveMeta();
   renderTabs();
   switchTab(id);
+  promptRangeIfEmpty();   // 새 항목인데 측정범위 없으면 입력 유도
 }
 function removeTab(id) {
   if (tabs.length === 1) {
@@ -1571,7 +1611,7 @@ function buildFormBasic(code) {
     </div>
     <label class="pv-highvar" style="margin-top:8px">
       <input type="checkbox" id="pv_rep_extra" ${repExtraOpen ? 'checked' : ''}>
-      <span>별도 측정 (2·3차 Z6·S6·Z7·S7 입력)</span>
+      <span>반복성 별도 측정 (2·3차 Z6·S6·Z7·S7 입력)</span>
     </label>
     <div id="pv-rep-extra-rows" class="pv-zs-table" style="margin-top:6px;${repExtraOpen ? '' : 'display:none'}">
       <div class="pv-zs-section-label pv-zs-section-label--sep">2·3차 (둘 다 입력해야 적용)</div>
