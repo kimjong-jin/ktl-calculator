@@ -69,6 +69,7 @@ function getFields(code) {
     's1','s2','s3','s4',       // 드리프트
     'z5','z6','z7',            // 반복성 별도 (z5 필수, z6/z7 선택)
     's5','s6','s7',            // 반복성 별도 (s5 필수, s6/s7 선택)
+    'rep_extra',               // 별도측정(2·3차) 열림 체크 — 서버 저장으로 재접속 유지
     'm1','m2','m3',            // 직선성
     'ci1','ai1','ai2','ci2','ai3','ai4','fdis', // 현장적용
   ];
@@ -1449,6 +1450,15 @@ function switchTab(id) {
     clearTimeout(calcTimer);
     calcTimer = setTimeout(() => calculate(id), 50);
   });
+  // 반복성 '별도 측정' 체크박스: 2·3차 입력칸 열고/닫고 + 상태 저장(서버 동기화)
+  document.getElementById('pv_rep_extra')?.addEventListener('change', (e) => {
+    const rows = document.getElementById('pv-rep-extra-rows');
+    if (rows) rows.style.display = e.target.checked ? '' : 'none';
+    saveData(id);
+    scheduleAutoSave();
+    clearTimeout(calcTimer);
+    calcTimer = setTimeout(() => calculate(id), 50);
+  });
   updateGuide(tab.code);
   updateInlineHints(tab.code);
   if (g('range')) updateLinSummary(g('range'), IS_WATER(tab.code) ? gv('s1') : undefined);
@@ -1524,6 +1534,9 @@ function buildForm(code) {
 
 // ── 폼: 기본형 (TOC/TN/TP/SS/COD) ───────────────────────
 function buildFormBasic(code) {
+  // 별도측정(2·3차) 열림 상태: 체크 저장됐거나, 기존 Z6/S6/Z7/S7 값이 있으면 열어둔다.
+  const repExtraOpen = stored['rep_extra'] === true
+    || ['z6','s6','z7','s7'].some(k => { const v = stored[k]; return v != null && String(v).trim() !== '' && Number(v) !== 0; });
   return `
 <div class="card pv-form-card">
   <div class="pv-section">
@@ -1551,10 +1564,16 @@ function buildFormBasic(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">반복성 측정 <span class="pv-hint">1차 필수 · 2·3차 모두 입력 시 직접 계산</span></h3>
+    <h3 class="pv-section__title">반복성 측정 <span class="pv-hint">1차 필수 · 2·3차는 '별도 측정' 체크 시 입력</span></h3>
     <div class="pv-zs-table">
       <div class="pv-zs-section-label">1차 (필수)</div>
       <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
+    </div>
+    <label class="pv-highvar" style="margin-top:8px">
+      <input type="checkbox" id="pv_rep_extra" ${repExtraOpen ? 'checked' : ''}>
+      <span>별도 측정 (2·3차 Z6·S6·Z7·S7 입력)</span>
+    </label>
+    <div id="pv-rep-extra-rows" class="pv-zs-table" style="margin-top:6px;${repExtraOpen ? '' : 'display:none'}">
       <div class="pv-zs-section-label pv-zs-section-label--sep">2·3차 (둘 다 입력해야 적용)</div>
       <div class="pv-zs-row">${zsCell('z6','6','z')}${zsCell('s6','6','s')}</div>
       <div class="pv-zs-row">${zsCell('z7','7','z')}${zsCell('s7','7','s')}</div>
