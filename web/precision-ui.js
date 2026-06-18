@@ -17,6 +17,7 @@ import {
   phLinearity, doLinearity,
   phTemperatureComp, doTemperatureComp,
   codGlucoseVariability,
+  waterResponse,
   fieldApplication,
 } from '../src/precision.js';
 
@@ -63,7 +64,7 @@ function getFields(code) {
     'range',
     'z1','z2','z3','z4','z5','z6','z7',
     's1','s2','s3','s4','s5','s6','s7',
-    'm1','resp','resp_limit',
+    'm1','resp','resp_sec','resp_limit',  // resp=mm(×6), resp_sec=초 직접
   ];
   // TOC/TN/TP/SS/COD (기본형)
   const base = [
@@ -997,23 +998,20 @@ function calcWater(tab) {
       ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
     </div>`;
   
+  // 응답시간: data.xlsx Sheet4 — mm×6=초 또는 초 직접, 탁도 ≤600 / 잔류염소 ≤120
   const respSkip = document.getElementById('pv_resp_skip')?.checked;
-  const resp = gv('resp');
-  const s1val = gv('s1');
-  const respLimit = s1val ? s1val * 0.5 : null;
+  const rs = waterResponse(gv('resp'), gv('resp_sec'), tab.code === 'TU', respSkip);
   const respBlock = document.getElementById('pv-res-resp-block');
-  let respPass = null;
-  if (respSkip) {
+  let respPass = rs.pass;
+  if (rs.skipped || rs.pass === null) {
     if (respBlock) respBlock.hidden = true;
-  } else if (!isNaN(resp) && respLimit !== null) {
-    respPass = resp >= respLimit;
-    document.getElementById('pv-res-resp').innerHTML =
-      `<div class="pv-lines">${row('측정값', `${fmt(resp,2)}`)}
-        ${row('기준 (S1×0.5)', `≥ ${fmt(respLimit,2)}`)}</div>
-       <div class="pv-badges">${badge(`응답값 ≥ S1×0.5`, respPass)}</div>`;
-    if (respBlock) respBlock.hidden = false;
   } else {
-    if (respBlock) respBlock.hidden = true;
+    const src = Number.isFinite(rs.mmSec) ? `${fmt(gv('resp'),1)}mm × 6 = ${fmt(rs.mmSec,0)}초` : `${fmt(rs.secVal,0)}초`;
+    document.getElementById('pv-res-resp').innerHTML =
+      `<div class="pv-lines">${row('응답시간', src)}
+        ${row('기준', `≤ ${rs.limit}초 (${tab.code === 'TU' ? '탁도' : '잔류염소'})`)}</div>
+       <div class="pv-badges">${badge(`응답시간 ≤ ${rs.limit}초`, respPass)}</div>`;
+    if (respBlock) respBlock.hidden = false;
   }
   // 측정범위 초과 체크: S값, M값이 range를 초과하면 부적합
   const allMeasured = [gv('s1'),gv('s2'),gv('s3'),gv('s4'),gv('s5'),gv('m1'),gv('m2'),gv('m3')].filter(v=>v>0);
@@ -2749,7 +2747,7 @@ function buildFormWater(code) {
 
   <div class="pv-section">
     <h3 class="pv-section__title">⏱️ 응답시간
-      <span class="pv-hint">기준: S1 × 0.5 자동계산. 시약식은 해당 없음.</span>
+      <span class="pv-hint">mm 입력 시 ×6=초. 탁도 ≤ 600초 / 잔류염소 ≤ 120초. 시약식은 해당 없음.</span>
     </h3>
     <div class="pv-resp-water">
       <label class="pv-resp-toggle">
@@ -2757,8 +2755,8 @@ function buildFormWater(code) {
         <span>시약식 — 응답시간 시험 해당 없음</span>
       </label>
       <div id="pv_resp_fields" style="margin-top:8px">
-        <div style="max-width:200px">${ni('resp','측정값 (mm)')}</div>
-        <p class="pv-zs-note" style="margin-top:4px" id="pv_resp_criterion">기준: S1 입력 후 자동계산 (S1 × 0.5)</p>
+        <div class="pv-grid2">${ni('resp','응답시간 (mm)')}${ni('resp_sec','또는 초 직접입력')}</div>
+        <p class="pv-zs-note" style="margin-top:4px" id="pv_resp_criterion">mm×6 또는 초 직접. 둘 중 하나만 입력.</p>
       </div>
     </div>
   </div>
@@ -2925,10 +2923,10 @@ function buildCertResultRows(tab) {
       const resp=gd('resp');
       if(resp) addRow('응답시간 ≤ 15분',`${fmt(resp,1)}분`,resp<=15);
     } else if(isWater){
-      // TU/Cl 응답: 응답값 ≥ S1×0.5 (계산기와 동일, resp_skip 시 생략)
-      const resp=gd('resp'), s1=gd('s1'), respLimit=s1?s1*0.5:null;
-      if(d['resp_skip']!==true && resp!=null && respLimit!=null)
-        addRow('응답값 ≥ S1×0.5',`${fmt(resp,2)} (기준 ≥ ${fmt(respLimit,2)})`,resp>=respLimit);
+      // TU/Cl 응답: mm×6=초 또는 초 직접, 탁도 ≤600 / 잔류염소 ≤120 (data.xlsx Sheet4)
+      const rs = waterResponse(gd('resp'), gd('resp_sec'), tab.code==='TU', d['resp_skip']===true);
+      if(!rs.skipped && rs.pass!==null)
+        addRow(`응답시간 ≤ ${rs.limit}초`,`${fmt(rs.sec,0)}초`,rs.pass);
     }
   }
   return { rows, allPass };

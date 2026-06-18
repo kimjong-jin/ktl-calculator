@@ -8,6 +8,7 @@ import {
   doTemperatureComp,
   phRepeatability, phDrift, phLinearity, phTemperatureComp,
   doRepeatability, doDrift,
+  waterResponse,
 } from '../src/precision.js';
 
 let passed = 0;
@@ -233,6 +234,28 @@ check('통합: 드리프트/최종반복성/직선성 구조 반환', () => {
   assert.ok(near(t.drift.zeroDrift, 1));      // |10.5-10|/100*100
   assert.ok(near(t.linearity.error, 0));
   assert.equal(typeof t.finalRepeatability.zero.pass, 'boolean');
+});
+
+console.log('먹는물 응답시간 (data.xlsx Sheet4: mm×6=초, 탁도≤600 / 잔류염소≤120)');
+check('탁도 mm=100 → 600초 경계 적합 / mm=101 → 606초 부적합', () => {
+  const a = waterResponse(100, NaN, true);   // TU
+  assert.equal(a.mmSec, 600); assert.equal(a.limit, 600); assert.equal(a.pass, true);
+  const b = waterResponse(101, NaN, true);
+  assert.equal(b.pass, false);
+});
+check('잔류염소 mm=20 → 120초 적합 / mm=21 → 126초 부적합', () => {
+  const a = waterResponse(20, NaN, false);   // CL
+  assert.equal(a.mmSec, 120); assert.equal(a.limit, 120); assert.equal(a.pass, true);
+  const b = waterResponse(21, NaN, false);
+  assert.equal(b.pass, false);
+});
+check('초 직접입력 — 탁도 500초 적합 / 700초 부적합', () => {
+  assert.equal(waterResponse(NaN, 500, true).pass, true);
+  assert.equal(waterResponse(NaN, 700, true).pass, false);
+});
+check('시약식 skip → 해당없음(pass null)', () => {
+  const r = waterResponse(50, NaN, true, true);
+  assert.equal(r.skipped, true); assert.equal(r.pass, null);
 });
 
 console.log('⑥ 먹는물 TU/CL 전용');

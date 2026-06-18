@@ -265,6 +265,23 @@ export function codGlucoseVariability(maxVal, minVal, range) {
   };
 }
 
+/* ── 먹는물(TU/CL) 응답시간 ────────────────────────────────
+ * data.xlsx Sheet4: 입력 mm → ×6 = 초, 또는 초 직접입력.
+ * 탁도(TU) ≤ 600초, 잔류염소(CL) ≤ 120초. 엑셀 OR: mm×6 또는 초 중 하나라도 ≤ 기준이면 적합.
+ * 시약식(skip)이면 해당 없음(pass=null, skipped). */
+export function waterResponse(mmVal, secVal, isTurbidity, skip = false) {
+  const limit = isTurbidity ? 600 : 120;
+  if (skip) return { sec: null, limit, pass: null, skipped: true };
+  const fromMm = Number.isFinite(mmVal) ? mmVal * 6 : NaN;
+  const fromSec = Number.isFinite(secVal) ? secVal : NaN;
+  if (!Number.isFinite(fromMm) && !Number.isFinite(fromSec)) {
+    return { sec: NaN, mmSec: NaN, secVal: NaN, limit, pass: null, skipped: false };
+  }
+  const sec = Number.isFinite(fromMm) ? fromMm : fromSec;   // 표시값(mm 우선)
+  const pass = (Number.isFinite(fromMm) && fromMm <= limit) || (Number.isFinite(fromSec) && fromSec <= limit);
+  return { sec, mmSec: fromMm, secVal: fromSec, limit, pass, skipped: false };
+}
+
 /* ── ⑦ 현장적용계수 ─────────────────────────────────────────
  * labVals=[Ai1,Ai2,Ai3,Ai4], siteVals=[Ci1,Ci2]
  * 엑셀 Sheet2 행20 수식 기준:
