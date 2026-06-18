@@ -1471,9 +1471,32 @@ function alignMeasureInputs(formArea) {
   });
 }
 
-function getDefaultPipelineSteps(code) {
-  const repExtraOpen = stored['rep_extra'] === true
+function isRepExtraOpen(code) {
+  if (IS_PH(code) || IS_DO(code)) return false;
+  const seqStr = stored['seq'];
+  let hasExtraInSeq = false;
+  if (seqStr && seqStr.trim() !== '') {
+    const normalizedStr = seqStr.toUpperCase().replace(/\s+/g, '');
+    if (seqStr.includes(',') || /[0-9]/.test(seqStr)) {
+      const tokens = seqStr.split(/[\s,]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
+      if (tokens.some(t => ['z6', 's6', 'z7', 's7'].includes(t))) {
+        hasExtraInSeq = true;
+      }
+    } else {
+      const zCount = (normalizedStr.match(/Z/g) || []).length;
+      const sCount = (normalizedStr.match(/S/g) || []).length;
+      if (zCount > 5 || sCount > 5) {
+        hasExtraInSeq = true;
+      }
+    }
+  }
+  return stored['rep_extra'] === true
+    || hasExtraInSeq
     || ['z6','s6','z7','s7'].some(k => { const v = stored[k]; return v != null && String(v).trim() !== '' && Number(v) !== 0; });
+}
+
+function getDefaultPipelineSteps(code) {
+  const repExtraOpen = isRepExtraOpen(code);
 
   if (IS_PH(code)) {
     return [
@@ -2111,6 +2134,18 @@ function setupPipelineAndGraph(tab) {
   if (seqInput) {
     seqInput.addEventListener('input', () => {
       stored['seq'] = seqInput.value;
+
+      // Real-time UI updates for rep_extra checkbox and rows
+      const hasExtra = isRepExtraOpen(tab.code);
+      const checkbox = document.getElementById('pv_rep_extra');
+      const rows = document.getElementById('pv-rep-extra-rows');
+      if (checkbox) {
+        checkbox.checked = hasExtra;
+      }
+      if (rows) {
+        rows.style.display = hasExtra ? '' : 'none';
+      }
+
       saveData(tab.id);
       updatePipeline(tab.code);
       const modal = document.getElementById('pv-graph-modal');
@@ -2275,8 +2310,7 @@ function buildForm(code) {
 function buildFormBasic(code) {
   const isToc = code === 'TOC';
   // 별도측정(2·3차) 열림 상태: 체크 저장됐거나, 기존 Z6/S6/Z7/S7 값이 있으면 열어둔다.
-  const repExtraOpen = stored['rep_extra'] === true
-    || ['z6','s6','z7','s7'].some(k => { const v = stored[k]; return v != null && String(v).trim() !== '' && Number(v) !== 0; });
+  const repExtraOpen = isRepExtraOpen(code);
   let headerSection = '';
   if (isToc) {
     headerSection = `
