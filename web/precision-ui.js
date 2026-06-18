@@ -1485,7 +1485,8 @@ function isRepExtraOpen(code) {
     } else {
       const zCount = (normalizedStr.match(/Z/g) || []).length;
       const sCount = (normalizedStr.match(/S/g) || []).length;
-      if (zCount > 5 || sCount > 5) {
+      // Z 또는 S가 2개 또는 3개인 경우 (단독 반복성 2·3차), 또는 6개 이상인 경우 (드리프트 + 반복성 2·3차)
+      if (zCount === 2 || zCount === 3 || zCount >= 6 || sCount === 2 || sCount === 3 || sCount >= 6) {
         hasExtraInSeq = true;
       }
     }
@@ -1652,10 +1653,28 @@ function parseSequenceString(code, seqStr) {
   }
 
   const ordered = [];
-  // 단순 순번 매핑: Z 첫 번째 = z1, 두 번째 = z2, ... 다섯 번째 = z5(반복성)
-  // sortStepsChronologically 사용하지 않음 — 원래 순서대로 (z1,z2,z3,z4,z5,z6,z7)
-  const zSteps = defaultSteps.filter(s => s.type === 'z');
-  const sSteps = defaultSteps.filter(s => s.type === 's');
+  
+  // Z와 S의 전체 개수 파악
+  let zTotal = 0;
+  let sTotal = 0;
+  for (let i = 0; i < normalizedStr.length; i++) {
+    if (normalizedStr[i] === 'Z') zTotal++;
+    if (normalizedStr[i] === 'S') sTotal++;
+  }
+
+  // Z, S 단계 목록 필터
+  const allZSteps = defaultSteps.filter(s => s.type === 'z');
+  const allSSteps = defaultSteps.filter(s => s.type === 's');
+
+  // 개수에 따른 분기 매핑: pH/DO가 아니고 Z/S 개수가 3개 이하이면 바로 반복성(Z5~)으로 간주
+  const isPhOrDo = IS_PH(code) || IS_DO(code);
+  const zSteps = (!isPhOrDo && zTotal > 0 && zTotal <= 3)
+    ? allZSteps.filter(s => ['z5', 'z6', 'z7'].includes(s.id))
+    : allZSteps;
+  const sSteps = (!isPhOrDo && sTotal > 0 && sTotal <= 3)
+    ? allSSteps.filter(s => ['s5', 's6', 's7'].includes(s.id))
+    : allSSteps;
+
   const mSteps = defaultSteps.filter(s => s.type === 'm');
   const rSteps = defaultSteps.filter(s => s.id === 'resp');
   const fSteps = defaultSteps.filter(s => ['ci1', 'ai1', 'ai2', 'ci2', 'ai3', 'ai4', 'phci1', 'phai1', 'phai2', 'phci2', 'phai3', 'phai4'].includes(s.id));
