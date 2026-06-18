@@ -1000,13 +1000,20 @@ function calcWater(tab) {
 }
 
 function updateFinal(tab, passes) {
-  const activePasses = passes.filter(p => p !== null && p !== undefined);
+  // 필수항목 판정:
+  //  - 하나라도 부적합(false) → 부적합
+  //  - 부적합은 없지만 미입력(null) 필수항목이 있으면 → 미완성('') = '적합' 아님
+  //  - 모든 필수항목이 입력되고 전부 통과 → 적합
+  // (기존 버그: null을 걸러낸 뒤 '입력된 것만 통과'면 적합 → 미들 하나만 넣어도 전항목적합 표시)
+  const hasFail    = passes.some(p => p === false);
+  const hasMissing = passes.some(p => p === null || p === undefined);
   let tabState = '';
-  if (activePasses.length > 0) {
-    const allPass = activePasses.every(p => p === true);
-    tabState = allPass ? 'ok' : 'bad';
-  } else {
-    tabState = '';
+  if (hasFail) {
+    tabState = 'bad';
+  } else if (hasMissing) {
+    tabState = '';            // 측정값 부족 → 미완성 (적합으로 보지 않음)
+  } else if (passes.length > 0) {
+    tabState = 'ok';          // 전 필수항목 입력 완료 + 전부 적합
   }
 
   document.getElementById('pv-final').innerHTML =
