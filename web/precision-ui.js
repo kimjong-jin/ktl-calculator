@@ -138,12 +138,23 @@ function setSaveStatus(msg, type = 'ok') {
   if (el) el.innerHTML = `<span class="pv-ss-${type}">${msg}</span>`;
 }
 
-async function saveToServer() {
+let lastSavedSig = null;   // 마지막 서버 저장 시점의 데이터 시그니처 (무변경 스킵용)
+function bundleSig(b) { try { return JSON.stringify(b.fields); } catch { return null; } }
+
+// opts.skipIfUnchanged: 직전 저장분과 동일하면 조용히 스킵 (주기 자동저장용)
+// opts.silentSuccess: 성공 시 토스트 안 띄움 (실패·오프라인은 항상 알림)
+async function saveToServer(opts) {
+  const o = (opts && typeof opts === 'object') ? opts : {};
+  const skipIfUnchanged = o.skipIfUnchanged === true;
+  const silentSuccess = o.silentSuccess === true;
   if (!calcReceiptNo || !calcUserName) {
-    setSaveStatus('⚠️ 접수번호와 사용자 이름을 입력하세요.', 'warn'); return;
+    if (!skipIfUnchanged) setSaveStatus('⚠️ 접수번호와 사용자 이름을 입력하세요.', 'warn');
+    return;
   }
-  setSaveStatus('💾 저장 중…', 'loading');
   const bundle = bundleState();
+  const sig = bundleSig(bundle);
+  if (skipIfUnchanged && sig !== null && sig === lastSavedSig) return;   // 변경 없음 → 조용히 스킵
+  if (!silentSuccess) setSaveStatus('💾 저장 중…', 'loading');
   try {
     const res = await fetch('/api/calcData', {
       method: 'POST',
@@ -152,9 +163,10 @@ async function saveToServer() {
     });
     if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
     const { expiresAt } = await res.json();
+    lastSavedSig = sig;   // 성공 → 시그니처 기록 (다음 주기 저장에서 무변경 스킵 판단)
     const exp = new Date(expiresAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'});
     const time = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'});
-    setSaveStatus(`✅ 서버 저장됨 ${time} (만료: ${exp})`);
+    if (!silentSuccess) setSaveStatus(`✅ 서버 저장됨 ${time} (만료: ${exp})`);
     if (!isAdmin()) {
       try { localStorage.setItem('ktl-calc-last-save', JSON.stringify({receiptNo:calcReceiptNo,userName:calcUserName,at:Date.now()})); } catch {}
       try { localStorage.removeItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`); } catch {}  // 성공 → 대기분 제거
@@ -287,7 +299,7 @@ function scheduleAutoSave() {
   if (isAdmin()) return;
   if (!calcReceiptNo || !calcUserName) return;
   clearTimeout(autoSaveTimer);
-  autoSaveTimer = setTimeout(saveToServer, 30_000);
+  autoSaveTimer = setTimeout(() => saveToServer(), 30_000);   // 입력 멈춘 뒤 30초: 변경 있으니 토스트 표시
 }
 
 // ── 접속자 권한 모드 ────────────────────────────────────────
@@ -304,7 +316,7 @@ function applyAccessMode() {
   // 10초 인터벌 재설정 (중복 방지)
   clearInterval(primaryTimer); clearInterval(viewerTimer);
   if (primary && !isAdmin()) {
-    primaryTimer = setInterval(() => { if (calcReceiptNo && calcUserName) saveToServer(); }, 60_000);  // 쓰기: 1분 자동저장
+    primaryTimer = setInterval(() => { if (calcReceiptNo && calcUserName) saveToServer({ skipIfUnchanged: true, silentSuccess: true }); }, 30_000);  // 쓰기: 30초 주기 — 변경 없으면 조용히 스킵, 성공 무음(실패는 알림)
   } else if (!primary && !isAdmin()) {
     viewerTimer = setInterval(() => { if (calcReceiptNo) loadFromServer(); }, 10_000);                 // 읽기: 10초 자동 불러오기
   }
@@ -3259,7 +3271,7 @@ function init() {
       try { localStorage.setItem('ktl-site-name', calcSiteName); } catch {}
     }
   });
-  document.getElementById('pv-save-btn')?.addEventListener('click', saveToServer);
+  document.getElementById('pv-save-btn')?.addEventListener('click', () => saveToServer());  // 수동 저장: 항상 저장 + 토스트
   document.getElementById('pv-load-btn')?.addEventListener('click', loadFromServer);
   document.getElementById('pv-primary-btn')?.addEventListener('click', () => {
     isPrimaryUser = !isPrimaryUser;        // 누구나 토글 (누르면 주 사용자)
