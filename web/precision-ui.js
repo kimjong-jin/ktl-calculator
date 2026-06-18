@@ -1910,9 +1910,16 @@ function updatePipeline(code) {
   track.querySelectorAll('.pv-pipeline-bubble').forEach(btn => {
     let pressTimer = null;
     let isLongPress = false;
+    let lastTouchTime = 0;
 
     const startPress = (e) => {
-      if (e.type === 'mousedown' && e.button !== 0) return;
+      if (e.type === 'mousedown') {
+        if (e.button !== 0) return;
+        if (Date.now() - lastTouchTime < 1000) return;
+      }
+      if (e.type === 'touchstart') {
+        lastTouchTime = Date.now();
+      }
       isLongPress = false;
       pressTimer = setTimeout(() => {
         isLongPress = true;
@@ -1930,7 +1937,10 @@ function updatePipeline(code) {
       }, 500);
     };
 
-    const cancelPress = () => {
+    const cancelPress = (e) => {
+      if (e && e.type === 'touchstart') {
+        lastTouchTime = Date.now();
+      }
       if (pressTimer) {
         clearTimeout(pressTimer);
         pressTimer = null;
@@ -1941,7 +1951,7 @@ function updatePipeline(code) {
     btn.addEventListener('touchstart', startPress, { passive: true });
 
     btn.addEventListener('click', (e) => {
-      cancelPress();
+      cancelPress(e);
       if (isLongPress) {
         e.preventDefault();
         e.stopPropagation();
@@ -1956,10 +1966,19 @@ function updatePipeline(code) {
       }
     });
 
-    btn.addEventListener('mouseup', cancelPress);
-    btn.addEventListener('touchend', cancelPress);
-    btn.addEventListener('mouseleave', cancelPress);
-    btn.addEventListener('touchmove', cancelPress, { passive: true });
+    btn.addEventListener('mouseup', (e) => cancelPress(e));
+    btn.addEventListener('touchend', (e) => {
+      cancelPress(e);
+      if (isLongPress) {
+        e.preventDefault();
+        isLongPress = false;
+      }
+    });
+    btn.addEventListener('mouseleave', (e) => cancelPress(e));
+    btn.addEventListener('touchmove', (e) => cancelPress(e), { passive: true });
+    btn.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
   });
 }
 

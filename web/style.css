@@ -2070,7 +2070,11 @@ select.field__control {
   border: 1.5px solid var(--border);
   color: var(--text-dim);
   transition: all 0.2s ease;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
   position: relative;
 }
 /* 미입력 상태에서도 타입별 색상 테두리로 구분 */
