@@ -1908,14 +1908,58 @@ function updatePipeline(code) {
   }).join('');
 
   track.querySelectorAll('.pv-pipeline-bubble').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const fieldId = btn.dataset.id;
-      const input = document.getElementById(`pv_${fieldId}`);
-      if (input) {
-        input.focus();
-        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    let pressTimer = null;
+    let isLongPress = false;
+
+    const startPress = (e) => {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      isLongPress = false;
+      pressTimer = setTimeout(() => {
+        isLongPress = true;
+        const fieldId = btn.dataset.id;
+        const input = document.getElementById(`pv_${fieldId}`);
+        if (input) {
+          const label = btn.querySelector('.pv-pipeline-label')?.textContent || fieldId;
+          const currentVal = input.value;
+          const newVal = prompt(`[${label}] 값을 입력하십시오:`, currentVal);
+          if (newVal !== null) {
+            input.value = newVal;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+      }, 500);
+    };
+
+    const cancelPress = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+
+    btn.addEventListener('mousedown', startPress);
+    btn.addEventListener('touchstart', startPress, { passive: true });
+
+    btn.addEventListener('click', (e) => {
+      cancelPress();
+      if (isLongPress) {
+        e.preventDefault();
+        e.stopPropagation();
+        isLongPress = false;
+      } else {
+        const fieldId = btn.dataset.id;
+        const input = document.getElementById(`pv_${fieldId}`);
+        if (input) {
+          input.focus();
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
     });
+
+    btn.addEventListener('mouseup', cancelPress);
+    btn.addEventListener('touchend', cancelPress);
+    btn.addEventListener('mouseleave', cancelPress);
+    btn.addEventListener('touchmove', cancelPress, { passive: true });
   });
 }
 
