@@ -1527,8 +1527,14 @@ function buildFormBasic(code) {
   return `
 <div class="card pv-form-card">
   <div class="pv-section">
-    <h3 class="pv-section__title">측정범위</h3>
-    <div class="pv-row1">${ni('range','')}</div>
+    <h3 class="pv-section__title">측정범위${code==='TOC' ? ' · 응답시간 · 배출기준' : ''}</h3>
+    ${code==='TOC'
+      ? `<div class="pv-grid3">${ni('range','측정범위')}${ni('resp','응답시간(분, ≤15)')}${ni('fdis','배출기준 mg/L (없으면 0)')}</div>
+      <label class="pv-highvar">
+        <input type="checkbox" id="pv_highvar" ${stored['highvar'] === true ? 'checked' : ''}>
+        <span>변동성이 큰 시료 — 15% 이하 <b>AND</b> 절대오차 0.5 mg/L 이하 둘 다 만족 (법)</span>
+      </label>`
+      : `<div class="pv-row1">${ni('range','')}</div>`}
   </div>
 
   <div class="pv-section">
@@ -1591,29 +1597,10 @@ function buildFormBasic(code) {
     </div>
   </div>
 
-  ${code==='TOC' ? `
-  <div class="pv-section">
-    <div class="pv-discharge-wrap">
-      <div class="pv-discharge-wrap .field__label">⚠️ TOC 배출허용기준 (mg/L)</div>
-      ${ni('fdis','배출기준값 mg/L — 없으면 0 입력')}
-      <label class="pv-highvar">
-        <input type="checkbox" id="pv_highvar" ${stored['highvar'] === true ? 'checked' : ''}>
-        <span>변동성이 큰 시료 — 15% 이하 <b>AND</b> 절대오차 0.5 mg/L 이하 둘 다 만족 (법)</span>
-      </label>
-    </div>
-  </div>` : ''}
-
   ${code==='COD' ? `
   <div class="pv-section">
     <h3 class="pv-section__title">포도당변동성시험 <span class="pv-hint">(선택)</span></h3>
     <div class="pv-grid2">${ni('codmax','최댓값')}${ni('codmin','최솟값')}</div>
-  </div>` : ''}
-
-  ${code==='TOC' ? `
-  <div class="pv-section">
-    <h3 class="pv-section__title">응답시간 (T90) <span class="pv-hint">기준: 15분 이하</span></h3>
-    <div style="max-width:200px">${ni('resp','측정값 (분)')}</div>
-    <p class="pv-zs-note" style="margin-top:6px">기준값 고정 ≤ 15분. 측정값을 분(min) 단위로 입력하세요.</p>
   </div>` : ''}
 </div>
 
