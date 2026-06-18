@@ -1915,153 +1915,144 @@ function renderGraphsInModal(code) {
 
   body.innerHTML = '';
 
-  const rangeVal = parseFloat(document.getElementById('pv_range')?.value);
-  const range = isNaN(rangeVal) ? 10 : rangeVal;
+  // 전체 측정 필드를 기본 순서로 가져옴 (시퀀스 무관)
+  const allSteps = getDefaultPipelineSteps(code);
 
   const labelMap = {
     z1: 'Z1', z2: 'Z2', z3: 'Z3', z4: 'Z4', z5: 'Z5', z6: 'Z6', z7: 'Z7',
     s1: 'S1', s2: 'S2', s3: 'S3', s4: 'S4', s5: 'S5', s6: 'S6', s7: 'S7',
     m1: 'M1', m2: 'M2', m3: 'M3',
-    ph7a: '반 저1', ph4a: '반 고1', ph7b: '반 저2', ph4b: '반 고2', ph7c: '반 저3', ph4c: '반 고3',
-    phdi: '초기', phdf: '2시간후',
+    ph7a: '반저1', ph4a: '반고1', ph7b: '반저2', ph4b: '반고2', ph7c: '반저3', ph4c: '반고3',
+    phdi: '초기', phdf: '최종',
     phm4: 'pH4', phm7: 'pH7', phm10: 'pH10',
+    pht10: '10℃', pht15: '15℃', pht20: '20℃', pht25: '25℃', pht30: '30℃',
     dos1: 'S1', dos2: 'S2', dos3: 'S3',
-    dozi: 'Z초기', dosi: 'S초기', dozf: 'Z2시간', dosf: 'S2시간',
-    domax: '직선Max', domin: '직선Min'
+    dozi: 'Z초기', dosi: 'S초기', dozf: 'Z최종', dosf: 'S최종',
+    domax: 'Max', domin: 'Min',
+    dot20: '20℃', dot30: '30℃',
+    ci1: 'Ci1', ai1: 'Ai1', ai2: 'Ai2', ci2: 'Ci2', ai3: 'Ai3', ai4: 'Ai4',
+    phci1: 'Ci1', phai1: 'Ai1', phai2: 'Ai2', phci2: 'Ci2', phai3: 'Ai3', phai4: 'Ai4',
+    resp: '응답', codmax: 'CODmax', codmin: 'CODmin',
+    range: '범위', fdis: '배출',
   };
 
-  // 그래프는 시퀀스 입력과 무관하게 항상 전체 데이터를 기본 순서로 표시
-  let driftChartHTML = '';
-  if (IS_PH(code)) {
-    const ids = ['phdi', 'phdf'];
-    const vals = ids.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
-    const xLabels = ids.map(id => labelMap[id] || id.toUpperCase());
-    driftChartHTML = drawSVGLineChart(
-      '📉 pH Drift Trend',
-      [
-        { name: 'pH', values: vals, colorClass: 'pv-chart-line-z', dotClass: 'pv-chart-dot-z' }
-      ],
-      xLabels
-    );
-  } else if (IS_DO(code)) {
-    const zIds = ['dozi', 'dozf'];
-    const sIds = ['dosi', 'dosf'];
-    const zVals = zIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
-    const sVals = sIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
-    const xLabels = zIds.map(id => labelMap[id] || id.toUpperCase());
-    driftChartHTML = drawSVGLineChart(
-      '📉 DO Zero/Span Drift Trend',
-      [
-        { name: 'Zero', values: zVals, colorClass: 'pv-chart-line-z', dotClass: 'pv-chart-dot-z' },
-        { name: 'Span', values: sVals, colorClass: 'pv-chart-line-s', dotClass: 'pv-chart-dot-s' }
-      ],
-      xLabels
-    );
-  } else {
-    // 드리프트: 항상 Z1~Z4, S1~S4 전체를 기본 순서로 표시
-    const zIds = ['z1', 'z2', 'z3', 'z4'];
-    const sIds = ['s1', 's2', 's3', 's4'];
-    const zVals = zIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
-    const sVals = sIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
-
-    const driftLimit = IS_WATER(code) ? 3 : 5;
-    const driftTol = range * (driftLimit / 100);
-
-    const z1 = parseFloat(document.getElementById('pv_z1')?.value);
-    const z2 = parseFloat(document.getElementById('pv_z2')?.value);
-    const s1 = parseFloat(document.getElementById('pv_s1')?.value);
-    const s2 = parseFloat(document.getElementById('pv_s2')?.value);
-
-    const ziMean = (!isNaN(z1) && !isNaN(z2)) ? (z1 + z2) / 2 : NaN;
-    const siMean = (!isNaN(s1) && !isNaN(s2)) ? (s1 + s2) / 2 : NaN;
-
-    const bands = [];
-    if (!isNaN(ziMean)) {
-      bands.push({ y1: ziMean - driftTol, y2: ziMean + driftTol, class: 'pv-chart-band-drift' });
+  // 값이 입력된 스텝만 필터
+  const dataSteps = [];
+  allSteps.forEach(step => {
+    const el = document.getElementById(`pv_${step.id}`);
+    const val = el ? parseFloat(el.value) : NaN;
+    if (!isNaN(val)) {
+      dataSteps.push({ ...step, val, label: labelMap[step.id] || step.label });
     }
-    if (!isNaN(siMean)) {
-      bands.push({ y1: siMean - driftTol, y2: siMean + driftTol, class: 'pv-chart-band-drift' });
-    }
+  });
 
-    const xLabels = zIds.map(id => labelMap[id] || id.toUpperCase());
-
-    driftChartHTML = drawSVGLineChart(
-      `📉 Zero/Span Drift Trend (허용범위: ±${driftLimit}%)`,
-      [
-        { name: 'Zero', values: zVals, colorClass: 'pv-chart-line-z', dotClass: 'pv-chart-dot-z' },
-        { name: 'Span', values: sVals, colorClass: 'pv-chart-line-s', dotClass: 'pv-chart-dot-s' }
-      ],
-      xLabels,
-      { bands }
-    );
+  if (dataSteps.length === 0) {
+    body.innerHTML = `
+      <div class="pv-chart-container">
+        <div class="pv-chart-title">📊 전체 측정 트렌드</div>
+        <div class="pv-chart-svg-wrap" style="display:flex;align-items:center;justify-content:center;">
+          <div class="pv-chart-no-data" style="position:static;transform:none;">입력된 데이터가 없습니다.</div>
+        </div>
+      </div>`;
+    return;
   }
 
-  let linChartHTML = '';
-  if (IS_PH(code)) {
-    const mIds = ['phm4', 'phm7', 'phm10'];
-    const mVals = mIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
-    const refVals = mIds.map(id => id === 'phm4' ? 4 : (id === 'phm7' ? 7 : 10));
-    const xLabels = mIds.map(id => labelMap[id] || id.toUpperCase());
-    linChartHTML = drawSVGLineChart(
-      '📈 pH Linearity (기준값 4, 7, 10 대비)',
-      [
-        { name: 'Measured', values: mVals, colorClass: 'pv-chart-line-m', dotClass: 'pv-chart-dot-m' },
-        { name: 'Reference', values: refVals, colorClass: 'pv-chart-line-ref', dotClass: 'pv-chart-dot-z' }
-      ],
-      xLabels
-    );
-  } else if (IS_DO(code)) {
-    const mIds = ['domin', 'domax'];
-    const mVals = mIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
-    const xLabels = mIds.map(id => labelMap[id] || id.toUpperCase());
-    linChartHTML = drawSVGLineChart(
-      '📈 DO Linearity (최솟값 ➔ 최댓값)',
-      [
-        { name: 'Measured', values: mVals, colorClass: 'pv-chart-line-m', dotClass: 'pv-chart-dot-m' }
-      ],
-      xLabels
-    );
-  } else if (IS_WATER(code)) {
-    const m1 = parseFloat(document.getElementById('pv_m1')?.value);
-    const s1 = parseFloat(document.getElementById('pv_s1')?.value);
-    const linRef = s1 > 0 ? s1 / 2 : NaN;
-    const refLines = [];
-    const bands = [];
-    if (!isNaN(linRef)) {
-      refLines.push({ y: linRef, label: '기준값 (S1÷2)', class: 'pv-chart-line-ref' });
-      bands.push({ y1: linRef * 0.95, y2: linRef * 1.05, class: 'pv-chart-band-drift' });
-    }
-    linChartHTML = drawSVGLineChart(
-      '📈 직선성 (오차 허용범위: ±5%)',
-      [
-        { name: 'Measured', values: [m1], colorClass: 'pv-chart-line-m', dotClass: 'pv-chart-dot-m' }
-      ],
-      ['주입농도 M'],
-      { refLines, bands }
-    );
-  } else {
-    // 직선성: 항상 M1~M3 전체 표시
-    const mIds = ['m1', 'm2', 'm3'];
-    const mVals = mIds.map(id => parseFloat(document.getElementById(`pv_${id}`)?.value));
-    const linRef = (0.9 * range) / 2;
-    const refLines = [];
-    const bands = [];
-    if (!isNaN(linRef)) {
-      refLines.push({ y: linRef, label: '기준값 (0.45 × Range)', class: 'pv-chart-line-ref' });
-      bands.push({ y1: linRef * 0.95, y2: linRef * 1.05, class: 'pv-chart-band-drift' });
-    }
-    const xLabels = mIds.map(id => labelMap[id] || id.toUpperCase());
-    linChartHTML = drawSVGLineChart(
-      '📈 직선성 (오차 허용범위: ±5%)',
-      [
-        { name: 'Measured', values: mVals, colorClass: 'pv-chart-line-m', dotClass: 'pv-chart-dot-m' }
-      ],
-      xLabels,
-      { refLines, bands }
-    );
+  // SVG 전체 그래프 직접 그리기 — 모든 값을 한 차트에 색상별로
+  const xLabels = dataSteps.map(s => s.label);
+  const typeColorMap = {
+    z:     { line: '#3b82f6', dot: '#3b82f6', name: 'Zero' },
+    s:     { line: '#10b981', dot: '#10b981', name: 'Span' },
+    m:     { line: '#8b5cf6', dot: '#8b5cf6', name: 'Linearity' },
+    other: { line: '#6366f1', dot: '#6366f1', name: '기타' },
+  };
+
+  const allVals = dataSteps.map(s => s.val);
+  let minVal = Math.min(...allVals);
+  let maxVal = Math.max(...allVals);
+  if (minVal === maxVal) { minVal -= 1; maxVal += 1; }
+  else { const margin = (maxVal - minVal) * 0.15; minVal -= margin; maxVal += margin; }
+
+  const n = dataSteps.length;
+  const width = Math.max(500, n * 52);
+  const height = 260;
+  const pL = 55, pR = 20, pT = 28, pB = 50;
+  const cW = width - pL - pR;
+  const cH = height - pT - pB;
+
+  const getX = i => pL + (i / (n - 1 || 1)) * cW;
+  const getY = v => pT + cH - ((v - minVal) / (maxVal - minVal || 1)) * cH;
+
+  // 그리드
+  let gridHtml = '';
+  for (let i = 0; i <= 4; i++) {
+    const yVal = minVal + (i / 4) * (maxVal - minVal);
+    const yPos = getY(yVal);
+    gridHtml += `<line class="pv-chart-grid" x1="${pL}" y1="${yPos}" x2="${width - pR}" y2="${yPos}" />`;
+    gridHtml += `<text class="pv-chart-text" x="${pL - 8}" y="${yPos + 4}" text-anchor="end">${yVal.toFixed(1)}</text>`;
   }
 
-  body.innerHTML = driftChartHTML + linChartHTML;
+  // X축 레이블
+  dataSteps.forEach((s, i) => {
+    const xPos = getX(i);
+    const tc = typeColorMap[s.type] || typeColorMap.other;
+    gridHtml += `<text class="pv-chart-text" x="${xPos}" y="${pT + cH + 16}" text-anchor="middle" fill="${tc.dot}" style="font-weight:600;font-size:9px">${s.label}</text>`;
+  });
+
+  // 타입별 경로 + 도트 생성
+  const typeGroups = {};
+  dataSteps.forEach((s, i) => {
+    const t = s.type || 'other';
+    if (!typeGroups[t]) typeGroups[t] = [];
+    typeGroups[t].push({ idx: i, val: s.val, label: s.label });
+  });
+
+  let pathsHtml = '';
+  Object.entries(typeGroups).forEach(([type, points]) => {
+    const tc = typeColorMap[type] || typeColorMap.other;
+
+    // 같은 타입의 점들을 선으로 연결
+    let pathD = '';
+    let dotsHtml = '';
+    points.forEach(p => {
+      const xPos = getX(p.idx);
+      const yPos = getY(p.val);
+      if (pathD === '') pathD = `M ${xPos} ${yPos}`;
+      else pathD += ` L ${xPos} ${yPos}`;
+
+      dotsHtml += `<circle cx="${xPos}" cy="${yPos}" r="4.5" fill="${tc.dot}" stroke="white" stroke-width="1.5" />`;
+      dotsHtml += `<text class="pv-chart-text" x="${xPos}" y="${yPos - 9}" text-anchor="middle" fill="${tc.dot}" style="font-weight:700;font-size:9px">${p.val.toFixed(2)}</text>`;
+    });
+
+    if (pathD) {
+      pathsHtml += `<path d="${pathD}" fill="none" stroke="${tc.line}" stroke-width="2" stroke-opacity="0.5" />`;
+      pathsHtml += dotsHtml;
+    }
+  });
+
+  // 범례
+  const legendItems = Object.entries(typeGroups).map(([type]) => {
+    const tc = typeColorMap[type] || typeColorMap.other;
+    return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:${tc.dot};font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:${tc.dot};display:inline-block"></span>${tc.name}</span>`;
+  }).join('&nbsp;&nbsp;');
+
+  const chartHTML = `
+    <div class="pv-chart-container">
+      <div class="pv-chart-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <span>📊 전체 측정 트렌드 (${dataSteps.length}개 항목)</span>
+        <span>${legendItems}</span>
+      </div>
+      <div class="pv-chart-svg-wrap" style="overflow-x:auto">
+        <svg viewBox="0 0 ${width} ${height}" style="min-width:${width}px">
+          ${gridHtml}
+          ${pathsHtml}
+          <line class="pv-chart-axis" x1="${pL}" y1="${pT}" x2="${pL}" y2="${pT + cH}" />
+          <line class="pv-chart-axis" x1="${pL}" y1="${pT + cH}" x2="${width - pR}" y2="${pT + cH}" />
+        </svg>
+      </div>
+    </div>
+  `;
+
+  body.innerHTML = chartHTML;
 }
 
 function setupPipelineAndGraph(tab) {
