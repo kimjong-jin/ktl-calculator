@@ -716,8 +716,6 @@ function calcBasic(tab) {
     rangeBlock.hidden = false;
   }
   const rangePass = !rangeExceeded && zeroEntered.length === 0;
-  const passes = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass, rangePass ? null : false].filter(v => v !== null);
-
 
   // 현장적용계수
   const ci1=gv('ci1'),ci2=gv('ci2'),ai1=gv('ai1'),ai2=gv('ai2'),ai3=gv('ai3'),ai4=gv('ai4');
@@ -743,13 +741,12 @@ function calcBasic(tab) {
   } else {
     if (fieldBlock) fieldBlock.hidden = true;
   }
-  if (fieldPass !== null) passes.push(fieldPass);
 
   // 응답시간 (TOC 전용) - 기준 ≤ 15분
+  let respPass = null;
   if (tab.code === 'TOC') {
     const resp = g('resp');
     const respLimit = 15; // 분(min) 단위
-    let respPass = null;
     const respBlock = document.getElementById('pv-res-resp-block');
     if (resp) {
       respPass = resp <= respLimit;
@@ -762,13 +759,12 @@ function calcBasic(tab) {
     } else {
       if (respBlock) respBlock.hidden = true;
     }
-    if (respPass !== null) passes.push(respPass);
   }
 
   // COD 포도당변동성
+  let glucPass = null;
   if (IS_COD(tab.code)) {
     const codmax=g('codmax'), codmin=g('codmin');
-    let glucPass = null;
     const glucBlock = document.getElementById('pv-res-gluc-block');
     if (codmax || codmin) {
       const gRes = codGlucoseVariability(codmax, codmin, g('range'));
@@ -784,10 +780,15 @@ function calcBasic(tab) {
     } else {
       if (glucBlock) glucBlock.hidden = true;
     }
-    if (glucPass !== null) passes.push(glucPass);
   }
 
-  updateFinal(tab, passes);
+  const requiredPasses = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass];
+  if (tab.code === 'TOC') requiredPasses.push(respPass);
+  if (IS_COD(tab.code)) requiredPasses.push(glucPass);
+
+  const optionalPasses = [fieldPass];
+
+  updateFinal(tab, requiredPasses, optionalPasses, rangePass);
 }
 
 // ── 계산: pH ─────────────────────────────────────────────
@@ -856,10 +857,9 @@ function calcPH(tab) {
     if (fieldBlock) fieldBlock.hidden = true;
   }
 
-  const passes = [rep.zero.pass, rep.span.pass, dr.zeroPass, lin.pass];
-  if (tcPass !== null) passes.push(tcPass);
-  if (fieldPass !== null) passes.push(fieldPass);
-  updateFinal(tab, passes);
+  const requiredPasses = [rep.zero.pass, rep.span.pass, dr.zeroPass, lin.pass, tcPass];
+  const optionalPasses = [fieldPass];
+  updateFinal(tab, requiredPasses, optionalPasses);
 }
 
 // ── 계산: DO ─────────────────────────────────────────────
@@ -926,10 +926,8 @@ function calcDO(tab) {
     if (respBlock) respBlock.hidden = true;
   }
 
-  const passes = [rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass];
-  if (tcPass !== null) passes.push(tcPass);
-  if (respPass !== null) passes.push(respPass);
-  updateFinal(tab, passes);
+  const requiredPasses = [rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass, tcPass, respPass];
+  updateFinal(tab, requiredPasses);
 }
 
 // ── 계산: 먹는물 (TU/CL) ────────────────────────────────
@@ -987,19 +985,36 @@ function calcWater(tab) {
     note.textContent = '⚠️ 측정범위(' + range + ')를 초과한 값이 있습니다. 측정범위를 확인하세요.';
     document.getElementById('pv-res-rep')?.before(note);
   }
-  const passes = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass, rangeExceeded ? false : null].filter(v => v !== null);
-  if (respPass !== null) passes.push(respPass);
-  updateFinal(tab, passes);
+  const requiredPasses = [
+    rep.zero.pass,
+    rep.span.pass,
+    dr.zeroPass,
+    dr.spanPass,
+    lin.pass,
+    rangeExceeded ? false : true
+  ];
+  if (!respSkip) {
+    requiredPasses.push(respPass);
+  }
+  updateFinal(tab, requiredPasses);
 }
 
 function updateFinal(tab, passes) {
-  const allPass = passes.every(p => p === true);
+  const activePasses = passes.filter(p => p !== null && p !== undefined);
+  let tabState = '';
+  if (activePasses.length > 0) {
+    const allPass = activePasses.every(p => p === true);
+    tabState = allPass ? 'ok' : 'bad';
+  } else {
+    tabState = '';
+  }
+
   document.getElementById('pv-final').innerHTML =
-    `<div class="pv-final-banner pv-final-banner--${allPass?'ok':'bad'}">
-      ${allPass ? '✅ 전 항목 적합' : '❌ 부적합 항목 있음'}
+    `<div class="pv-final-banner pv-final-banner--${tabState || 'none'}">
+      ${tabState === 'ok' ? '✅ 전 항목 적합' : tabState === 'bad' ? '❌ 부적합 항목 있음' : 'ℹ️ 데이터 입력 필요'}
     </div>`;
   document.getElementById('pv-results').hidden = false;
-  tab.pass = allPass ? 'ok' : 'bad';
+  tab.pass = tabState;
   saveMeta();
   const btn = document.querySelector(`.pv-item-tab[data-id="${tab.id}"]`);
   if (btn) btn.dataset.pass = tab.pass;
@@ -2018,7 +2033,8 @@ function buildRawDataRows(tab) {
 }
 
 function buildCertPageHTML(tab, date) {
-  const { rows, allPass } = buildCertResultRows(tab);
+  const { rows } = buildCertResultRows(tab);
+  const allPass = tab.pass === 'ok';
   const rawRows = buildRawDataRows(tab);
   const passColor = allPass ? '#1a7f37' : '#cf222e';
   return `<div class="cert-page">
@@ -2085,7 +2101,8 @@ function showCert(tabId) {
   // 기존 오버레이 제거
   document.getElementById('cert-overlay')?.remove();
 
-  const { rows, allPass } = buildCertResultRows(tab);
+  const { rows } = buildCertResultRows(tab);
+  const allPass = tab.pass === 'ok';
   const rawRows = buildRawDataRows(tab);
   const passColor = allPass ? '#1a7f37' : '#cf222e';
 

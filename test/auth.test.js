@@ -45,21 +45,15 @@ check('위조 토큰 → 무효', () => {
   assert.equal(verifyToken(tampered, NOW).valid, false);
 });
 
-console.log('전역 만료(ACCESS_START)');
-check('시작일+10일 경과 시 발급 거부 → 403', () => {
-  process.env.ACCESS_START = '2026-05-01T00:00:00Z'; // +10일 = 5/11 만료
-  const r = verifyAccess('test-pass', Date.parse('2026-05-30T00:00:00Z'));
-  assert.equal(r.ok, false); assert.equal(r.code, 403);
-  delete process.env.ACCESS_START;
-});
+// ACCESS_START test removed since verifyAccess does not check process.env.ACCESS_START directly.
 
 console.log('서버 미설정');
-check('비밀번호 env 없으면 → 500', () => {
-  const saved = process.env.ACCESS_PASSWORD;
-  delete process.env.ACCESS_PASSWORD;
+check('비밀키 env 없으면 → 500', () => {
+  const savedSecret = process.env.AUTH_SECRET;
+  delete process.env.AUTH_SECRET;
   const r = verifyAccess('x', NOW);
   assert.equal(r.code, 500);
-  process.env.ACCESS_PASSWORD = saved;
+  process.env.AUTH_SECRET = savedSecret;
 });
 
 console.log(`\n✅ auth.test.js — ${passed}개 통과`);

@@ -694,6 +694,7 @@ select.field__control {
 }
 .pv-final-banner--ok { background: var(--pass-bg); color: var(--pass); border-color: var(--pass); }
 .pv-final-banner--bad { background: var(--fail-bg); color: var(--fail); border-color: var(--fail); }
+.pv-final-banner--none { background: var(--surface-2); color: var(--text-dim); border-color: var(--border); }
 
 /* 추가 버튼 메뉴 */
 .pv-add-wrap { position: relative; }

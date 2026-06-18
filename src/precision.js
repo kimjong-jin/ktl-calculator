@@ -80,16 +80,26 @@ export function repeatability(zVals, sVals, range, limit = PRECISION_CRITERIA.re
  *   drift = |평균After - 평균Before| / range * 100
  * pH/DO: 각 1개값 배열로 전달 */
 export function drift(range, zeroBefore, zeroAfter, spanBefore, spanAfter, limits) {
-  const zeroDrift = pct(mean(zeroAfter) - mean(zeroBefore), range);
-  const spanDrift  = pct(mean(spanAfter)  - mean(spanBefore),  range);
+  const cleanZB = (zeroBefore || []).filter(v => v !== null && v !== undefined && !isNaN(v));
+  const cleanZA = (zeroAfter || []).filter(v => v !== null && v !== undefined && !isNaN(v));
+  const cleanSB = (spanBefore || []).filter(v => v !== null && v !== undefined && !isNaN(v));
+  const cleanSA = (spanAfter || []).filter(v => v !== null && v !== undefined && !isNaN(v));
+
+  const hasZero = cleanZB.length > 0 && cleanZA.length > 0;
+  const hasSpan = cleanSB.length > 0 && cleanSA.length > 0;
+
+  const zeroDrift = hasZero ? pct(mean(cleanZA) - mean(cleanZB), range) : NaN;
+  const spanDrift  = hasSpan ? pct(mean(cleanSA) - mean(cleanSB), range) : NaN;
   const zeroLim = limits?.zero ?? PRECISION_CRITERIA.zeroDrift;
   const spanLim = limits?.span ?? PRECISION_CRITERIA.spanDrift;
   // 엑셀: ROUND(drift, 1) <= 5 기준
   const r1 = v => Math.round(v * 10) / 10;
   return {
-    zeroDrift, spanDrift, zeroLim, spanLim,
-    zeroPass: r1(zeroDrift) <= zeroLim,
-    spanPass: r1(spanDrift) <= spanLim,
+    zeroDrift: hasZero ? zeroDrift : NaN,
+    spanDrift: hasSpan ? spanDrift : NaN,
+    zeroLim, spanLim,
+    zeroPass: hasZero ? r1(zeroDrift) <= zeroLim : null,
+    spanPass: hasSpan ? r1(spanDrift) <= spanLim : null,
   };
 }
 
@@ -98,8 +108,12 @@ export function drift(range, zeroBefore, zeroAfter, spanBefore, spanAfter, limit
  * pH: mVals=[4,7,10] 고정 3점, ref=7 (중간값), 오차=|avg-ref|/range×100
  * DO: max-min 방식 */
 export function linearity(range, mVals, ref) {
-  const avg = mean(mVals);
+  const cleanM = (mVals || []).filter(v => v !== null && v !== undefined && !isNaN(v));
   const reference = ref !== undefined ? ref : (0.9 * range) / 2;
+  if (cleanM.length === 0) {
+    return { avg: NaN, ref: reference, error: NaN, pass: null };
+  }
+  const avg = mean(cleanM);
   const error = pct(avg - reference, reference);
   // 엑셀 직선성 값은 ROUND(오차,1) 후 판정 (D50/B33 등) — 경계 일치
   const errR = roundTo(error, PRECISION_CRITERIA.linearityRound);
@@ -110,8 +124,12 @@ export function linearity(range, mVals, ref) {
  * 엑셀: max=10, min=4 → 오차 = (max-min)/range×100 ≤ 5% */
 export function phLinearity(vals) {
   // vals = [pH4측정, pH7측정, pH10측정]
-  const maxV = Math.max(...vals);
-  const minV = Math.min(...vals);
+  const clean = (vals || []).filter(v => v !== null && v !== undefined && !isNaN(v));
+  if (clean.length < 3) {
+    return { max: NaN, min: NaN, error: NaN, pass: null };
+  }
+  const maxV = Math.max(...clean);
+  const minV = Math.min(...clean);
   const range = 14; // pH 고정 측정범위
   const error = pct(maxV - minV, range);
   const errR = roundTo(error, PRECISION_CRITERIA.linearityRound);
@@ -121,6 +139,10 @@ export function phLinearity(vals) {
 /* ── ③-DO 직선성 ────────────────────────────────────────────
  * max-min / range * 100 ≤ 5% */
 export function doLinearity(maxVal, minVal, range) {
+  if (maxVal === null || maxVal === undefined || isNaN(maxVal) ||
+      minVal === null || minVal === undefined || isNaN(minVal)) {
+    return { max: NaN, min: NaN, error: NaN, pass: null };
+  }
   const error = pct(maxVal - minVal, range);
   const errR = roundTo(error, PRECISION_CRITERIA.linearityRound);
   return { max: maxVal, min: minVal, error, pass: errR <= PRECISION_CRITERIA.linearity };
@@ -130,7 +152,7 @@ export function doLinearity(maxVal, minVal, range) {
  * 기준: pH 4.00 완충액, 각 온도별 측정값의 max-min ≤ 0.1
  * temps: { t10, t15, t20, t25, t30 } */
 export function phTemperatureComp(temps) {
-  const vals = Object.values(temps).filter(v => v !== 0 && Number.isFinite(v));
+  const vals = Object.values(temps).filter(v => v !== null && v !== undefined && v !== 0 && Number.isFinite(v));
   if (!vals.length) return { max: null, min: null, range: null, pass: null };
   const maxV = Math.max(...vals);
   const minV = Math.min(...vals);
@@ -151,6 +173,10 @@ export const DO_SPAN_TABLE = {
 };
 
 export function doTemperatureComp(m20, m30) {
+  if (m20 === null || m20 === undefined || isNaN(m20) ||
+      m30 === null || m30 === undefined || isNaN(m30)) {
+    return { t20: { measured: NaN, ref: 9.092, dev: NaN }, t30: { measured: NaN, ref: 7.559, dev: NaN }, maxDev: NaN, limit: PRECISION_CRITERIA.doTempComp, pass: null };
+  }
   const ref20 = DO_SPAN_TABLE[20];   // 9.092
   const ref30 = DO_SPAN_TABLE[30];   // 7.559
   const dev20 = m20 - ref20;         // 편차(mg/L, 부호)
@@ -171,6 +197,10 @@ export function doTemperatureComp(m20, m30) {
  * max-min / range * 100 ≤ 기준 (보통 5%)
  * range는 COD 측정범위 */
 export function codGlucoseVariability(maxVal, minVal, range) {
+  if (maxVal === null || maxVal === undefined || isNaN(maxVal) ||
+      minVal === null || minVal === undefined || isNaN(minVal)) {
+    return { max: NaN, min: NaN, error: NaN, pass: null };
+  }
   const error = pct(maxVal - minVal, range);
   return {
     max: maxVal, min: minVal, error,
