@@ -1732,6 +1732,43 @@ function parsePhDigitSeq(code, seqStr) {
   return out;
 }
 
+// DO 진행순서: 시험종류 글자(S/Z) + 온도(20/30) 자동분해. 구분자·순서 무관.
+//   반복성=홀로 SSS / 드리프트=ZZZSSS(제로3·스팬3)×2(초기·2h) / 온도=20×3·30×3 / 응답=O
+//   'Z' 다음 'S'런=스팬드리프트, 'Z' 없이 온 'S'런=반복성 (S가 둘 다라서)
+function parseDoSeq(code, seqStr) {
+  const s = seqStr.toUpperCase();
+  const toks = [];
+  for (let i = 0; i < s.length; ) {
+    if (s[i] === '2' && s[i + 1] === '0') { toks.push('20'); i += 2; }
+    else if (s[i] === '3' && s[i + 1] === '0') { toks.push('30'); i += 2; }
+    else if (s[i] === 'S' || s[i] === 'Z') { toks.push(s[i]); i++; }
+    else if (s[i] === 'O' || s[i] === 'R') { toks.push('O'); i++; }
+    else i++;
+  }
+  if (!toks.length) return [];
+  const idMap = {}; getDefaultPipelineSteps(code).forEach(st => { idMap[st.id] = st; });
+  const out = [], used = new Set();
+  const take = (arr, n) => arr.filter(id => !used.has(id)).slice(0, n);
+  const push = ids => ids.forEach(id => { if (idMap[id] && !used.has(id)) { used.add(id); out.push(idMap[id]); } });
+  const rep = ['dos1','dos2','dos3'];
+  const zPool = ['dozi1','dozi2','dozi3','dozf1','dozf2','dozf3'];   // 제로 초기3→2h3
+  const sDrift = ['dosi1','dosi2','dosi3','dosf1','dosf2','dosf3'];  // 스팬 초기3→2h3
+  const t20 = ['dot20a','dot20b','dot20c'], t30 = ['dot30a','dot30b','dot30c'];
+  let prev = null, i = 0;
+  while (i < toks.length) {
+    const t = toks[i];
+    let j = i; while (j < toks.length && toks[j] === t) j++;   // 같은 토큰 런
+    const n = j - i;
+    if (t === '20') push(take(t20, n));
+    else if (t === '30') push(take(t30, n));
+    else if (t === 'Z') push(take(zPool, n));                  // 제로드리프트
+    else if (t === 'S') push(take(prev === 'Z' ? sDrift : rep, n)); // Z뒤=스팬, 아니면=반복성
+    else if (t === 'O') push(take(['resp'], n));
+    prev = t; i = j;
+  }
+  return out;
+}
+
 function parseSequenceString(code, seqStr) {
   if (!seqStr || seqStr.trim() === '') return null;
   const defaultSteps = getDefaultPipelineSteps(code);
@@ -1740,6 +1777,10 @@ function parseSequenceString(code, seqStr) {
   // pH: 숫자(4/7/10)만으로 된 진행순서는 버퍼값 자동분해
   if (IS_PH(code) && /^[0-9\s,/]+$/.test(seqStr) && /[47]/.test(seqStr)) {
     return parsePhDigitSeq(code, seqStr);
+  }
+  // DO: 시험종류 글자(S/Z) + 온도(20/30) 자동분해
+  if (IS_DO(code) && /^[\s,szSZoOrR0-9]+$/.test(seqStr) && /[szSZ]/.test(seqStr)) {
+    return parseDoSeq(code, seqStr);
   }
 
   if (seqStr.includes(',') || /[0-9]/.test(seqStr)) {
@@ -2222,7 +2263,7 @@ function setupPipelineAndGraph(tab) {
   if (IS_PH(tab.code)) {
     seqPlaceholder = '예: 444777444777444447474744447 77101010 (4·7·10 측정순서대로, 붙여써도 됨)';
   } else if (IS_DO(tab.code)) {
-    seqPlaceholder = '예: dozi1,dosi1,dos1,dos2,dos3,dozf1,dosf1 (측정순서대로 ID 입력)';
+    seqPlaceholder = '예: SSS ZZZSSSZZZSSS 202020303030 (반복S·드리프트ZS·온도20/30, 붙여써도 됨)';
   } else if (IS_WATER(tab.code)) {
     seqPlaceholder = '예: ZZSSZSZZSSM';
   }
