@@ -1921,3 +1921,31 @@ select.field__control {
 }
 
 
+
+/* ── 접기 섹션 (검사결과·법령근거 — 기본 닫힘) ── */
+.pv-collapse {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.pv-collapse > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 2px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  user-select: none;
+}
+.pv-collapse > summary::-webkit-details-marker { display: none; }
+.pv-collapse > summary::before {
+  content: '▸';
+  font-size: 13px;
+  color: var(--accent-base);
+  transition: transform .15s ease;
+}
+.pv-collapse[open] > summary::before { transform: rotate(90deg); }
+.pv-collapse > summary:hover { color: var(--accent-base); }
+.pv-collapse .pv-legal-badge { margin-left: auto; font-weight: 500; }

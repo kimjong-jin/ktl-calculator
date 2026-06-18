@@ -1855,21 +1855,20 @@ function buildResultsPanel(code) {
   }
   return `
 <div id="pv-results" class="card pv-results-card" hidden>
-  <h3 class="pv-section__title" style="margin-bottom:16px">검사 결과</h3>
-  <div class="pv-res-grid">
-    <div class="pv-res-block"><h4 class="pv-res-block__title">반복성 (RSD)</h4><div id="pv-res-rep"></div></div>
-    <div class="pv-res-block"><h4 class="pv-res-block__title">드리프트</h4><div id="pv-res-drift"></div></div>
-    <div class="pv-res-block"><h4 class="pv-res-block__title">직선성</h4><div id="pv-res-lin"></div></div>
-    ${extraBlocks.join('\n    ')}
-  </div>
-  <div id="pv-final"></div>
-  <div class="pv-legal-wrap">
-    <div class="pv-legal-header">
-      <span class="pv-legal-title">📋 법령근거 · 정도검사기준</span>
-      <span class="pv-legal-badge">국가법령정보센터</span>
+  <details class="pv-collapse">
+    <summary class="pv-collapse__summary">검사 결과</summary>
+    <div class="pv-res-grid" style="margin-top:12px">
+      <div class="pv-res-block"><h4 class="pv-res-block__title">반복성 (RSD)</h4><div id="pv-res-rep"></div></div>
+      <div class="pv-res-block"><h4 class="pv-res-block__title">드리프트</h4><div id="pv-res-drift"></div></div>
+      <div class="pv-res-block"><h4 class="pv-res-block__title">직선성</h4><div id="pv-res-lin"></div></div>
+      ${extraBlocks.join('\n      ')}
     </div>
-    <div id="pv-legal-content" class="pv-legal-content"></div>
-  </div>
+    <div id="pv-final"></div>
+  </details>
+  <details class="pv-collapse">
+    <summary class="pv-collapse__summary">📋 법령근거 · 정도검사기준 <span class="pv-legal-badge">국가법령정보센터</span></summary>
+    <div id="pv-legal-content" class="pv-legal-content" style="margin-top:10px"></div>
+  </details>
   <div style="text-align:right;margin-top:12px">
     <button class="btn btn--ghost btn--mini" id="pv-cert-btn-result" type="button">성적서 출력</button>
   </div>
