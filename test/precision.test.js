@@ -7,6 +7,7 @@ import {
   mean, sampleStd, repeatability, drift, linearity, fieldApplication, total,
   doTemperatureComp,
   phRepeatability, phDrift, phLinearity, phTemperatureComp,
+  doRepeatability, doDrift,
 } from '../src/precision.js';
 
 let passed = 0;
@@ -187,20 +188,40 @@ check('pH 온도보상 V61: |측정-기준(4.00/4.01)| 최대 ≤ 0.2', () => {
   assert.equal(t4.pass, null);
 });
 
-console.log('⑤-DO 온도보상 (엑셀: |편차| ROUND(,2) ≤ 0.3 mg/L)');
-check('DO 온도보상 — 편차 0.108 → 0.11 ≤0.3 적합', () => {
-  const t = doTemperatureComp(9.2, 7.6); // dev20=0.108→0.11, dev30=0.041
+console.log('DO 전용 — 엑셀 Version11 절대 mg/L 기준 (정렬 검증, 3회평균)');
+check('DO 반복성 Z40: ROUND(STDEV(S 3회),2) ≤ 0.3 (RSD 아님)', () => {
+  // STDEV([8.2,8.4,8.6])=0.2 → 적합
+  const r = doRepeatability([8.2, 8.4, 8.6]);
+  assert.ok(near(r.std, 0.2));
+  assert.equal(r.limit, 0.3);
+  assert.equal(r.pass, true);
+  // STDEV 0.4 → 부적합 (옛 RSD 0.4/20×100=2%면 적합이던 것)
+  const r2 = doRepeatability([8.0, 8.4, 8.8]);
+  assert.ok(near(r2.std, 0.4));
+  assert.equal(r2.pass, false);
+});
+check('DO 드리프트 Z44/Z48: 제로 ≤0.2 / 스팬 ≤0.3 (3회평균 절대)', () => {
+  // 제로 평균차 0.25 → 부적합(>0.2), 스팬 평균차 0.25 → 적합(≤0.3)
+  const d = doDrift([8,8,8],[8.25,8.25,8.25],[8,8,8],[8.25,8.25,8.25]);
+  assert.equal(d.zero.val, 0.25);
+  assert.equal(d.zero.pass, false);   // 제로 기준 0.2
+  assert.equal(d.span.val, 0.25);
+  assert.equal(d.span.pass, true);    // 스팬 기준 0.3
+});
+console.log('⑤-DO 온도보상 (엑셀 Z53: 20℃×3·30℃×3 평균 |편차| ≤ 0.3 mg/L)');
+check('DO 온도보상 — 20℃평균 9.2 → 편차 0.108→0.11 적합', () => {
+  const t = doTemperatureComp([9.2, 9.2, 9.2], [7.6, 7.6, 7.6]);
   assert.ok(near(t.maxDev, 0.11));
   assert.equal(t.limit, 0.3);
   assert.equal(t.pass, true);
 });
-check('DO 온도보상 — 편차 0.408 → 0.41 >0.3 부적합 (5%면 적합일 케이스)', () => {
-  const t = doTemperatureComp(9.5, 7.559); // dev20=0.408→0.41 (>0.3, 단 0.413=5%span 미만)
+check('DO 온도보상 — 20℃평균 9.5 → 편차 0.41 >0.3 부적합', () => {
+  const t = doTemperatureComp([9.5, 9.5, 9.5], [7.559, 7.559, 7.559]);
   assert.ok(near(t.maxDev, 0.41));
   assert.equal(t.pass, false);
 });
 check('DO 온도보상 — 음수 편차 -0.292 → -0.29 적합', () => {
-  const t = doTemperatureComp(8.8, 7.559); // dev20=-0.292→-0.29
+  const t = doTemperatureComp([8.8, 8.8, 8.8], [7.559, 7.559, 7.559]);
   assert.ok(near(t.maxDev, -0.29));
   assert.equal(t.pass, true);
 });

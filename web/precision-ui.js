@@ -13,6 +13,7 @@ import {
   DO_SPAN_TABLE,
   repeatability, drift, linearity,
   phRepeatability, phDrift,
+  doRepeatability, doDrift,
   phLinearity, doLinearity,
   phTemperatureComp, doTemperatureComp,
   codGlucoseVariability,
@@ -53,9 +54,9 @@ function getFields(code) {
   ];
   if (IS_DO(code)) return [
     'dos1','dos2','dos3',                             // 반복성 S×3 (25℃ 기준)
-    'dozi','dozf','dosi','dosf',                      // 드리프트 Z초기/최종, S초기/최종
-    'domax','domin',                                  // 직선성 max/min
-    'dot20','dot30',                                  // 온도보상
+    'dozi1','dozi2','dozi3','dozf1','dozf2','dozf3',  // 제로드리프트 초기3·2h3
+    'dosi1','dosi2','dosi3','dosf1','dosf2','dosf3',  // 스팬드리프트 초기3·2h3
+    'dot20a','dot20b','dot20c','dot30a','dot30b','dot30c', // 온도보상 20℃×3·30℃×3
     'resp','resp_limit',
   ];
   if (IS_WATER(code)) return [
@@ -900,41 +901,41 @@ function calcPH(tab) {
 function calcDO(tab) {
   const range = 20;
 
-  const sRepVals = [gv('dos1'),gv('dos2'),gv('dos3')].filter(v=>!isNaN(v));
-  const rep = repeatability([], sRepVals, range);
-  document.getElementById('pv-res-rep').innerHTML = repCards(
-    { zero: rep.zero, span: rep.span, limit: rep.limit },
-    null,                       // Z카드 숨김 — DO는 Span(S) 기준
-    sRepVals
-  );
-
-  const dr = drift(range, [gv('dozi')], [gv('dozf')], [gv('dosi')], [gv('dosf')]);
-  document.getElementById('pv-res-drift').innerHTML =
+  // 반복성: 엑셀 Z40 = ROUND(STDEV(S 3회),2) ≤ 0.3 (절대 mg/L)
+  const rep = doRepeatability([gv('dos1'),gv('dos2'),gv('dos3')]);
+  document.getElementById('pv-res-rep').innerHTML =
     `<div class="pv-lines">
-      ${row('Z초기', fmt(gv('dozi'),3))} ${row('Z2시간', fmt(gv('dozf'),3))}
-      ${row('S초기', fmt(gv('dosi'),3))} ${row('S2시간', fmt(gv('dosf'),3))}
-    </div>` +
-    gauge(dr.zeroDrift, PRECISION_CRITERIA.zeroDrift, '제로드리프트') +
-    gauge(dr.spanDrift, PRECISION_CRITERIA.spanDrift, '스팬드리프트');
-
-  const lin = doLinearity(gv('domax'), gv('domin'), range);
-  document.getElementById('pv-res-lin').innerHTML =
-    `<div class="pv-lines">
-      ${row('최댓값', fmt(gv('domax'),3))} ${row('최솟값', fmt(gv('domin'),3))}
-      ${row('max-min/범위', `${fmt(lin.error, 1)}%`)}
+      ${row('S 측정 평균', fmt(rep.mean,3))}
+      ${row('표준편차', fmt(rep.std,3))}
     </div><div class="pv-badges">
-      ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
+      ${badge(`반복성 표준편차 ≤ ${rep.limit}`, rep.pass)}
     </div>`;
 
-  const m20=gv('dot20'), m30=gv('dot30');
+  // 드리프트: 엑셀 Z44(제로≤0.2)/Z48(스팬≤0.3) = |AVG(2h 3)-AVG(초기 3)|
+  const dr = doDrift(
+    [gv('dozi1'),gv('dozi2'),gv('dozi3')], [gv('dozf1'),gv('dozf2'),gv('dozf3')],
+    [gv('dosi1'),gv('dosi2'),gv('dosi3')], [gv('dosf1'),gv('dosf2'),gv('dosf3')]);
+  document.getElementById('pv-res-drift').innerHTML =
+    `<div class="pv-lines">
+      ${row('제로 초기 → 2시간후 평균', `${fmt(dr.zero.init,3)} → ${fmt(dr.zero.final,3)}`)}
+      ${row('제로 |평균차|', fmt(dr.zero.val,3))}
+      ${row('스팬 초기 → 2시간후 평균', `${fmt(dr.span.init,3)} → ${fmt(dr.span.final,3)}`)}
+      ${row('스팬 |평균차|', fmt(dr.span.val,3))}
+    </div><div class="pv-badges">
+      ${badge(`제로드리프트 |차| ≤ ${dr.zeroLimit}`, dr.zero.pass)}
+      ${badge(`스팬드리프트 |차| ≤ ${dr.spanLimit}`, dr.span.pass)}
+    </div>`;
+
+  // 온도보상: 엑셀 Z53 = 20℃×3·30℃×3 평균 vs 9.092/7.559, |편차| 최대 ≤ 0.3
+  const t20=[gv('dot20a'),gv('dot20b'),gv('dot20c')], t30=[gv('dot30a'),gv('dot30b'),gv('dot30c')];
   let tcPass = null;
   const tcBlock = document.getElementById('pv-res-tc-block');
-  if (!isNaN(m20) || !isNaN(m30)) {
-    const tc = doTemperatureComp(m20, m30);
+  if (t20.some(v=>!isNaN(v)) || t30.some(v=>!isNaN(v))) {
+    const tc = doTemperatureComp(t20, t30);
     document.getElementById('pv-res-tc').innerHTML =
       `<div class="pv-lines">
-        ${row('20℃ 측정', fmt(m20,3))} ${row('기준 (9.092)', fmt(DO_SPAN_TABLE[20],3))} ${row('편차', `${fmt(tc.t20.dev,3)} mg/L`)}
-        ${row('30℃ 측정', fmt(m30,3))} ${row('기준 (7.559)', fmt(DO_SPAN_TABLE[30],3))} ${row('편차', `${fmt(tc.t30.dev,3)} mg/L`)}
+        ${row('20℃ 평균 (기준 9.092)', `${fmt(tc.t20.measured,3)} → 편차 ${fmt(tc.t20.dev,3)}`)}
+        ${row('30℃ 평균 (기준 7.559)', `${fmt(tc.t30.measured,3)} → 편차 ${fmt(tc.t30.dev,3)}`)}
         ${row('최대 편차', `${fmt(tc.maxDev,2)} mg/L (기준 ≤ ${tc.limit})`)}
       </div><div class="pv-badges">
         ${badge(`DO 온도보상 |편차| ≤ ${tc.limit} mg/L`, tc.pass)}
@@ -944,6 +945,10 @@ function calcDO(tab) {
   } else {
     if (tcBlock) tcBlock.hidden = true;
   }
+
+  // 직선성 블록 숨김 — 엑셀 DO엔 직선성 시험 없음
+  const linBlock = document.getElementById('pv-res-lin')?.closest('.pv-res-block');
+  if (linBlock) linBlock.hidden = true;
 
   const resp = gv('resp');
   const respLimit = 120;
@@ -960,7 +965,7 @@ function calcDO(tab) {
     if (respBlock) respBlock.hidden = true;
   }
 
-  const requiredPasses = [rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass, tcPass, respPass];
+  const requiredPasses = [rep.pass, dr.zero.pass, dr.span.pass, tcPass, respPass];
   updateFinal(tab, requiredPasses);
 }
 
@@ -1579,14 +1584,24 @@ function getDefaultPipelineSteps(code) {
       { id: 'dos1', type: 's', label: '반 S1' },
       { id: 'dos2', type: 's', label: '반 S2' },
       { id: 'dos3', type: 's', label: '반 S3' },
-      { id: 'dozi', type: 'z', label: '드 Z초기' },
-      { id: 'dosi', type: 's', label: '드 S초기' },
-      { id: 'dozf', type: 'z', label: '드 Z최종' },
-      { id: 'dosf', type: 's', label: '드 S최종' },
-      { id: 'domax', type: 'm', label: '직 Max' },
-      { id: 'domin', type: 'm', label: '직 Min' },
-      { id: 'dot20', type: 'other', label: '온도 20℃' },
-      { id: 'dot30', type: 'other', label: '온도 30℃' },
+      { id: 'dozi1', type: 'z', label: '드 Z초1' },
+      { id: 'dozi2', type: 'z', label: '드 Z초2' },
+      { id: 'dozi3', type: 'z', label: '드 Z초3' },
+      { id: 'dozf1', type: 'z', label: '드 Z후1' },
+      { id: 'dozf2', type: 'z', label: '드 Z후2' },
+      { id: 'dozf3', type: 'z', label: '드 Z후3' },
+      { id: 'dosi1', type: 's', label: '드 S초1' },
+      { id: 'dosi2', type: 's', label: '드 S초2' },
+      { id: 'dosi3', type: 's', label: '드 S초3' },
+      { id: 'dosf1', type: 's', label: '드 S후1' },
+      { id: 'dosf2', type: 's', label: '드 S후2' },
+      { id: 'dosf3', type: 's', label: '드 S후3' },
+      { id: 'dot20a', type: 'other', label: '온도 20℃-1' },
+      { id: 'dot20b', type: 'other', label: '온도 20℃-2' },
+      { id: 'dot20c', type: 'other', label: '온도 20℃-3' },
+      { id: 'dot30a', type: 'other', label: '온도 30℃-1' },
+      { id: 'dot30b', type: 'other', label: '온도 30℃-2' },
+      { id: 'dot30c', type: 'other', label: '온도 30℃-3' },
       { id: 'resp', type: 'other', label: '응답(초)' }
     ];
   }
@@ -1660,9 +1675,9 @@ function sortStepsChronologically(steps, code) {
     ];
   } else if (IS_DO(code)) {
     refOrder = [
-      'dozi', 'dosi',
-      'dos1', 'dos2', 'dos3',
-      'dozf', 'dosf'
+      'dozi1','dozi2','dozi3', 'dosi1','dosi2','dosi3',   // 드리프트 초기
+      'dos1', 'dos2', 'dos3',                             // 반복성
+      'dozf1','dozf2','dozf3', 'dosf1','dosf2','dosf3'     // 드리프트 최종
     ];
   } else {
     refOrder = [
@@ -2063,9 +2078,9 @@ function renderGraphsInModal(code) {
     phm10a: 'pH10-1', phm10b: 'pH10-2', phm10c: 'pH10-3',
     pht10: '10℃', pht15: '15℃', pht20: '20℃', pht25: '25℃', pht30: '30℃',
     dos1: 'S1', dos2: 'S2', dos3: 'S3',
-    dozi: 'Z초기', dosi: 'S초기', dozf: 'Z최종', dosf: 'S최종',
-    domax: 'Max', domin: 'Min',
-    dot20: '20℃', dot30: '30℃',
+    dozi1:'Z초1',dozi2:'Z초2',dozi3:'Z초3',dozf1:'Z후1',dozf2:'Z후2',dozf3:'Z후3',
+    dosi1:'S초1',dosi2:'S초2',dosi3:'S초3',dosf1:'S후1',dosf2:'S후2',dosf3:'S후3',
+    dot20a:'20℃-1',dot20b:'20℃-2',dot20c:'20℃-3',dot30a:'30℃-1',dot30b:'30℃-2',dot30c:'30℃-3',
     ci1: 'Ci1', ai1: 'Ai1', ai2: 'Ai2', ci2: 'Ci2', ai3: 'Ai3', ai4: 'Ai4',
     phci1: 'Ci1', phai1: 'Ai1', phai2: 'Ai2', phci2: 'Ci2', phai3: 'Ai3', phai4: 'Ai4',
     resp: '응답', codmax: 'CODmax', codmin: 'CODmin',
@@ -2207,7 +2222,7 @@ function setupPipelineAndGraph(tab) {
   if (IS_PH(tab.code)) {
     seqPlaceholder = '예: 444777444777444447474744447 77101010 (4·7·10 측정순서대로, 붙여써도 됨)';
   } else if (IS_DO(tab.code)) {
-    seqPlaceholder = '예: dos1,dozi,dosi,dozf,dosf';
+    seqPlaceholder = '예: dozi1,dosi1,dos1,dos2,dos3,dozf1,dosf1 (측정순서대로 ID 입력)';
   } else if (IS_WATER(tab.code)) {
     seqPlaceholder = '예: ZZSSZSZZSSM';
   }
@@ -2611,34 +2626,39 @@ function buildFormDO() {
 <div class="card pv-form-card">
   <div class="pv-section">
     <h3 class="pv-section__title">🔁 반복성
-      <span class="pv-hint">25℃ Span(8.263) 기준 S 3회 (RSD ≤ 3%)</span>
+      <span class="pv-hint">25℃ Span(8.263) S 3회, 표준편차 ≤ 0.3</span>
     </h3>
     <div class="pv-grid3">${ni('dos1','S1')}${ni('dos2','S2')}${ni('dos3','S3')}</div>
   </div>
 
   <div class="pv-section">
     <h3 class="pv-section__title">📉 드리프트
-      <span class="pv-hint">초기 → 2시간 후, |차|/20×100 ≤ 5%</span>
+      <span class="pv-hint">제로·스팬 각 초기3·2시간후3, |평균차| 제로 ≤ 0.2 / 스팬 ≤ 0.3 (절대 mg/L)</span>
     </h3>
-    <div class="pv-zs-table">
-      <div class="pv-zs-header"><span></span><span>Z (제로)</span><span>S (스팬)</span></div>
-      <div class="pv-zs-row"><span class="pv-zs-label">시험 초기</span>${ni('dozi','Z 초기')}${ni('dosi','S 초기')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label">2시간 후</span>${ni('dozf','Z 2시간')}${ni('dosf','S 2시간')}</div>
+    <div class="pv-phgrid pv-phgrid--2">
+      <div class="pv-phgrid__head"><span></span><span>제로 Z — 초기 / 2시간후</span><span>스팬 S — 초기 / 2시간후</span></div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">1회</span>
+        <div class="pv-grid2">${ni('dozi1','Z초기 ①')}${ni('dozf1','Z2h ①')}</div>
+        <div class="pv-grid2">${ni('dosi1','S초기 ①')}${ni('dosf1','S2h ①')}</div></div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">2회</span>
+        <div class="pv-grid2">${ni('dozi2','Z초기 ②')}${ni('dozf2','Z2h ②')}</div>
+        <div class="pv-grid2">${ni('dosi2','S초기 ②')}${ni('dosf2','S2h ②')}</div></div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">3회</span>
+        <div class="pv-grid2">${ni('dozi3','Z초기 ③')}${ni('dozf3','Z2h ③')}</div>
+        <div class="pv-grid2">${ni('dosi3','S초기 ③')}${ni('dosf3','S2h ③')}</div></div>
     </div>
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">📈 직선성
-      <span class="pv-hint">(max-min)/20×100 ≤ 5%</span>
-    </h3>
-    <div class="pv-grid2">${ni('domax','최댓값')}${ni('domin','최솟값')}</div>
-  </div>
-
-  <div class="pv-section">
     <h3 class="pv-section__title">🌡️ 온도보상
-      <span class="pv-hint">20℃ 기준 9.092, 30℃ 기준 7.559, 오차 ≤ 5%</span>
+      <span class="pv-hint">20℃·30℃ 각 3회, 기준 9.092 / 7.559, |편차| ≤ 0.3</span>
     </h3>
-    <div class="pv-grid2">${ni('dot20','20℃ 측정값')}${ni('dot30','30℃ 측정값')}</div>
+    <div class="pv-phgrid pv-phgrid--2">
+      <div class="pv-phgrid__head"><span></span><span>20℃ (기준 9.092)</span><span>30℃ (기준 7.559)</span></div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">1회</span>${ni('dot20a','20℃ ①')}${ni('dot30a','30℃ ①')}</div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">2회</span>${ni('dot20b','20℃ ②')}${ni('dot30b','30℃ ②')}</div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">3회</span>${ni('dot20c','20℃ ③')}${ni('dot30c','30℃ ③')}</div>
+    </div>
   </div>
 
   <div class="pv-section">
@@ -2772,8 +2792,11 @@ const FIELD_LABELS = {
   pht10:'온도보상 10℃',pht15:'15℃',pht20:'20℃',pht25:'25℃',pht30:'30℃',
   phci1:'Ci₁(현장)',phai1:'Ai₁',phai2:'Ai₂',phci2:'Ci₂(현장)',phai3:'Ai₃',phai4:'Ai₄',
   dos1:'S1',dos2:'S2',dos3:'S3',
-  dozi:'Z초기',dozf:'Z 2시간후',dosi:'S초기',dosf:'S 2시간후',
-  domax:'최댓값',domin:'최솟값',dot20:'20℃',dot30:'30℃',
+  dozi1:'제로드리프트 초기1',dozi2:'제로드리프트 초기2',dozi3:'제로드리프트 초기3',
+  dozf1:'제로드리프트 2h1',dozf2:'제로드리프트 2h2',dozf3:'제로드리프트 2h3',
+  dosi1:'스팬드리프트 초기1',dosi2:'스팬드리프트 초기2',dosi3:'스팬드리프트 초기3',
+  dosf1:'스팬드리프트 2h1',dosf2:'스팬드리프트 2h2',dosf3:'스팬드리프트 2h3',
+  dot20a:'온도보상 20℃-1',dot20b:'20℃-2',dot20c:'20℃-3',dot30a:'온도보상 30℃-1',dot30b:'30℃-2',dot30c:'30℃-3',
 };
 
 function certRow(l,v,p) {
@@ -2812,16 +2835,17 @@ function buildCertResultRows(tab) {
       addRow('pH 현장적용계수 |Ai-Ci| ≤ 0.20',`${fmt(fRes.fi,2)}`,fRes.pass);
     }
   } else if (IS_DO(tab.code)) {
-    const rep = repeatability([],[gd('dos1'),gd('dos2'),gd('dos3')], 20);
-    const dr = drift(20,[gd('dozi')],[gd('dozf')],[gd('dosi')],[gd('dosf')]);
-    const lin = doLinearity(gd('domax'),gd('domin'),20);
-    addRow(`DO 반복성 RSD ≤ ${rep.limit}%`,`${fmt(rep.span.rsd)}%`,rep.span.pass);
-    addRow(`제로드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroPass);
-    addRow(`스팬드리프트 ≤ ${PRECISION_CRITERIA.spanDrift}%`,`${fmt(dr.spanDrift)}%`,dr.spanPass);
-    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error, 1)}%`,lin.pass);
-    if(gd('dot20')||gd('dot30')){
-      const tc = doTemperatureComp(gd('dot20'),gd('dot30'));
-      addRow(`DO 온도보상 |편차| ≤ ${tc.limit} mg/L`,`${fmt(tc.maxDev,2)} mg/L`,tc.pass);
+    const rep = doRepeatability([gd('dos1'),gd('dos2'),gd('dos3')]);
+    const dr = doDrift(
+      [gd('dozi1'),gd('dozi2'),gd('dozi3')],[gd('dozf1'),gd('dozf2'),gd('dozf3')],
+      [gd('dosi1'),gd('dosi2'),gd('dosi3')],[gd('dosf1'),gd('dosf2'),gd('dosf3')]);
+    addRow(`DO 반복성 표준편차 ≤ ${rep.limit}`,`${fmt(rep.std,3)}`,rep.pass);
+    addRow(`제로드리프트 |차| ≤ ${dr.zeroLimit}`,`${fmt(dr.zero.val,3)}`,dr.zero.pass);
+    addRow(`스팬드리프트 |차| ≤ ${dr.spanLimit}`,`${fmt(dr.span.val,3)}`,dr.span.pass);
+    const t20=[gd('dot20a'),gd('dot20b'),gd('dot20c')], t30=[gd('dot30a'),gd('dot30b'),gd('dot30c')];
+    if(t20.some(v=>v!=null)||t30.some(v=>v!=null)){
+      const tc = doTemperatureComp(t20,t30);
+      if(tc.pass!==null) addRow(`DO 온도보상 |편차| ≤ ${tc.limit} mg/L`,`${fmt(tc.maxDev,2)} mg/L`,tc.pass);
     }
     // DO 응답시간: 고정 120초 (계산기와 동일)
     const dResp=gd('resp');

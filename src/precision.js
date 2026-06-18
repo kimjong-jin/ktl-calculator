@@ -36,6 +36,10 @@ export const PRECISION_CRITERIA = {
   phLinearity:      0.1,   // pH 직선성 각 점(4·7·10) |측정-공칭| 최대 ≤ 0.1 (V53)
   phTempComp:       0.2,   // pH 온도보상 각 온도 |측정-기준(4.00/4.01)| 최대 ≤ 0.2 (V61)
   phField:          0.20,  // pH 현장적용 ROUND((Fi1+Fi2)/2,2) ≤ 0.2 (V68)
+  // ── DO 전용: 전부 절대 mg/L (엑셀 Version11 Sheet1 Z40/Z44/Z48/Z53/Z54) ──
+  doRepeat:         0.3,   // DO 반복성 ROUND(STDEV(S 3회),2) ≤ 0.3 (Z40)
+  doZeroDrift:      0.2,   // DO 제로드리프트 |AVG(2h 3)-AVG(초기 3)| ≤ 0.2 (Z44)
+  doSpanDrift:      0.3,   // DO 스팬드리프트 |AVG(2h 3)-AVG(초기 3)| ≤ 0.3 (Z48)
   doTempComp:       0.3,   // DO 온도보상 |편차| ≤ 0.3 mg/L 절대값 (엑셀 Z53/AB53)
   codGlucose:       5.0,
   // 반올림 자릿수 (엑셀 ROUND 수식에서 추출)
@@ -207,24 +211,42 @@ export const DO_SPAN_TABLE = {
   25: 8.263, 20: 9.092, 30: 7.559,
 };
 
-export function doTemperatureComp(m20, m30) {
-  if (m20 === null || m20 === undefined || isNaN(m20) ||
-      m30 === null || m30 === undefined || isNaN(m30)) {
-    return { t20: { measured: NaN, ref: 9.092, dev: NaN }, t30: { measured: NaN, ref: 7.559, dev: NaN }, maxDev: NaN, limit: PRECISION_CRITERIA.doTempComp, pass: null };
+// DO 반복성: 엑셀 Z40 = ROUND(STDEV(S 3회), 2) ≤ 0.3 (절대 mg/L, RSD 아님)
+export function doRepeatability(sVals, limit = PRECISION_CRITERIA.doRepeat) {
+  const a = (sVals || []).filter(Number.isFinite);
+  if (a.length < 2) return { mean: NaN, std: NaN, limit, pass: null };
+  const std = roundTo(sampleStd(a), 2);                                  // 엑셀 ROUND(,2)
+  return { mean: mean(a), std, limit, pass: std <= limit };
+}
+
+// DO 드리프트: 엑셀 Z44(제로 ≤0.2)/Z48(스팬 ≤0.3) = ROUND(|AVG(2h 3)-AVG(초기 3)|, 2)
+export function doDrift(zeroInit, zeroFinal, spanInit, spanFinal,
+                        zeroLimit = PRECISION_CRITERIA.doZeroDrift, spanLimit = PRECISION_CRITERIA.doSpanDrift) {
+  const one = (init, fin, lim) => {
+    const ci = (init || []).filter(Number.isFinite), cf = (fin || []).filter(Number.isFinite);
+    if (!ci.length || !cf.length) return { val: NaN, pass: null, init: NaN, final: NaN, limit: lim };
+    const mi = mean(ci), mf = mean(cf);
+    const val = roundTo(Math.abs(mf - mi), 2);                           // 엑셀 ROUND(,2)
+    return { val, pass: val <= lim, init: mi, final: mf, limit: lim };
+  };
+  return { zero: one(zeroInit, zeroFinal, zeroLimit), span: one(spanInit, spanFinal, spanLimit), zeroLimit, spanLimit };
+}
+
+// DO 온도보상: 엑셀 Z53 = max((AVG(20℃ 3)-9.092),(AVG(30℃ 3)-7.559)) 중 절대값 큰 쪽 ROUND(,2), -0.3≤x≤0.3
+export function doTemperatureComp(t20Vals, t30Vals, limit = PRECISION_CRITERIA.doTempComp) {
+  const avg = (a) => { const c = (a || []).filter(Number.isFinite); return c.length ? mean(c) : NaN; };
+  const m20 = avg(t20Vals), m30 = avg(t30Vals);
+  const ref20 = DO_SPAN_TABLE[20], ref30 = DO_SPAN_TABLE[30];           // 9.092 / 7.559
+  if (!Number.isFinite(m20) || !Number.isFinite(m30)) {
+    return { t20: { measured: m20, ref: ref20, dev: NaN }, t30: { measured: m30, ref: ref30, dev: NaN }, maxDev: NaN, limit, pass: null };
   }
-  const ref20 = DO_SPAN_TABLE[20];   // 9.092
-  const ref30 = DO_SPAN_TABLE[30];   // 7.559
-  const dev20 = m20 - ref20;         // 편차(mg/L, 부호)
-  const dev30 = m30 - ref30;
-  // 엑셀: Z52=MAX(편차들), AB52=MIN(편차들), Z53 = 절대값 큰 쪽을 ROUND(,2)
+  const dev20 = m20 - ref20, dev30 = m30 - ref30;                       // 편차(mg/L, 부호)
   const hi = Math.max(dev20, dev30), lo = Math.min(dev20, dev30);
   const maxDev = roundTo(Math.abs(hi) >= Math.abs(lo) ? hi : lo, 2);
-  const limit = PRECISION_CRITERIA.doTempComp;  // 0.3 mg/L
   return {
     t20: { measured: m20, ref: ref20, dev: dev20 },
     t30: { measured: m30, ref: ref30, dev: dev30 },
-    maxDev, limit,
-    pass: maxDev >= -limit && maxDev <= limit,
+    maxDev, limit, pass: maxDev >= -limit && maxDev <= limit,
   };
 }
 
