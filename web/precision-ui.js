@@ -1629,8 +1629,10 @@ function parseSequenceString(code, seqStr) {
   }
 
   const ordered = [];
-  const zSteps = sortStepsChronologically(defaultSteps.filter(s => s.type === 'z'), code);
-  const sSteps = sortStepsChronologically(defaultSteps.filter(s => s.type === 's'), code);
+  // 단순 순번 매핑: Z 첫 번째 = z1, 두 번째 = z2, ... 다섯 번째 = z5(반복성)
+  // sortStepsChronologically 사용하지 않음 — 원래 순서대로 (z1,z2,z3,z4,z5,z6,z7)
+  const zSteps = defaultSteps.filter(s => s.type === 'z');
+  const sSteps = defaultSteps.filter(s => s.type === 's');
   const mSteps = defaultSteps.filter(s => s.type === 'm');
   const rSteps = defaultSteps.filter(s => s.id === 'resp');
   const fSteps = defaultSteps.filter(s => ['ci1', 'ai1', 'ai2', 'ci2', 'ai3', 'ai4', 'phci1', 'phai1', 'phai2', 'phci2', 'phai3', 'phai4'].includes(s.id));
@@ -1915,8 +1917,11 @@ function renderGraphsInModal(code) {
 
   body.innerHTML = '';
 
-  // 전체 측정 필드를 기본 순서로 가져옴 (시퀀스 무관)
-  const allSteps = getDefaultPipelineSteps(code);
+  // 시퀀스 입력이 있으면 그 순서로, 없으면 기본 순서로 전체 데이터 표시
+  const seqStr = stored['seq'];
+  const allSteps = (seqStr && seqStr.trim() !== '')
+    ? getPipelineSteps(code)
+    : getDefaultPipelineSteps(code);
 
   const labelMap = {
     z1: 'Z1', z2: 'Z2', z3: 'Z3', z4: 'Z4', z5: 'Z5', z6: 'Z6', z7: 'Z7',
