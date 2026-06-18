@@ -1682,11 +1682,51 @@ function sortStepsChronologically(steps, code) {
   });
 }
 
+// pH 진행순서: 버퍼값(4/7/10)을 시험별 고정패턴으로 자동 분해.
+// 구분자·순서 무관, 막 붙여써도 해석. 그래프/파이프라인 표시용(합격판정엔 미사용).
+//   직선성=444777·10·10·10 / 온도보상=4×5 / 반복성=7·4 교대 6 / 드리프트=444777(스팬3·제로3)×2
+function parsePhDigitSeq(code, seqStr) {
+  const raw = seqStr.replace(/[^0-9]/g, '');
+  const toks = [];
+  for (let i = 0; i < raw.length; ) {
+    if (raw[i] === '1' && raw[i + 1] === '0') { toks.push(10); i += 2; }
+    else if (raw[i] === '4' || raw[i] === '7') { toks.push(+raw[i]); i++; }
+    else i++;
+  }
+  if (!toks.length) return [];
+  const eq = (i, pat) => pat.every((p, k) => toks[i + k] === p);
+  const LIN  = { pat: [4,4,4,7,7,7,10,10,10], ids: ['phm4a','phm4b','phm4c','phm7a','phm7b','phm7c','phm10a','phm10b','phm10c'] };
+  const TEMP = { pat: [4,4,4,4,4],            ids: ['pht10','pht15','pht20','pht25','pht30'] };
+  const REPa = { pat: [7,4,7,4,7,4],          ids: ['ph7a','ph4a','ph7b','ph4b','ph7c','ph4c'] };
+  const REPb = { pat: [4,7,4,7,4,7],          ids: ['ph4a','ph7a','ph4b','ph7b','ph4c','ph7c'] };
+  const DRIFT = [4,4,4,7,7,7];
+  const DI = ['phsi1','phsi2','phsi3','phzi1','phzi2','phzi3'];
+  const DF = ['phsf1','phsf2','phsf3','phzf1','phzf2','phzf3'];
+  const idMap = {}; getDefaultPipelineSteps(code).forEach(s => { idMap[s.id] = s; });
+  const out = [], used = new Set();
+  const push = ids => ids.forEach(id => { if (idMap[id] && !used.has(id)) { used.add(id); out.push(idMap[id]); } });
+  let driftN = 0, i = 0;
+  while (i < toks.length) {
+    if      (eq(i, LIN.pat))  { push(LIN.ids);  i += 9; }
+    else if (eq(i, TEMP.pat)) { push(TEMP.ids); i += 5; }
+    else if (eq(i, REPa.pat)) { push(REPa.ids); i += 6; }
+    else if (eq(i, REPb.pat)) { push(REPb.ids); i += 6; }
+    else if (eq(i, DRIFT))    { push(driftN++ === 0 ? DI : DF); i += 6; }
+    else i++;
+  }
+  return out;
+}
+
 function parseSequenceString(code, seqStr) {
   if (!seqStr || seqStr.trim() === '') return null;
   const defaultSteps = getDefaultPipelineSteps(code);
   const normalizedStr = seqStr.toUpperCase().replace(/\s+/g, '');
-  
+
+  // pH: 숫자(4/7/10)만으로 된 진행순서는 버퍼값 자동분해
+  if (IS_PH(code) && /^[0-9\s,/]+$/.test(seqStr) && /[47]/.test(seqStr)) {
+    return parsePhDigitSeq(code, seqStr);
+  }
+
   if (seqStr.includes(',') || /[0-9]/.test(seqStr)) {
     const tokens = seqStr.split(/[\s,]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
     const ordered = [];
@@ -2165,7 +2205,7 @@ function setupPipelineAndGraph(tab) {
   // 항목별 다른 placeholder 예시
   let seqPlaceholder = '예: ZZSSZSZZSSMMM';
   if (IS_PH(tab.code)) {
-    seqPlaceholder = '예: ph7a,ph4a,phzi1,phsi1,phm4a,phm7a,phm10a,phzf1,phsf1';
+    seqPlaceholder = '예: 444777444777444447474744447 77101010 (4·7·10 측정순서대로, 붙여써도 됨)';
   } else if (IS_DO(tab.code)) {
     seqPlaceholder = '예: dos1,dozi,dosi,dozf,dosf';
   } else if (IS_WATER(tab.code)) {
