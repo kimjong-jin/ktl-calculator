@@ -670,6 +670,20 @@ select.field__control {
 .pv-zs-row .field__label { display: none; }
 .pv-zs-row .field__control { padding: 6px 8px; font-size: 13px; }
 
+/* ── pH 전용 입력 그리드 (공용 .pv-zs-row 2열 충돌 회피, 자체 완결) ── */
+.pv-phgrid { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.pv-phgrid__head, .pv-phgrid__row { display: grid; align-items: center; gap: 8px; padding: 6px 12px; }
+.pv-phgrid__head { background: var(--surface-2); font-size: 12px; font-weight: 600; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+.pv-phgrid__row { border-bottom: 1px solid var(--border); }
+.pv-phgrid__row:last-child { border-bottom: 0; }
+.pv-phgrid__lbl { font-size: 12px; color: var(--text-dim); }
+.pv-phgrid .field { margin: 0; min-width: 0; }
+.pv-phgrid .field__label { display: none; }
+.pv-phgrid .field__control { padding: 6px 8px; font-size: 14px; min-width: 0; }
+.pv-phgrid .pv-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; min-width: 0; }
+.pv-phgrid--2 .pv-phgrid__head, .pv-phgrid--2 .pv-phgrid__row { grid-template-columns: 52px 1fr 1fr; }
+.pv-phgrid--3 .pv-phgrid__head, .pv-phgrid--3 .pv-phgrid__row { grid-template-columns: 52px 1fr 1fr 1fr; }
+
 .pv-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .pv-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (max-width: 500px) {

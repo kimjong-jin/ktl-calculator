@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {
   mean, sampleStd, repeatability, drift, linearity, fieldApplication, total,
   doTemperatureComp,
+  phRepeatability, phDrift, phLinearity, phTemperatureComp,
 } from '../src/precision.js';
 
 let passed = 0;
@@ -127,14 +128,63 @@ check('TN 오차율 15.04% → 반올림 15.0 ≤15 적합 (엑셀 F19=ROUND(,1)
   assert.ok(near(f.rate, 15.0));
   assert.equal(f.pass, true);
 });
-check('pH 현장적용계수 0.204 → 반올림 0.20 ≤0.2 적합 (엑셀 T67=ROUND(,2))', () => {
+check('pH 현장적용계수 0.204 → 반올림 0.20 ≤0.2 적합 (엑셀 V68=ROUND(T67,2))', () => {
   const f = fieldApplication('PH', [7, 7, 7, 7], [7.204, 7.204]);
   assert.ok(near(f.fi, 0.20));
+  assert.equal(f.limit, 0.20);
   assert.equal(f.pass, true);
 });
 check('미정의 파라미터 → pass null', () => {
   const f = fieldApplication('XYZ', [1], [1]);
   assert.equal(f.pass, null);
+});
+
+console.log('pH 전용 — 엑셀 Version11 절대 pH 단위 기준 (정렬 검증)');
+check('pH 반복성 V40: MAX(STDEV(pH7), STDEV(pH4)) ≤ 0.1', () => {
+  // pH4 그룹 STDEV=0.1(경계) → 적합, pH7 STDEV 더 작음
+  const r = phRepeatability([7.00, 7.00, 7.00], [4.0, 4.1, 3.9]);
+  assert.ok(near(r.span.std, 0.1));
+  assert.equal(r.std, 0.10);
+  assert.equal(r.pass, true);
+  // STDEV 0.11 → 부적합
+  const r2 = phRepeatability([7.00, 7.00, 7.00], [4.00, 4.13, 3.87]);
+  assert.equal(r2.pass, false);
+});
+check('pH 드리프트 V44/V48: |AVG(후3)-AVG(초3)| ≤ 0.1 절대 (정규화 아님)', () => {
+  // 제로 평균차 |7.5-7.0|=0.5 → 엑셀 절대기준 0.5>0.1 부적합 (옛 /14×100=3.6%면 적합이던 것)
+  const d = phDrift([7.0,7.0,7.0],[7.5,7.5,7.5],[4.0,4.0,4.0],[4.05,4.05,4.05]);
+  assert.equal(d.zero.val, 0.5);
+  assert.equal(d.zero.pass, false);
+  assert.equal(d.span.val, 0.05);
+  assert.equal(d.span.pass, true);
+  // 제로 평균차 0.10 경계 → 적합 (3회 평균)
+  const d2 = phDrift([7.00,7.00,7.00],[7.10,7.10,7.10],[4.00,4.00,4.00],[4.05,4.05,4.05]);
+  assert.equal(d2.zero.pass, true);
+});
+check('pH 직선성 V53: 버퍼별 3회 평균 |평균-공칭| 최대 ≤ 0.1', () => {
+  // pH10 평균 10.1 → 편차 +0.1 경계 적합
+  const l = phLinearity([4.0,4.0,4.0],[7.0,7.0,7.0],[10.1,10.1,10.1]);
+  assert.ok(near(l.dev, 0.1));
+  assert.equal(l.pass, true);
+  // pH4 평균 4.2 → 편차 0.2 부적합 (옛 (max-min)/14×100과 다름)
+  const l2 = phLinearity([4.2,4.2,4.2],[7.0,7.0,7.0],[10.0,10.0,10.0]);
+  assert.equal(l2.pass, false);
+});
+check('pH 온도보상 V61: |측정-기준(4.00/4.01)| 최대 ≤ 0.2', () => {
+  // 전부 기준과 동일 → 편차 0 적합
+  const t = phTemperatureComp({ t10: 4.00, t15: 4.00, t20: 4.00, t25: 4.01, t30: 4.01 });
+  assert.ok(near(t.dev, 0));
+  assert.equal(t.pass, true);
+  // 25℃가 4.19 → 기준 4.01 대비 +0.18 (≤0.2) 적합
+  const t2 = phTemperatureComp({ t10: 4.00, t15: 4.00, t20: 4.00, t25: 4.19, t30: 4.01 });
+  assert.ok(near(t2.dev, 0.18));
+  assert.equal(t2.pass, true);
+  // 30℃가 4.30 → +0.29 부적합 (옛 max-min≤0.1 방식과 다름)
+  const t3 = phTemperatureComp({ t10: 4.00, t15: 4.00, t20: 4.00, t25: 4.01, t30: 4.30 });
+  assert.equal(t3.pass, false);
+  // 미완(4개만) → pass null
+  const t4 = phTemperatureComp({ t10: 4.00, t15: 4.00, t20: 4.00, t25: 4.01 });
+  assert.equal(t4.pass, null);
 });
 
 console.log('⑤-DO 온도보상 (엑셀: |편차| ROUND(,2) ≤ 0.3 mg/L)');

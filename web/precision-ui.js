@@ -12,6 +12,7 @@ import {
   PRECISION_CRITERIA,
   DO_SPAN_TABLE,
   repeatability, drift, linearity,
+  phRepeatability, phDrift,
   phLinearity, doLinearity,
   phTemperatureComp, doTemperatureComp,
   codGlucoseVariability,
@@ -43,9 +44,10 @@ const IS_WATER = c => ['TU','CL'].includes(c); // 먹는물
 function getFields(code) {
   if (IS_PH(code)) return [
     'ph7a','ph4a','ph7b','ph4b','ph7c','ph4c',      // 반복성 (7,4,7,4,7,4)
-    'phdi','phdf',                                    // 드리프트 초기/최종
-    'phm4','phm7','phm10',                            // 직선성 (4,7,10)
-    'pht10','pht15','pht20','pht25','pht30',          // 온도보상
+    'phzi1','phzi2','phzi3','phzf1','phzf2','phzf3', // 드리프트 제로(pH7) 초기3·최종3
+    'phsi1','phsi2','phsi3','phsf1','phsf2','phsf3', // 드리프트 스팬(pH4) 초기3·최종3
+    'phm4a','phm4b','phm4c','phm7a','phm7b','phm7c','phm10a','phm10b','phm10c', // 직선성 버퍼별 3회
+    'pht10','pht15','pht20','pht25','pht30',          // 온도보상 (5온도)
     'phci1','phai1','phai2','phci2','phai3','phai4',  // 현장적용
     'resp','resp_limit',
   ];
@@ -797,30 +799,45 @@ function calcBasic(tab) {
 function calcPH(tab) {
   const z7 = [gv('ph7a'),gv('ph7b'),gv('ph7c')];
   const z4 = [gv('ph4a'),gv('ph4b'),gv('ph4c')];
-  const rep = repeatability(z7, z4);
-  document.getElementById('pv-res-rep').innerHTML = repCards({
-    zero: { mean: rep.zero.mean, rsd: rep.zero.rsd, pass: rep.zero.pass },
-    span: { mean: rep.span.mean, rsd: rep.span.rsd, pass: rep.span.pass },
-    limit: rep.limit,
-  });
+  const rep = phRepeatability(z7, z4);   // 엑셀 V40: MAX(STDEV(pH7), STDEV(pH4)) ≤ 0.1
+  document.getElementById('pv-res-rep').innerHTML =
+    `<div class="pv-lines">
+      ${row('pH7 평균 / 표준편차', `${fmt(rep.zero.mean,3)} / ${fmt(rep.zero.std,3)}`)}
+      ${row('pH4 평균 / 표준편차', `${fmt(rep.span.mean,3)} / ${fmt(rep.span.std,3)}`)}
+      ${row('MAX 표준편차', fmt(rep.std,3))}
+    </div><div class="pv-badges">
+      ${badge(`반복성 표준편차 ≤ ${rep.limit}`, rep.pass)}
+    </div>`;
 
-  const dr = drift(14, [gv('phdi')], [gv('phdf')], [gv('phdi')], [gv('phdf')]);
+  // 엑셀 V44(제로 pH7)/V48(스팬 pH4): |AVG(2시간후 3회)-AVG(초기 3회)| ≤ 0.1
+  const dr = phDrift(
+    [gv('phzi1'),gv('phzi2'),gv('phzi3')], [gv('phzf1'),gv('phzf2'),gv('phzf3')],
+    [gv('phsi1'),gv('phsi2'),gv('phsi3')], [gv('phsf1'),gv('phsf2'),gv('phsf3')]);
   document.getElementById('pv-res-drift').innerHTML =
     `<div class="pv-lines">
-      ${row('초기', fmt(gv('phdi'),3))}
-      ${row('2시간후', fmt(gv('phdf'),3))}
-    </div>` +
-    gauge(dr.zeroDrift, PRECISION_CRITERIA.zeroDrift, '드리프트');
+      ${row('제로(pH7) 초기 → 2시간후 평균', `${fmt(dr.zero.init,3)} → ${fmt(dr.zero.final,3)}`)}
+      ${row('제로 |평균차|', fmt(dr.zero.val,3))}
+      ${row('스팬(pH4) 초기 → 2시간후 평균', `${fmt(dr.span.init,3)} → ${fmt(dr.span.final,3)}`)}
+      ${row('스팬 |평균차|', fmt(dr.span.val,3))}
+    </div><div class="pv-badges">
+      ${badge(`제로드리프트 |차| ≤ ${dr.limit}`, dr.zero.pass)}
+      ${badge(`스팬드리프트 |차| ≤ ${dr.limit}`, dr.span.pass)}
+    </div>`;
 
-  const lin = phLinearity([gv('phm4'),gv('phm7'),gv('phm10')]);
+  const lin = phLinearity(  // 엑셀 V53: 버퍼별 3회 평균 후 |평균-공칭| 최대 ≤ 0.1
+    [gv('phm4a'),gv('phm4b'),gv('phm4c')],
+    [gv('phm7a'),gv('phm7b'),gv('phm7c')],
+    [gv('phm10a'),gv('phm10b'),gv('phm10c')]);
+  const lM = lin.means && lin.means.length ? lin.means : [NaN,NaN,NaN];
+  const lDevs = lin.devs && lin.devs.length ? lin.devs : [NaN,NaN,NaN];
   document.getElementById('pv-res-lin').innerHTML =
     `<div class="pv-lines">
-      ${row('pH4 측정', fmt(gv('phm4'),2))}
-      ${row('pH7 측정', fmt(gv('phm7'),2))}
-      ${row('pH10 측정', fmt(gv('phm10'),2))}
-      ${row('max-min', fmt(lin.max-lin.min,3))} ${row('오차/범위', `${fmt(lin.error, 1)}%`)}
+      ${row('pH4 평균 (편차)', `${fmt(lM[0],3)} (${fmt(lDevs[0],3)})`)}
+      ${row('pH7 평균 (편차)', `${fmt(lM[1],3)} (${fmt(lDevs[1],3)})`)}
+      ${row('pH10 평균 (편차)', `${fmt(lM[2],3)} (${fmt(lDevs[2],3)})`)}
+      ${row('최대 편차', fmt(lin.dev,3))}
     </div><div class="pv-badges">
-      ${badge(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.pass)}
+      ${badge(`직선성 |편차| ≤ ${lin.limit}`, lin.pass)}
     </div>`;
 
   const temps = {t10:gv('pht10'),t15:gv('pht15'),t20:gv('pht20'),t25:gv('pht25'),t30:gv('pht30')};
@@ -832,14 +849,29 @@ function calcPH(tab) {
       `<div class="pv-lines">
         ${row('10℃', fmt(temps.t10,2))} ${row('15℃', fmt(temps.t15,2))} ${row('20℃', fmt(temps.t20,2))}
         ${row('25℃', fmt(temps.t25,2))} ${row('30℃', fmt(temps.t30,2))}
-        ${row('max', fmt(tc.max,2))} ${row('min', fmt(tc.min,2))} ${row('max-min', fmt(tc.range,3))}
+        ${row('최대 편차 (기준 4.00/4.01)', fmt(tc.dev,3))}
       </div><div class="pv-badges">
-        ${badge(`온도보상 max-min ≤ ${PRECISION_CRITERIA.phTempComp}`, tc.pass)}
+        ${badge(`온도보상 |편차| ≤ ${tc.limit}`, tc.pass)}
       </div>`;
     tcPass = tc.pass;
     if (tcBlock) tcBlock.hidden = false;
   } else {
     if (tcBlock) tcBlock.hidden = true;
+  }
+
+  // 응답시간: 엑셀 V54 — pH ≤ 30초
+  const resp = gv('resp');
+  let respPass = null;
+  const respBlock = document.getElementById('pv-res-resp-block');
+  if (!isNaN(resp)) {
+    respPass = resp >= 0 && resp <= 30;
+    document.getElementById('pv-res-resp').innerHTML =
+      `<div class="pv-lines">
+        ${row('측정값 (T90)', `${fmt(resp,0)}초`)} ${row('기준', '≤ 30초')}
+      </div><div class="pv-badges">${badge('응답시간 ≤ 30초', respPass)}</div>`;
+    if (respBlock) respBlock.hidden = false;
+  } else {
+    if (respBlock) respBlock.hidden = true;
   }
 
   const ci1=gv('phci1'),ci2=gv('phci2'),ai1=gv('phai1'),ai2=gv('phai2'),ai3=gv('phai3'),ai4=gv('phai4');
@@ -859,7 +891,7 @@ function calcPH(tab) {
     if (fieldBlock) fieldBlock.hidden = true;
   }
 
-  const requiredPasses = [rep.zero.pass, rep.span.pass, dr.zeroPass, lin.pass, tcPass];
+  const requiredPasses = [rep.pass, dr.zero.pass, dr.span.pass, lin.pass, tcPass, respPass];
   const optionalPasses = [fieldPass];
   updateFinal(tab, requiredPasses, optionalPasses);
 }
@@ -1507,11 +1539,27 @@ function getDefaultPipelineSteps(code) {
       { id: 'ph4b', type: 's', label: '반 고2' },
       { id: 'ph7c', type: 'z', label: '반 저3' },
       { id: 'ph4c', type: 's', label: '반 고3' },
-      { id: 'phdi', type: 'z', label: '드 초기' },
-      { id: 'phdf', type: 'z', label: '드 최종' },
-      { id: 'phm4', type: 'm', label: '직 pH4' },
-      { id: 'phm7', type: 'm', label: '직 pH7' },
-      { id: 'phm10', type: 'm', label: '직 pH10' },
+      { id: 'phzi1', type: 'z', label: '드 제로초1' },
+      { id: 'phzi2', type: 'z', label: '드 제로초2' },
+      { id: 'phzi3', type: 'z', label: '드 제로초3' },
+      { id: 'phzf1', type: 'z', label: '드 제로후1' },
+      { id: 'phzf2', type: 'z', label: '드 제로후2' },
+      { id: 'phzf3', type: 'z', label: '드 제로후3' },
+      { id: 'phsi1', type: 's', label: '드 스팬초1' },
+      { id: 'phsi2', type: 's', label: '드 스팬초2' },
+      { id: 'phsi3', type: 's', label: '드 스팬초3' },
+      { id: 'phsf1', type: 's', label: '드 스팬후1' },
+      { id: 'phsf2', type: 's', label: '드 스팬후2' },
+      { id: 'phsf3', type: 's', label: '드 스팬후3' },
+      { id: 'phm4a', type: 'm', label: '직 pH4-1' },
+      { id: 'phm4b', type: 'm', label: '직 pH4-2' },
+      { id: 'phm4c', type: 'm', label: '직 pH4-3' },
+      { id: 'phm7a', type: 'm', label: '직 pH7-1' },
+      { id: 'phm7b', type: 'm', label: '직 pH7-2' },
+      { id: 'phm7c', type: 'm', label: '직 pH7-3' },
+      { id: 'phm10a', type: 'm', label: '직 pH10-1' },
+      { id: 'phm10b', type: 'm', label: '직 pH10-2' },
+      { id: 'phm10c', type: 'm', label: '직 pH10-3' },
       { id: 'pht10', type: 'other', label: '온도 10℃' },
       { id: 'pht15', type: 'other', label: '온도 15℃' },
       { id: 'pht20', type: 'other', label: '온도 20℃' },
@@ -1605,11 +1653,10 @@ function sortStepsChronologically(steps, code) {
   let refOrder = [];
   if (IS_PH(code)) {
     refOrder = [
-      'phdi',
-      'ph7a', 'ph7b', 'ph7c',
-      'phm4', 'phm7', 'phm10',
-      'phdf',
-      'ph4a', 'ph4b', 'ph4c'
+      'phzi1','phzi2','phzi3', 'phsi1','phsi2','phsi3',   // 드리프트 초기
+      'ph7a', 'ph4a', 'ph7b', 'ph4b', 'ph7c', 'ph4c',    // 반복성
+      'phm4a','phm4b','phm4c','phm7a','phm7b','phm7c','phm10a','phm10b','phm10c', // 직선성
+      'phzf1','phzf2','phzf3', 'phsf1','phsf2','phsf3'    // 드리프트 최종
     ];
   } else if (IS_DO(code)) {
     refOrder = [
@@ -1970,8 +2017,10 @@ function renderGraphsInModal(code) {
     s1: 'S1', s2: 'S2', s3: 'S3', s4: 'S4', s5: 'S5', s6: 'S6', s7: 'S7',
     m1: 'M1', m2: 'M2', m3: 'M3',
     ph7a: '반저1', ph4a: '반고1', ph7b: '반저2', ph4b: '반고2', ph7c: '반저3', ph4c: '반고3',
-    phdi: '초기', phdf: '최종',
-    phm4: 'pH4', phm7: 'pH7', phm10: 'pH10',
+    phzi1: '제로초1', phzi2: '제로초2', phzi3: '제로초3', phzf1: '제로후1', phzf2: '제로후2', phzf3: '제로후3',
+    phsi1: '스팬초1', phsi2: '스팬초2', phsi3: '스팬초3', phsf1: '스팬후1', phsf2: '스팬후2', phsf3: '스팬후3',
+    phm4a: 'pH4-1', phm4b: 'pH4-2', phm4c: 'pH4-3', phm7a: 'pH7-1', phm7b: 'pH7-2', phm7c: 'pH7-3',
+    phm10a: 'pH10-1', phm10b: 'pH10-2', phm10c: 'pH10-3',
     pht10: '10℃', pht15: '15℃', pht20: '20℃', pht25: '25℃', pht30: '30℃',
     dos1: 'S1', dos2: 'S2', dos3: 'S3',
     dozi: 'Z초기', dosi: 'S초기', dozf: 'Z최종', dosf: 'S최종',
@@ -2116,7 +2165,7 @@ function setupPipelineAndGraph(tab) {
   // 항목별 다른 placeholder 예시
   let seqPlaceholder = '예: ZZSSZSZZSSMMM';
   if (IS_PH(tab.code)) {
-    seqPlaceholder = '예: ph7a,ph4a,phdi,phdf,phm4';
+    seqPlaceholder = '예: ph7a,ph4a,phzi1,phsi1,phm4a,phm7a,phm10a,phzf1,phsf1';
   } else if (IS_DO(tab.code)) {
     seqPlaceholder = '예: dos1,dozi,dosi,dozf,dosf';
   } else if (IS_WATER(tab.code)) {
@@ -2437,33 +2486,49 @@ function buildFormPH() {
 <div class="card pv-form-card">
   <div class="pv-section">
     <h3 class="pv-section__title">🔁 반복성
-      <span class="pv-hint">pH7·pH4 각 3회 측정 (RSD ≤ 3%)</span>
+      <span class="pv-hint">pH7·pH4 각 3회 측정 (MAX 표준편차 ≤ 0.1)</span>
     </h3>
-    <div class="pv-zs-table">
-      <div class="pv-zs-header"><span></span><span>pH 7 (저농도)</span><span>pH 4 (고농도)</span></div>
-      <div class="pv-zs-row"><span class="pv-zs-label">1회</span>${ni('ph7a','pH7 ①')}${ni('ph4a','pH4 ①')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label">2회</span>${ni('ph7b','pH7 ②')}${ni('ph4b','pH4 ②')}</div>
-      <div class="pv-zs-row"><span class="pv-zs-label">3회</span>${ni('ph7c','pH7 ③')}${ni('ph4c','pH4 ③')}</div>
+    <div class="pv-phgrid pv-phgrid--2">
+      <div class="pv-phgrid__head"><span></span><span>pH 7 (저농도)</span><span>pH 4 (고농도)</span></div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">1회</span>${ni('ph7a','pH7 ①')}${ni('ph4a','pH4 ①')}</div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">2회</span>${ni('ph7b','pH7 ②')}${ni('ph4b','pH4 ②')}</div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">3회</span>${ni('ph7c','pH7 ③')}${ni('ph4c','pH4 ③')}</div>
     </div>
   </div>
 
   <div class="pv-section">
     <h3 class="pv-section__title">📉 드리프트
-      <span class="pv-hint">초기 → 2시간 후, |차|/14×100 ≤ 5%</span>
+      <span class="pv-hint">제로(pH7)·스팬(pH4) 각 초기3·2시간후3, |평균차| ≤ 0.1 (절대 pH)</span>
     </h3>
-    <div class="pv-grid2">${ni('phdi','시험 초기')}${ni('phdf','2시간 후')}</div>
+    <div class="pv-phgrid pv-phgrid--2">
+      <div class="pv-phgrid__head"><span></span><span>제로 pH7 — 초기 / 2시간후</span><span>스팬 pH4 — 초기 / 2시간후</span></div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">1회</span>
+        <div class="pv-grid2">${ni('phzi1','제로 초기 ①')}${ni('phzf1','제로 2h ①')}</div>
+        <div class="pv-grid2">${ni('phsi1','스팬 초기 ①')}${ni('phsf1','스팬 2h ①')}</div></div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">2회</span>
+        <div class="pv-grid2">${ni('phzi2','제로 초기 ②')}${ni('phzf2','제로 2h ②')}</div>
+        <div class="pv-grid2">${ni('phsi2','스팬 초기 ②')}${ni('phsf2','스팬 2h ②')}</div></div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">3회</span>
+        <div class="pv-grid2">${ni('phzi3','제로 초기 ③')}${ni('phzf3','제로 2h ③')}</div>
+        <div class="pv-grid2">${ni('phsi3','스팬 초기 ③')}${ni('phsf3','스팬 2h ③')}</div></div>
+    </div>
   </div>
 
   <div class="pv-section">
     <h3 class="pv-section__title">📈 직선성
-      <span class="pv-hint">pH4·pH7·pH10 측정, max-min/14×100 ≤ 5%</span>
+      <span class="pv-hint">pH4·pH7·pH10 각 3회 측정, |평균-공칭| ≤ 0.1</span>
     </h3>
-    <div class="pv-grid3">${ni('phm4','pH4 측정')}${ni('phm7','pH7 측정')}${ni('phm10','pH10 측정')}</div>
+    <div class="pv-phgrid pv-phgrid--3">
+      <div class="pv-phgrid__head"><span></span><span>pH4</span><span>pH7</span><span>pH10</span></div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">1회</span>${ni('phm4a','pH4 ①')}${ni('phm7a','pH7 ①')}${ni('phm10a','pH10 ①')}</div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">2회</span>${ni('phm4b','pH4 ②')}${ni('phm7b','pH7 ②')}${ni('phm10b','pH10 ②')}</div>
+      <div class="pv-phgrid__row"><span class="pv-phgrid__lbl">3회</span>${ni('phm4c','pH4 ③')}${ni('phm7c','pH7 ③')}${ni('phm10c','pH10 ③')}</div>
+    </div>
   </div>
 
   <div class="pv-section">
     <h3 class="pv-section__title">🌡️ 온도보상
-      <span class="pv-hint">기준: pH4.00 완충액, max-min ≤ 0.1</span>
+      <span class="pv-hint">기준: pH4.00/4.01 완충액, |측정-기준| ≤ 0.2</span>
     </h3>
     <div class="pv-grid3">
       ${ni('pht10','10℃ 측정')}${ni('pht15','15℃ 측정')}${ni('pht20','20℃ 측정')}
@@ -2472,7 +2537,14 @@ function buildFormPH() {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">🧪 현장적용계수 <span class="pv-hint">(선택, |Ai평균-Ci평균| ≤ 0.3)</span></h3>
+    <h3 class="pv-section__title">⏱️ 응답시간
+      <span class="pv-hint">T90 측정, ≤ 30초 (엑셀 V54)</span>
+    </h3>
+    <div class="pv-grid2">${ni('resp','응답시간 (초)')}</div>
+  </div>
+
+  <div class="pv-section">
+    <h3 class="pv-section__title">🧪 현장적용계수 <span class="pv-hint">(선택, |Ai평균-Ci평균| ≤ 0.2)</span></h3>
     <div class="pv-field-rounds">
       <div class="pv-field-round">
         <div class="pv-field-round__label">1회차</div>
@@ -2650,8 +2722,13 @@ const FIELD_LABELS = {
   ci1:'Ci₁(현장)',ci2:'Ci₂(현장)',ai1:'Ai₁(수분석)',ai2:'Ai₂',ai3:'Ai₃',ai4:'Ai₄',
   codmax:'최댓값',codmin:'최솟값',
   ph7a:'pH7 1회',ph4a:'pH4 1회',ph7b:'pH7 2회',ph4b:'pH4 2회',ph7c:'pH7 3회',ph4c:'pH4 3회',
-  phdi:'드리프트 초기',phdf:'드리프트 2시간후',
-  phm4:'직선성 pH4',phm7:'직선성 pH7',phm10:'직선성 pH10',
+  phzi1:'제로드리프트 초기1',phzi2:'제로드리프트 초기2',phzi3:'제로드리프트 초기3',
+  phzf1:'제로드리프트 2h1',phzf2:'제로드리프트 2h2',phzf3:'제로드리프트 2h3',
+  phsi1:'스팬드리프트 초기1',phsi2:'스팬드리프트 초기2',phsi3:'스팬드리프트 초기3',
+  phsf1:'스팬드리프트 2h1',phsf2:'스팬드리프트 2h2',phsf3:'스팬드리프트 2h3',
+  phm4a:'직선성 pH4-1',phm4b:'직선성 pH4-2',phm4c:'직선성 pH4-3',
+  phm7a:'직선성 pH7-1',phm7b:'직선성 pH7-2',phm7c:'직선성 pH7-3',
+  phm10a:'직선성 pH10-1',phm10b:'직선성 pH10-2',phm10c:'직선성 pH10-3',
   pht10:'온도보상 10℃',pht15:'15℃',pht20:'20℃',pht25:'25℃',pht30:'30℃',
   phci1:'Ci₁(현장)',phai1:'Ai₁',phai2:'Ai₂',phci2:'Ci₂(현장)',phai3:'Ai₃',phai4:'Ai₄',
   dos1:'S1',dos2:'S2',dos3:'S3',
@@ -2674,15 +2751,20 @@ function buildCertResultRows(tab) {
   const d = loadData(tab.id);
   const gd = f => { const v = parseFloat(d[f]); return Number.isFinite(v) ? v : null; };
   if (IS_PH(tab.code)) {
-    const rep = repeatability([gd('ph7a'),gd('ph7b'),gd('ph7c')],[gd('ph4a'),gd('ph4b'),gd('ph4c')]);
-    const dr = drift(14,[gd('phdi')],[gd('phdf')],[gd('phdi')],[gd('phdf')]);
-    const lin = phLinearity([gd('phm4'),gd('phm7'),gd('phm10')]);
-    addRow(`pH7 반복성 RSD ≤ ${rep.limit}%`,`${fmt(rep.zero.rsd)}%`,rep.zero.pass);
-    addRow(`pH4 반복성 RSD ≤ ${rep.limit}%`,`${fmt(rep.span.rsd)}%`,rep.span.pass);
-    addRow(`드리프트 ≤ ${PRECISION_CRITERIA.zeroDrift}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroPass);
-    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error, 1)}%`,lin.pass);
+    const rep = phRepeatability([gd('ph7a'),gd('ph7b'),gd('ph7c')],[gd('ph4a'),gd('ph4b'),gd('ph4c')]);
+    const dr = phDrift(
+      [gd('phzi1'),gd('phzi2'),gd('phzi3')],[gd('phzf1'),gd('phzf2'),gd('phzf3')],
+      [gd('phsi1'),gd('phsi2'),gd('phsi3')],[gd('phsf1'),gd('phsf2'),gd('phsf3')]);
+    const lin = phLinearity(
+      [gd('phm4a'),gd('phm4b'),gd('phm4c')],[gd('phm7a'),gd('phm7b'),gd('phm7c')],[gd('phm10a'),gd('phm10b'),gd('phm10c')]);
+    addRow(`반복성 표준편차 ≤ ${rep.limit}`,`${fmt(rep.std,3)}`,rep.pass);
+    addRow(`제로드리프트 |차| ≤ ${dr.limit}`,`${fmt(dr.zero.val,3)}`,dr.zero.pass);
+    addRow(`스팬드리프트 |차| ≤ ${dr.limit}`,`${fmt(dr.span.val,3)}`,dr.span.pass);
+    addRow(`직선성 |편차| ≤ ${lin.limit}`,`${fmt(lin.dev,3)}`,lin.pass);
     const tc = phTemperatureComp({t10:gd('pht10'),t15:gd('pht15'),t20:gd('pht20'),t25:gd('pht25'),t30:gd('pht30')});
-    if(tc.pass!==null) addRow(`온도보상 max-min ≤ ${PRECISION_CRITERIA.phTempComp}`,fmt(tc.range,3),tc.pass);
+    if(tc.pass!==null) addRow(`온도보상 |편차| ≤ ${tc.limit}`,fmt(tc.dev,3),tc.pass);
+    const phResp=gd('resp');
+    if(phResp!=null) addRow('응답시간 ≤ 30초',`${fmt(phResp,0)}초`,phResp>=0&&phResp<=30);
     // pH 현장적용계수: |Ai평균-Ci| ≤ 0.20 (계산기와 동일)
     const fci1=gd('phci1'),fci2=gd('phci2'),fai1=gd('phai1'),fai2=gd('phai2'),fai3=gd('phai3'),fai4=gd('phai4');
     if(fci1!=null||fci2!=null||fai1!=null||fai2!=null||fai3!=null||fai4!=null){

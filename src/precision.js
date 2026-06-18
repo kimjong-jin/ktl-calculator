@@ -30,7 +30,12 @@ export const PRECISION_CRITERIA = {
   zeroDrift:        _criteria.zeroDrift        ?? 5.0,  // %
   spanDrift:        _criteria.spanDrift        ?? 5.0,  // %
   linearity:        _criteria.linearity        ?? 5.0,  // %
-  phTempComp:       0.1,   // pH — 엑셀 별도 기준, 고정
+  // ── pH 전용: 전부 절대 pH 단위 (엑셀 Version11 Sheet1 V40/V44/V48/V53/V61/V68) ──
+  phRepeat:         0.1,   // pH 반복성 MAX(STDEV(pH7 3회), STDEV(pH4 3회)) ≤ 0.1 (V40)
+  phDrift:          0.1,   // pH 드리프트 |평균(2h)-평균(초기)| ≤ 0.1 (제로 V44 / 스팬 V48)
+  phLinearity:      0.1,   // pH 직선성 각 점(4·7·10) |측정-공칭| 최대 ≤ 0.1 (V53)
+  phTempComp:       0.2,   // pH 온도보상 각 온도 |측정-기준(4.00/4.01)| 최대 ≤ 0.2 (V61)
+  phField:          0.20,  // pH 현장적용 ROUND((Fi1+Fi2)/2,2) ≤ 0.2 (V68)
   doTempComp:       0.3,   // DO 온도보상 |편차| ≤ 0.3 mg/L 절대값 (엑셀 Z53/AB53)
   codGlucose:       5.0,
   // 반올림 자릿수 (엑셀 ROUND 수식에서 추출)
@@ -120,20 +125,48 @@ export function linearity(range, mVals, ref) {
   return { avg, ref: reference, error, pass: errR <= PRECISION_CRITERIA.linearity };
 }
 
-/* ── ③-pH 직선성 (4·7·10 고정 3점) ────────────────────────
- * 엑셀: max=10, min=4 → 오차 = (max-min)/range×100 ≤ 5% */
-export function phLinearity(vals) {
-  // vals = [pH4측정, pH7측정, pH10측정]
-  const clean = (vals || []).filter(v => v !== null && v !== undefined && !isNaN(v));
-  if (clean.length < 3) {
-    return { max: NaN, min: NaN, error: NaN, pass: null };
-  }
-  const maxV = Math.max(...clean);
-  const minV = Math.min(...clean);
-  const range = 14; // pH 고정 측정범위
-  const error = pct(maxV - minV, range);
-  const errR = roundTo(error, PRECISION_CRITERIA.linearityRound);
-  return { max: maxV, min: minV, error, pass: errR <= PRECISION_CRITERIA.linearity };
+/* ── ①-pH 반복성 ───────────────────────────────────────────
+ * 엑셀 Version11 V40: T40 = ROUND(MAX(STDEV(pH7 3회), STDEV(pH4 3회)), 2) ≤ 0.1
+ * (RSD%가 아니라 절대 표준편차) */
+export function phRepeatability(ph7Vals, ph4Vals, limit = PRECISION_CRITERIA.phRepeat) {
+  const grp = (vals) => {
+    const a = (vals || []).filter(v => Number.isFinite(v));
+    return { mean: a.length ? mean(a) : NaN, std: a.length >= 2 ? sampleStd(a) : NaN, n: a.length };
+  };
+  const zero = grp(ph7Vals), span = grp(ph4Vals);
+  const haveBoth = Number.isFinite(zero.std) && Number.isFinite(span.std);
+  const maxStd = haveBoth ? Math.max(zero.std, span.std) : NaN;
+  const stdR = Number.isFinite(maxStd) ? roundTo(maxStd, 2) : NaN;       // 엑셀 ROUND(,2)
+  return { zero, span, maxStd, std: stdR, limit, pass: haveBoth ? stdR <= limit : null };
+}
+
+/* ── ②-pH 드리프트 ─────────────────────────────────────────
+ * 엑셀 V44(제로 pH7)/V48(스팬 pH4): ROUND(|AVG(2시간후 3회)-AVG(초기 3회)|, 2) ≤ 0.1
+ * (range로 나누지 않는 절대 pH 단위). 각 인자는 측정 배열. */
+export function phDrift(zeroInit, zeroFinal, spanInit, spanFinal, limit = PRECISION_CRITERIA.phDrift) {
+  const one = (init, fin) => {
+    const ci = (init || []).filter(Number.isFinite);
+    const cf = (fin || []).filter(Number.isFinite);
+    if (!ci.length || !cf.length) return { val: NaN, pass: null, init: NaN, final: NaN };
+    const mi = mean(ci), mf = mean(cf);
+    const val = roundTo(Math.abs(mf - mi), 2);                           // 엑셀 ROUND(,2)
+    return { val, pass: val <= limit, init: mi, final: mf };
+  };
+  return { zero: one(zeroInit, zeroFinal), span: one(spanInit, spanFinal), limit };
+}
+
+/* ── ③-pH 직선성 (4·7·10, 버퍼별 3회 평균) ────────────────
+ * 엑셀 V53: 각 버퍼 (AVG측정-공칭) 편차의 max/min 중 절대값 큰 쪽(부호유지) → -0.1 ≤ x ≤ 0.1
+ * 각 인자는 해당 버퍼 측정 배열 */
+export function phLinearity(ph4Vals, ph7Vals, ph10Vals, limit = PRECISION_CRITERIA.phLinearity) {
+  const nominal = [4, 7, 10];
+  const avg = (a) => { const c = (a || []).filter(Number.isFinite); return c.length ? mean(c) : NaN; };
+  const means = [avg(ph4Vals), avg(ph7Vals), avg(ph10Vals)];
+  if (!means.every(Number.isFinite)) return { devs: [], means, dev: NaN, error: NaN, pass: null, limit };
+  const devs = means.map((m, i) => m - nominal[i]);
+  const maxDev = Math.max(...devs), minDev = Math.min(...devs);
+  const dev = Math.abs(minDev) > Math.abs(maxDev) ? minDev : maxDev;     // 부호 유지
+  return { devs, means, dev, error: dev, pass: dev >= -limit && dev <= limit, limit };
 }
 
 /* ── ③-DO 직선성 ────────────────────────────────────────────
@@ -149,18 +182,20 @@ export function doLinearity(maxVal, minVal, range) {
 }
 
 /* ── ④ pH 온도보상시험 ─────────────────────────────────────
- * 기준: pH 4.00 완충액, 각 온도별 측정값의 max-min ≤ 0.1
+ * 엑셀 V61: 각 온도 측정값 − 기준완충액(10·15·20℃=4.00, 25·30℃=4.01) 편차의
+ *           max/min 중 절대값 큰 쪽(부호유지) → -0.2 ≤ x ≤ 0.2
  * temps: { t10, t15, t20, t25, t30 } */
-export function phTemperatureComp(temps) {
-  const vals = Object.values(temps).filter(v => v !== null && v !== undefined && v !== 0 && Number.isFinite(v));
-  if (!vals.length) return { max: null, min: null, range: null, pass: null };
-  const maxV = Math.max(...vals);
-  const minV = Math.min(...vals);
-  const range = maxV - minV;
-  return {
-    max: maxV, min: minV, range,
-    pass: range <= PRECISION_CRITERIA.phTempComp,
-  };
+const PH_TEMP_REF = { t10: 4.00, t15: 4.00, t20: 4.00, t25: 4.01, t30: 4.01 };
+export function phTemperatureComp(temps, limit = PRECISION_CRITERIA.phTempComp) {
+  const keys = ['t10', 't15', 't20', 't25', 't30'];
+  const present = keys.filter(k => Number.isFinite(temps[k]) && temps[k] !== 0);
+  if (!present.length) return { devs: [], dev: null, max: null, min: null, pass: null, limit };
+  const devs = present.map(k => temps[k] - PH_TEMP_REF[k]);
+  const maxDev = Math.max(...devs), minDev = Math.min(...devs);
+  const dev = Math.abs(minDev) > Math.abs(maxDev) ? minDev : maxDev;     // 부호 유지
+  // 엑셀은 5개 온도 전부 입력돼야 판정(COUNTBLANK) — 미완 시 pass=null
+  const complete = present.length === keys.length;
+  return { devs, dev, max: maxDev, min: minDev, pass: complete ? (dev >= -limit && dev <= limit) : null, limit };
 }
 
 /* ── ⑤ DO 온도보상시험 ─────────────────────────────────────
@@ -291,7 +326,7 @@ export function fieldApplication(parameter, labVals, siteVals, opts = {}) {
 
   if (param === 'PH') {
     const limit = 0.20;
-    // 엑셀 T67 = ROUND(meanFi, 2) 후 ≤0.2 판정 (V68)
+    // 엑셀 Version11 Sheet1 V68 = ROUND((Fi1+Fi2)/2,2)=T68 후 ≤0.2 판정 (엑셀 SSOT 일치)
     const fi = Math.round(meanFi * 100) / 100;
     return { parameter: param, labMean, siteMean, limit, useRate: false, meanFi, meanRate, fi, auto: false,
       pass: fi <= limit };
