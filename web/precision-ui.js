@@ -1599,21 +1599,36 @@ function buildFormBasic(code) {
   // 별도측정(2·3차) 열림 상태: 체크 저장됐거나, 기존 Z6/S6/Z7/S7 값이 있으면 열어둔다.
   const repExtraOpen = stored['rep_extra'] === true
     || ['z6','s6','z7','s7'].some(k => { const v = stored[k]; return v != null && String(v).trim() !== '' && Number(v) !== 0; });
+  const isToc = code === 'TOC';
+
+  let headerSections = `
+  <div class="pv-section">
+    <h3 class="pv-section__title">📏 측정범위</h3>
+    <div class="pv-row1">${ni('range','측정범위')}</div>
+  </div>`;
+
+  if (isToc) {
+    headerSections += `
+  <div class="pv-section">
+    <h3 class="pv-section__title">⏱️ 응답시간</h3>
+    <div class="pv-row1">${ni('resp','응답시간(분, ≤15)')}</div>
+  </div>
+  <div class="pv-section">
+    <h3 class="pv-section__title">📋 배출기준</h3>
+    <div class="pv-row1">${ni('fdis','배출기준 mg/L (없으면 0)')}</div>
+    <label class="pv-highvar" style="margin-top:8px">
+      <input type="checkbox" id="pv_highvar" ${stored['highvar'] === true ? 'checked' : ''}>
+      <span>변동성이 큰 시료 — 15% 이하 <b>AND</b> 절대오차 0.5 mg/L 이하 둘 다 만족 (법)</span>
+    </label>
+  </div>`;
+  }
+
   return `
 <div class="card pv-form-card">
-  <div class="pv-section">
-    <h3 class="pv-section__title">측정범위${code==='TOC' ? ' · 응답시간 · 배출기준' : ''}</h3>
-    ${code==='TOC'
-      ? `<div class="pv-grid3">${ni('range','측정범위')}${ni('resp','응답시간(분, ≤15)')}${ni('fdis','배출기준 mg/L (없으면 0)')}</div>
-      <label class="pv-highvar">
-        <input type="checkbox" id="pv_highvar" ${stored['highvar'] === true ? 'checked' : ''}>
-        <span>변동성이 큰 시료 — 15% 이하 <b>AND</b> 절대오차 0.5 mg/L 이하 둘 다 만족 (법)</span>
-      </label>`
-      : `<div class="pv-row1">${ni('range','')}</div>`}
-  </div>
+  ${headerSections}
 
   <div class="pv-section">
-    <h3 class="pv-section__title">드리프트 측정 <span class="pv-hint">|평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</span></h3>
+    <h3 class="pv-section__title">📉 드리프트 <span class="pv-hint">|평균(Z3,Z4)−평균(Z1,Z2)| / 범위 ≤ 5%</span></h3>
     <div class="pv-zs-table">
       <div class="pv-zs-section-label">초기구간</div>
       <div class="pv-zs-row">${zsCell('z1','1','z')}${zsCell('s1','1','s')}</div>
@@ -1626,7 +1641,7 @@ function buildFormBasic(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">반복성 측정 <span class="pv-hint">1차 필수 · 2·3차는 '별도 측정' 체크 시 입력</span></h3>
+    <h3 class="pv-section__title">🔁 반복성 <span class="pv-hint">1차 필수 · 2·3차는 '별도 측정' 체크 시 입력</span></h3>
     <div class="pv-zs-table">
       <div class="pv-zs-section-label">1차 (필수)</div>
       <div class="pv-zs-row">${zsCell('z5','5','z')}${zsCell('s5','5','s')}</div>
@@ -1646,7 +1661,7 @@ function buildFormBasic(code) {
   <div id="pv-input-guide" class="pv-guide-panel" hidden></div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">직선성 <span class="pv-hint">평균값 오차 ≤ 5%</span></h3>
+    <h3 class="pv-section__title">📈 직선성 <span class="pv-hint">평균값 오차 ≤ 5%</span></h3>
     <div class="pv-lin-wrap">
       <div class="pv-lin-header">
         <span>M1</span><span>M2</span><span>M3</span>
@@ -1661,7 +1676,7 @@ function buildFormBasic(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">현장적용계수 <span class="pv-hint">(선택)</span></h3>
+    <h3 class="pv-section__title">🧪 현장적용계수 <span class="pv-hint">(선택)</span></h3>
     <div class="pv-field-rounds">
       <div class="pv-field-round">
         <div class="pv-field-round__label"><span class="pv-field-round__badge">1</span>측정 1회차</div>
@@ -1680,7 +1695,7 @@ function buildFormBasic(code) {
 
   ${code==='COD' ? `
   <div class="pv-section">
-    <h3 class="pv-section__title">포도당변동성시험 <span class="pv-hint">(선택)</span></h3>
+    <h3 class="pv-section__title">🍬 포도당변동성 <span class="pv-hint">(선택)</span></h3>
     <div class="pv-grid2">${ni('codmax','최댓값')}${ni('codmin','최솟값')}</div>
   </div>` : ''}
 </div>
@@ -1693,7 +1708,7 @@ function buildFormPH() {
   return `
 <div class="card pv-form-card">
   <div class="pv-section">
-    <h3 class="pv-section__title">반복성
+    <h3 class="pv-section__title">🔁 반복성
       <span class="pv-hint">pH7·pH4 각 3회 측정 (RSD ≤ 3%)</span>
     </h3>
     <div class="pv-zs-table">
@@ -1705,21 +1720,21 @@ function buildFormPH() {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">드리프트
+    <h3 class="pv-section__title">📉 드리프트
       <span class="pv-hint">초기 → 2시간 후, |차|/14×100 ≤ 5%</span>
     </h3>
     <div class="pv-grid2">${ni('phdi','시험 초기')}${ni('phdf','2시간 후')}</div>
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">직선성
+    <h3 class="pv-section__title">📈 직선성
       <span class="pv-hint">pH4·pH7·pH10 측정, max-min/14×100 ≤ 5%</span>
     </h3>
     <div class="pv-grid3">${ni('phm4','pH4 측정')}${ni('phm7','pH7 측정')}${ni('phm10','pH10 측정')}</div>
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">온도보상시험
+    <h3 class="pv-section__title">🌡️ 온도보상
       <span class="pv-hint">기준: pH4.00 완충액, max-min ≤ 0.1</span>
     </h3>
     <div class="pv-grid3">
@@ -1729,7 +1744,7 @@ function buildFormPH() {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">현장적용계수 <span class="pv-hint">(선택, |Ai평균-Ci평균| ≤ 0.3)</span></h3>
+    <h3 class="pv-section__title">🧪 현장적용계수 <span class="pv-hint">(선택, |Ai평균-Ci평균| ≤ 0.3)</span></h3>
     <div class="pv-field-rounds">
       <div class="pv-field-round">
         <div class="pv-field-round__label">1회차</div>
@@ -1755,14 +1770,14 @@ function buildFormDO() {
   return `
 <div class="card pv-form-card">
   <div class="pv-section">
-    <h3 class="pv-section__title">반복성
+    <h3 class="pv-section__title">🔁 반복성
       <span class="pv-hint">25℃ Span(8.263) 기준 S 3회 (RSD ≤ 3%)</span>
     </h3>
     <div class="pv-grid3">${ni('dos1','S1')}${ni('dos2','S2')}${ni('dos3','S3')}</div>
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">드리프트
+    <h3 class="pv-section__title">📉 드리프트
       <span class="pv-hint">초기 → 2시간 후, |차|/20×100 ≤ 5%</span>
     </h3>
     <div class="pv-zs-table">
@@ -1773,21 +1788,21 @@ function buildFormDO() {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">직선성
+    <h3 class="pv-section__title">📈 직선성
       <span class="pv-hint">(max-min)/20×100 ≤ 5%</span>
     </h3>
     <div class="pv-grid2">${ni('domax','최댓값')}${ni('domin','최솟값')}</div>
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">온도보상시험
+    <h3 class="pv-section__title">🌡️ 온도보상
       <span class="pv-hint">20℃ 기준 9.092, 30℃ 기준 7.559, 오차 ≤ 5%</span>
     </h3>
     <div class="pv-grid2">${ni('dot20','20℃ 측정값')}${ni('dot30','30℃ 측정값')}</div>
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">응답시간 (T90) <span class="pv-hint">기준: 120초 이하</span></h3>
+    <h3 class="pv-section__title">⏱️ 응답시간 <span class="pv-hint">기준: 120초 이하</span></h3>
     <div style="max-width:200px">${ni('resp','측정값 (초)')}</div>
     <p class="pv-zs-note" style="margin-top:6px">기준값 고정 ≤ 120초. 측정값만 입력하세요.</p>
   </div>
@@ -1801,11 +1816,12 @@ function buildFormWater(code) {
   return `
 <div class="card pv-form-card">
   <div class="pv-section">
-    <h3 class="pv-section__title">측정범위</h3>
+    <h3 class="pv-section__title">📏 측정범위</h3>
     <div class="pv-row1">${ni('range','')}</div>
   </div>
 
   <div class="pv-section">
+    <h3 class="pv-section__title">📉 드리프트 및 🔁 반복성</h3>
     <div class="pv-zs-wrap">
       <div class="pv-zs-table">
         <div class="pv-zs-section-label">드리프트 초기구간</div>
@@ -1826,12 +1842,12 @@ function buildFormWater(code) {
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">직선성 — 주입농도값 M</h3>
+    <h3 class="pv-section__title">📈 직선성 — 주입농도값 M</h3>
     <div class="pv-row1">${ni('m1','M')}</div>
   </div>
 
   <div class="pv-section">
-    <h3 class="pv-section__title">응답시간 (T90)
+    <h3 class="pv-section__title">⏱️ 응답시간
       <span class="pv-hint">기준: S1 × 0.5 자동계산. 시약식은 해당 없음.</span>
     </h3>
     <div class="pv-resp-water">
@@ -1855,34 +1871,34 @@ function buildResultsPanel(code) {
   const extraBlocks = [];
   if (IS_PH(code) || IS_DO(code)) {
     extraBlocks.push(`<div class="pv-res-block" id="pv-res-tc-block" hidden>
-      <h4 class="pv-res-block__title">온도보상시험</h4><div id="pv-res-tc"></div></div>`);
+      <h4 class="pv-res-block__title">🌡️ 온도보상</h4><div id="pv-res-tc"></div></div>`);
   }
   if (!IS_DO(code) && !IS_WATER(code)) {
     extraBlocks.push(`<div class="pv-res-block" id="pv-res-field-block" hidden>
-      <h4 class="pv-res-block__title">현장적용계수</h4><div id="pv-res-field"></div></div>`);
+      <h4 class="pv-res-block__title">🧪 현장적용계수</h4><div id="pv-res-field"></div></div>`);
   }
   if (IS_COD(code)) {
     extraBlocks.push(`<div class="pv-res-block" id="pv-res-gluc-block" hidden>
-      <h4 class="pv-res-block__title">포도당변동성시험</h4><div id="pv-res-gluc"></div></div>`);
+      <h4 class="pv-res-block__title">🍬 포도당변동성</h4><div id="pv-res-gluc"></div></div>`);
   }
   // 기본형(TOC/TN/TP/SS/COD)에는 측정범위 초과 블록 추가
   if (!IS_PH(code) && !IS_DO(code)) {
     extraBlocks.push(`<div class="pv-res-block" id="pv-res-range-block" hidden>
-      <h4 class="pv-res-block__title">측정범위 검사</h4><div id="pv-res-range"></div></div>`);
+      <h4 class="pv-res-block__title">📏 측정범위 검사</h4><div id="pv-res-range"></div></div>`);
   }
   // 응답시간: TOC, DO(buildFormDO에서 처리), TU, CL, pH(buildFormPH에서 처리)
   if (code === 'TOC' || IS_DO(code) || IS_WATER(code) || IS_PH(code)) {
     extraBlocks.push(`<div class="pv-res-block" id="pv-res-resp-block" hidden>
-      <h4 class="pv-res-block__title">응답시간 (T90)</h4><div id="pv-res-resp"></div></div>`);
+      <h4 class="pv-res-block__title">⏱️ 응답시간</h4><div id="pv-res-resp"></div></div>`);
   }
   return `
 <div id="pv-results" class="card pv-results-card" hidden>
   <details class="pv-collapse">
     <summary class="pv-collapse__summary">검사 결과</summary>
     <div class="pv-res-grid" style="margin-top:12px">
-      <div class="pv-res-block"><h4 class="pv-res-block__title">반복성 (RSD)</h4><div id="pv-res-rep"></div></div>
-      <div class="pv-res-block"><h4 class="pv-res-block__title">드리프트</h4><div id="pv-res-drift"></div></div>
-      <div class="pv-res-block"><h4 class="pv-res-block__title">직선성</h4><div id="pv-res-lin"></div></div>
+      <div class="pv-res-block"><h4 class="pv-res-block__title">🔁 반복성 (RSD)</h4><div id="pv-res-rep"></div></div>
+      <div class="pv-res-block"><h4 class="pv-res-block__title">📉 드리프트</h4><div id="pv-res-drift"></div></div>
+      <div class="pv-res-block"><h4 class="pv-res-block__title">📈 직선성</h4><div id="pv-res-lin"></div></div>
       ${extraBlocks.join('\n      ')}
     </div>
     <div id="pv-final"></div>
