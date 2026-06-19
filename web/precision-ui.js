@@ -2184,7 +2184,7 @@ function renderGraphsInModal(code) {
     z1: 'Z1', z2: 'Z2', z3: 'Z3', z4: 'Z4', z5: 'Z5', z6: 'Z6', z7: 'Z7',
     s1: 'S1', s2: 'S2', s3: 'S3', s4: 'S4', s5: 'S5', s6: 'S6', s7: 'S7',
     m1: 'M1', m2: 'M2', m3: 'M3',
-    ph7a: 'pH7-1(반)', ph4a: 'pH4-1(반)', ph7b: 'pH7-2(반)', ph4b: 'pH4-2(반)', ph7c: 'pH7-3(반)', ph4c: 'pH4-3(반)',
+    ph7a: '반 pH7-1', ph4a: '반 pH4-1', ph7b: '반 pH7-2', ph4b: '반 pH4-2', ph7c: '반 pH7-3', ph4c: '반 pH4-3',
     phzi1: 'pH7초1', phzi2: 'pH7초2', phzi3: 'pH7초3', phzf1: 'pH7후1', phzf2: 'pH7후2', phzf3: 'pH7후3',
     phsi1: 'pH4초1', phsi2: 'pH4초2', phsi3: 'pH4초3', phsf1: 'pH4후1', phsf2: 'pH4후2', phsf3: 'pH4후3',
     phm4a: 'pH4-1', phm4b: 'pH4-2', phm4c: 'pH4-3', phm7a: 'pH7-1', phm7b: 'pH7-2', phm7c: 'pH7-3',
