@@ -2073,6 +2073,21 @@ select.field__control {
   gap: 8px;
   align-items: center;
 }
+/* 측정 단계 그룹 구분선 (드/반/직/온도/현장/응답 경계) */
+.pv-pipeline-sep {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 3px;
+  min-height: 34px;
+  margin: 0 3px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--text-muted) 0, var(--text-muted) 5px,
+    transparent 5px, transparent 9px
+  );
+  opacity: .6;
+}
 .pv-pipeline-bubble {
   display: inline-flex;
   flex-direction: column;

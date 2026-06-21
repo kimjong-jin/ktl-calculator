@@ -1897,6 +1897,13 @@ function updatePipeline(code) {
 
   const activeElId = document.activeElement ? document.activeElement.id : '';
 
+  // 측정 단계 그룹(라벨 접두: 드/반/직/온도/현장·수분/변동/응답)이 바뀌면 구분선 삽입
+  const groupOf = (label) => {
+    const c = (label || '').trim().charAt(0);
+    return (c === '현' || c === '수') ? '현장' : c;
+  };
+  let prevGroup = null;
+
   track.innerHTML = steps.map(step => {
     const el = document.getElementById(`pv_${step.id}`);
     const isFilled = el && el.value.trim() !== '';
@@ -1909,9 +1916,14 @@ function updatePipeline(code) {
       displayVal = isNaN(numVal) ? val : (Number.isInteger(numVal) ? numVal : parseFloat(numVal.toFixed(3)));
     }
 
-    return `
-      <div class="pv-pipeline-bubble type-${step.type} ${isFilled ? 'is-filled' : ''} ${isActive ? 'is-active' : ''}" 
-           data-id="${step.id}" 
+    const g = groupOf(step.label);
+    const sep = (prevGroup !== null && g !== prevGroup)
+      ? '<div class="pv-pipeline-sep" aria-hidden="true"></div>' : '';
+    prevGroup = g;
+
+    return sep + `
+      <div class="pv-pipeline-bubble type-${step.type} ${isFilled ? 'is-filled' : ''} ${isActive ? 'is-active' : ''}"
+           data-id="${step.id}"
            title="${step.label}: ${isFilled ? val : '미입력'}">
         <span class="pv-pipeline-label">${step.label}</span>
         ${isFilled ? `<span class="pv-pipeline-value">${displayVal}</span>` : ''}
