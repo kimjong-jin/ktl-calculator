@@ -2348,6 +2348,7 @@ function setupPipelineAndGraph(tab) {
           <div class="pv-pipeline-seq-wrap">
             <span>🔄 진행 순서:</span>
             <input type="text" class="pv-pipeline-seq-input" id="pv-pipeline-seq" placeholder="${seqPlaceholder}" value="${seqVal}" />
+            <button type="button" class="pv-graph-btn" id="pv-seq-import-btn" title="첫 탭(-1, 예: TOC-1)의 진행 순서를 그대로 가져옵니다">📥 -1에서 가져오기</button>
           </div>
           <button type="button" class="pv-graph-btn" id="pv-open-graph-btn">📈 그래프</button>
         </div>
@@ -2389,6 +2390,24 @@ function setupPipelineAndGraph(tab) {
       const modal = document.getElementById('pv-graph-modal');
       if (modal && modal.classList.contains('is-open')) {
         renderGraphsInModal(tab.code);
+      }
+    });
+  }
+
+  // 📥 진행 순서 '-1에서 가져오기' — subNo===1 인 첫 탭(예: TOC-1)의 seq 를 복사
+  const importBtn = document.getElementById('pv-seq-import-btn');
+  if (importBtn) {
+    importBtn.addEventListener('click', () => {
+      const src = tabs.find(t => t.subNo === 1);
+      if (!src) { setSaveStatus('⚠️ -1 탭이 없습니다.', 'warn'); return; }
+      if (src.id === tab.id) { setSaveStatus('⚠️ 현재 탭이 이미 -1입니다.', 'warn'); return; }
+      const srcSeq = (loadData(src.id) || {})['seq'] || '';
+      if (!srcSeq) { setSaveStatus(`⚠️ ${src.label}에 진행 순서가 비어 있습니다.`, 'warn'); return; }
+      const inp = document.getElementById('pv-pipeline-seq');
+      if (inp) {
+        inp.value = srcSeq;
+        inp.dispatchEvent(new Event('input', { bubbles: true }));  // 기존 저장·파이프라인 로직 재사용
+        setSaveStatus(`📥 ${src.label}의 진행 순서를 가져왔습니다.`, 'ok');
       }
     });
   }
@@ -2552,6 +2571,9 @@ function buildFormBasic(code) {
   let headerSection = '';
   if (isToc) {
     headerSection = `
+  <div class="pv-section" style="border-left:3px solid var(--warn)">
+    <p style="margin:0;font-size:13px;font-weight:600;color:var(--text);line-height:1.5">⏱️ TOC: 측정 중간 4시간 경과 시점 측정 · 전체 최소 4시간 · 최소 16회 측정 (ZZ까지 측정 시 18회)</p>
+  </div>
   <div class="pv-section">
     <h3 class="pv-section__title">📏 측정범위 · ⏱️ 응답시간 · 📋 배출기준</h3>
     <div class="pv-grid3">${ni('range','측정범위')}${ni('resp','응답시간(분, ≤15)')}${ni('fdis','배출기준 mg/L (없으면 0)')}</div>
