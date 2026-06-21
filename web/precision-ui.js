@@ -1814,12 +1814,28 @@ function parseSequenceString(code, seqStr) {
     if (normalizedStr[i] === 'S') sTotal++;
   }
 
-  // Z, S 단계 목록 필터
-  const allZSteps = defaultSteps.filter(s => s.type === 'z');
-  const allSSteps = defaultSteps.filter(s => s.type === 's');
+  // Z, S 단계 목록 필터 및 크로노그래피컬(연대기) 순서 정렬
+  // 연대기적 순서: 1차 드리프트(z1/z2) -> 반복성(z5/z6/z7) -> 2차 드리프트(z3/z4)
+  const isPhOrDo = IS_PH(code) || IS_DO(code);
+  const refZOrder = ['z1', 'z2', 'z5', 'z6', 'z7', 'z3', 'z4'];
+  const refSOrder = ['s1', 's2', 's5', 's6', 's7', 's3', 's4'];
+
+  const allZSteps = defaultSteps
+    .filter(s => s.type === 'z')
+    .sort((a, b) => {
+      const idxA = refZOrder.indexOf(a.id);
+      const idxB = refZOrder.indexOf(b.id);
+      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+    });
+  const allSSteps = defaultSteps
+    .filter(s => s.type === 's')
+    .sort((a, b) => {
+      const idxA = refSOrder.indexOf(a.id);
+      const idxB = refSOrder.indexOf(b.id);
+      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+    });
 
   // 개수에 따른 분기 매핑: pH/DO가 아니고 Z/S 개수가 3개 이하이면 바로 반복성(Z5~)으로 간주
-  const isPhOrDo = IS_PH(code) || IS_DO(code);
   const zSteps = (!isPhOrDo && zTotal > 0 && zTotal <= 3)
     ? allZSteps.filter(s => ['z5', 'z6', 'z7'].includes(s.id))
     : allZSteps;
