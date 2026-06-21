@@ -2572,7 +2572,7 @@ function buildFormBasic(code) {
   if (isToc) {
     headerSection = `
   <div class="pv-section" style="border-left:3px solid var(--warn)">
-    <p style="margin:0;font-size:13px;font-weight:600;color:var(--text);line-height:1.5">⏱️ TOC: 측정 중간 4시간 경과 시점 측정 · 전체 최소 4시간 · 최소 16회 측정 (ZZ까지 측정 시 18회)</p>
+    <p style="margin:0;line-height:1.8"><mark style="background:#fde047;color:#1f2328;padding:2px 6px;border-radius:3px;font-size:13px;font-weight:700;box-decoration-break:clone;-webkit-box-decoration-break:clone">⏱️ TOC: 측정 중간 4시간 경과 시점 측정 · 전체 최소 4시간 · 16회 측정 (Z3, Z4까지 측정 시 18회)</mark></p>
   </div>
   <div class="pv-section">
     <h3 class="pv-section__title">📏 측정범위 · ⏱️ 응답시간 · 📋 배출기준</h3>
