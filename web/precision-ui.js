@@ -2367,7 +2367,7 @@ function setupPipelineAndGraph(tab) {
   if (IS_PH(tab.code)) {
     seqPlaceholder = '예: 444777444777444447474744447 77101010 (4·7·10 측정순서대로, 붙여써도 됨)';
   } else if (IS_DO(tab.code)) {
-    seqPlaceholder = '예: SSS ZZZSSSZZZSSS 202020303030 (반복S·드리프트ZS·온도20/30, 붙여써도 됨)';
+    seqPlaceholder = '예: SSSZZZSSSZZZSSS202020303030 (붙여써도 됨 · 반복S·드리프트ZS·온도20/30)';
   } else if (IS_WATER(tab.code)) {
     seqPlaceholder = '예: ZZSSZSZZSSM';
   }
@@ -2616,6 +2616,9 @@ function buildFormBasic(code) {
   </div>`;
   } else {
     headerSection = `
+  <div class="pv-section" style="border-left:3px solid var(--warn)">
+    <p style="margin:0;line-height:1.8"><mark style="background:#fde047;color:#1f2328;padding:2px 6px;border-radius:3px;font-size:13px;font-weight:700;box-decoration-break:clone;-webkit-box-decoration-break:clone">⏱️ COD/TN/TP/SS: 초기 드리프트 측정 후 최소 4시간 경과 뒤 후기 드리프트 측정</mark></p>
+  </div>
   <div class="pv-section">
     <h3 class="pv-section__title">📏 측정범위</h3>
     <div class="pv-row1">${ni('range','')}</div>
@@ -2794,6 +2797,9 @@ ${buildResultsPanel('PH')}`;
 function buildFormDO() {
   return `
 <div class="card pv-form-card">
+  <div class="pv-section" style="border-left:3px solid var(--warn)">
+    <p style="margin:0;line-height:1.8"><mark style="background:#fde047;color:#1f2328;padding:2px 6px;border-radius:3px;font-size:13px;font-weight:700;box-decoration-break:clone;-webkit-box-decoration-break:clone">⏱️ DO: 초기 드리프트 측정 후 최소 2시간 경과 뒤 후기 드리프트 측정</mark></p>
+  </div>
   <div class="pv-section">
     <h3 class="pv-section__title">🔁 반복성
       <span class="pv-hint">25℃ Span(8.263) S 3회, 표준편차 ≤ 0.3</span>
