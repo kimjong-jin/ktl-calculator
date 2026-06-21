@@ -1804,7 +1804,7 @@ function parseSequenceString(code, seqStr) {
   }
 
   const ordered = [];
-  
+
   // Z와 S의 전체 개수 파악
   let zTotal = 0;
   let sTotal = 0;
@@ -1834,32 +1834,141 @@ function parseSequenceString(code, seqStr) {
       return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
     });
 
-  // 개수에 따른 분기 매핑: pH/DO가 아니고 Z/S 개수가 3개 이하이면 바로 반복성(Z5~)으로 간주
-  const zSteps = (!isPhOrDo && zTotal > 0 && zTotal <= 3)
-    ? allZSteps.filter(s => ['z5', 'z6', 'z7'].includes(s.id))
-    : allZSteps;
-  const sSteps = (!isPhOrDo && sTotal > 0 && sTotal <= 3)
-    ? allSSteps.filter(s => ['s5', 's6', 's7'].includes(s.id))
-    : allSSteps;
-
   const mSteps = defaultSteps.filter(s => s.type === 'm');
   const rSteps = defaultSteps.filter(s => s.id === 'resp');
   const fSteps = defaultSteps.filter(s => ['ci1', 'ai1', 'ai2', 'ci2', 'ai3', 'ai4', 'phci1', 'phai1', 'phai2', 'phci2', 'phai3', 'phai4'].includes(s.id));
 
-  let zIdx = 0, sIdx = 0, mIdx = 0, rIdx = 0, fIdx = 0;
+  // 개수에 따른 분기 매핑: pH/DO가 아니고 Z/S 개수가 3개 이하이면 바로 반복성(Z5~)으로 간주
+  let poolZ = [...allZSteps];
+  let poolS = [...allSSteps];
+  if (!isPhOrDo && zTotal > 0 && zTotal <= 3) {
+    poolZ = poolZ.filter(s => ['z5', 'z6', 'z7'].includes(s.id));
+  }
+  if (!isPhOrDo && sTotal > 0 && sTotal <= 3) {
+    poolS = poolS.filter(s => ['s5', 's6', 's7'].includes(s.id));
+  }
 
-  for (let i = 0; i < normalizedStr.length; i++) {
+  // 헬퍼: 특정 ID의 단계를 풀에서 찾아서 꺼내고 ordered에 추가
+  const pushStepById = (id, pool) => {
+    let idx = pool.findIndex(s => s.id === id);
+    if (idx === -1 && pool.length > 0) {
+      idx = 0; // 풀에 해당 ID가 없으면 남아있는 것 중 첫 번째를 할당 (단독 반복성 Z/S가 ZZSS 등으로 들어왔을 때 폴백)
+    }
+    if (idx !== -1) {
+      const step = pool[idx];
+      ordered.push(step);
+      pool.splice(idx, 1); // 사용한 단계는 풀에서 제거
+      return true;
+    }
+    return false;
+  };
+
+  // 헬퍼: 풀에서 첫 번째로 남은 단계를 꺼내고 ordered에 추가 (단독 문자 폴백용)
+  const pushFirstAvailable = (pool) => {
+    if (pool.length > 0) {
+      const step = pool.shift();
+      ordered.push(step);
+      return true;
+    }
+    return false;
+  };
+
+  let driftCount = 0;
+  let repCount = 0;
+  let mIdx = 0, rIdx = 0, fIdx = 0;
+
+  let i = 0;
+  while (i < normalizedStr.length) {
+    const sub4 = normalizedStr.substring(i, i + 4);
+    const sub6 = normalizedStr.substring(i, i + 6);
+    const sub2 = normalizedStr.substring(i, i + 2);
     const char = normalizedStr[i];
-    if (char === 'Z' && zIdx < zSteps.length) {
-      ordered.push(zSteps[zIdx++]);
-    } else if (char === 'S' && sIdx < sSteps.length) {
-      ordered.push(sSteps[sIdx++]);
-    } else if (char === 'M' && mIdx < mSteps.length) {
-      ordered.push(mSteps[mIdx++]);
-    } else if ((char === 'R' || char === 'T') && rIdx < rSteps.length) {
-      ordered.push(rSteps[rIdx++]);
-    } else if (char === 'F' && fIdx < fSteps.length) {
-      ordered.push(fSteps[fIdx++]);
+
+    // 1. 드리프트 블록 매칭 (ZZSS)
+    if (sub4 === 'ZZSS') {
+      if (driftCount === 0) {
+        // 1차 드리프트
+        pushStepById('z1', poolZ);
+        pushStepById('z2', poolZ);
+        pushStepById('s1', poolS);
+        pushStepById('s2', poolS);
+      } else {
+        // 2차 드리프트
+        pushStepById('z3', poolZ);
+        pushStepById('z4', poolZ);
+        pushStepById('s3', poolS);
+        pushStepById('s4', poolS);
+      }
+      driftCount++;
+      i += 4;
+    }
+    // 2. 반복성 3회 블록 매칭 (ZSZSZS)
+    else if (sub6 === 'ZSZSZS') {
+      pushStepById('z5', poolZ);
+      pushStepById('s5', poolS);
+      pushStepById('z6', poolZ);
+      pushStepById('s6', poolS);
+      pushStepById('z7', poolZ);
+      pushStepById('s7', poolS);
+      i += 6;
+    }
+    // 3. 반복성 2회 블록 매칭 (ZSZS)
+    else if (sub4 === 'ZSZS') {
+      pushStepById('z5', poolZ);
+      pushStepById('s5', poolS);
+      pushStepById('z6', poolZ);
+      pushStepById('s6', poolS);
+      i += 4;
+    }
+    // 4. 반복성 1회 블록 매칭 (ZS)
+    else if (sub2 === 'ZS') {
+      if (repCount === 0) {
+        pushStepById('z5', poolZ);
+        pushStepById('s5', poolS);
+      } else if (repCount === 1) {
+        pushStepById('z6', poolZ);
+        pushStepById('s6', poolS);
+      } else {
+        pushStepById('z7', poolZ);
+        pushStepById('s7', poolS);
+      }
+      repCount++;
+      i += 2;
+    }
+    // 5. 직선성 (M)
+    else if (char === 'M') {
+      if (mIdx < mSteps.length) {
+        ordered.push(mSteps[mIdx++]);
+      }
+      i++;
+    }
+    // 6. 응답 (R 또는 T)
+    else if (char === 'R' || char === 'T') {
+      if (rIdx < rSteps.length) {
+        ordered.push(rSteps[rIdx++]);
+      }
+      i++;
+    }
+    // 7. 현장/수분 (F)
+    else if (char === 'F') {
+      if (fIdx < fSteps.length) {
+        ordered.push(fSteps[fIdx++]);
+      }
+      i++;
+    }
+    // 8. 단독 Z 폴백
+    else if (char === 'Z') {
+      pushFirstAvailable(poolZ);
+      i++;
+    }
+    // 9. 단독 S 폴백
+    else if (char === 'S') {
+      pushFirstAvailable(poolS);
+      i++;
+    }
+    // 10. 기타 문자 무시
+    else {
+      i++;
     }
   }
 
