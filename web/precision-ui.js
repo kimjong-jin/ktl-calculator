@@ -1741,9 +1741,11 @@ function parsePhDigitSeq(code, seqStr) {
   return out;
 }
 
-// DO 진행순서: 시험종류 글자(S/Z) + 온도(20/30) 자동분해. 구분자·순서 무관.
-//   반복성=홀로 SSS / 드리프트=ZZZSSS(제로3·스팬3)×2(초기·2h) / 온도=20×3·30×3 / 응답=O
-//   'Z' 다음 'S'런=스팬드리프트, 'Z' 없이 온 'S'런=반복성 (S가 둘 다라서)
+// DO 진행순서: 시험종류 글자(S/Z) + 온도(20/30) 자동분해. 구분자·붙여쓰기·몰아치기 무관.
+//   글자를 "개수 순서"로 고정 배정 → N번째 S/Z를 정해진 N번째 칸에 1:1 매핑(버려지지 않음).
+//   S(9개): 반복3(dos) · 스팬드리프트 초기3(dosi) · 스팬드리프트 2h3(dosf)
+//   Z(6개): 제로드리프트 초기3(dozi) · 제로드리프트 2h3(dozf) / 온도 20×3·30×3 / 응답 O
+//   ※ 정식 입력(SSSZZZSSSZZZSSS…)과도 결과 동일.
 function parseDoSeq(code, seqStr) {
   const s = seqStr.toUpperCase();
   const toks = [];
@@ -1756,24 +1758,21 @@ function parseDoSeq(code, seqStr) {
   }
   if (!toks.length) return [];
   const idMap = {}; getDefaultPipelineSteps(code).forEach(st => { idMap[st.id] = st; });
-  const out = [], used = new Set();
-  const take = (arr, n) => arr.filter(id => !used.has(id)).slice(0, n);
-  const push = ids => ids.forEach(id => { if (idMap[id] && !used.has(id)) { used.add(id); out.push(idMap[id]); } });
-  const rep = ['dos1','dos2','dos3'];
-  const zPool = ['dozi1','dozi2','dozi3','dozf1','dozf2','dozf3'];   // 제로 초기3→2h3
-  const sDrift = ['dosi1','dosi2','dosi3','dosf1','dosf2','dosf3'];  // 스팬 초기3→2h3
-  const t20 = ['dot20a','dot20b','dot20c'], t30 = ['dot30a','dot30b','dot30c'];
-  let prev = null, i = 0;
-  while (i < toks.length) {
-    const t = toks[i];
-    let j = i; while (j < toks.length && toks[j] === t) j++;   // 같은 토큰 런
-    const n = j - i;
-    if (t === '20') push(take(t20, n));
-    else if (t === '30') push(take(t30, n));
-    else if (t === 'Z') push(take(zPool, n));                  // 제로드리프트
-    else if (t === 'S') push(take(prev === 'Z' ? sDrift : rep, n)); // Z뒤=스팬, 아니면=반복성
-    else if (t === 'O') push(take(['resp'], n));
-    prev = t; i = j;
+  // 타입별 배정 풀(개수 순서). 입력에서 나온 순서대로 풀의 다음 칸을 하나씩 소비.
+  const pools = {
+    S:  ['dos1','dos2','dos3','dosi1','dosi2','dosi3','dosf1','dosf2','dosf3'],
+    Z:  ['dozi1','dozi2','dozi3','dozf1','dozf2','dozf3'],
+    '20':['dot20a','dot20b','dot20c'],
+    '30':['dot30a','dot30b','dot30c'],
+    O:  ['resp'],
+  };
+  const idx = { S: 0, Z: 0, '20': 0, '30': 0, O: 0 };
+  const out = [];
+  for (const t of toks) {
+    const pool = pools[t];
+    if (!pool) continue;
+    const id = pool[idx[t]++];           // 같은 타입의 다음 칸
+    if (id && idMap[id]) out.push(idMap[id]);
   }
   return out;
 }
@@ -2605,7 +2604,7 @@ function buildFormBasic(code) {
   if (isToc) {
     headerSection = `
   <div class="pv-section" style="border-left:3px solid var(--warn)">
-    <p style="margin:0;line-height:1.8"><mark style="background:#fde047;color:#1f2328;padding:2px 6px;border-radius:3px;font-size:13px;font-weight:700;box-decoration-break:clone;-webkit-box-decoration-break:clone">⏱️ TOC: (15분 측정 장비) 드리프트 1차 측정 후 최소 4시간 경과 뒤 2차 측정 · 기본 16회 측정 · Z3, Z4까지 측정 시 총 18회 측정</mark></p>
+    <p style="margin:0;line-height:1.8"><mark style="background:#fde047;color:#1f2328;padding:2px 6px;border-radius:3px;font-size:13px;font-weight:700;box-decoration-break:clone;-webkit-box-decoration-break:clone">⏱️ TOC: 15분 측정 장비 기준, 드리프트 1차 측정 후 최소 4시간 경과 뒤 2차 측정 · 기본 16회 측정 · Z3, Z4까지 측정 시 총 18회 측정</mark></p>
   </div>
   <div class="pv-section">
     <h3 class="pv-section__title">📏 측정범위 · ⏱️ 응답시간 · 📋 배출기준</h3>
@@ -2707,6 +2706,9 @@ ${buildResultsPanel(code)}`;
 function buildFormPH() {
   return `
 <div class="card pv-form-card">
+  <div class="pv-section" style="border-left:3px solid var(--warn)">
+    <p style="margin:0;line-height:1.8"><mark style="background:#fde047;color:#1f2328;padding:2px 6px;border-radius:3px;font-size:13px;font-weight:700;box-decoration-break:clone;-webkit-box-decoration-break:clone">⏱️ pH: 드리프트 1차 측정 후 pH 7 표준액으로 최소 2시간 경과 뒤 2차 측정</mark></p>
+  </div>
   <div class="pv-section">
     <h3 class="pv-section__title">🔁 반복성
       <span class="pv-hint">pH7·pH4 각 3회 측정 (MAX 표준편차 ≤ 0.1)</span>
