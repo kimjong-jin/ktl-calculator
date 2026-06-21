@@ -2617,7 +2617,7 @@ function buildFormBasic(code) {
   } else {
     headerSection = `
   <div class="pv-section" style="border-left:3px solid var(--warn)">
-    <p style="margin:0;line-height:1.8"><mark style="background:#fde047;color:#1f2328;padding:2px 6px;border-radius:3px;font-size:13px;font-weight:700;box-decoration-break:clone;-webkit-box-decoration-break:clone">⏱️ COD/TN/TP/SS: 초기 드리프트 측정 후 최소 4시간 경과 뒤 후기 드리프트 측정</mark></p>
+    <p style="margin:0;line-height:1.8"><mark style="background:#fde047;color:#1f2328;padding:2px 6px;border-radius:3px;font-size:13px;font-weight:700;box-decoration-break:clone;-webkit-box-decoration-break:clone">⏱️ ${code}: 초기 드리프트 측정 후 최소 4시간 경과 뒤 후기 드리프트 측정</mark></p>
   </div>
   <div class="pv-section">
     <h3 class="pv-section__title">📏 측정범위</h3>
