@@ -3583,23 +3583,27 @@ function getActiveReceipts() {
   }
 }
 
-// 칩 이름 폴백: 신청자명 없는 코드는 접수번호로 실제 저장 사용자(calc_data userName) 표시 (관리자 전용)
-let calcUserMap = null; // receiptNo → userName
+// 칩 이름: 접수번호로 실제 저장 사용자(calc_data userName)를 우선 표시 (이름 변경 시 반영). 관리자 전용.
+let calcUserMap = {};       // receiptNo → 현재 userName
+let calcUserMapTs = 0;      // 마지막 조회 시각 (3초 캐시)
 async function ensureCalcUserMap() {
-  if (calcUserMap) return;
-  calcUserMap = {};
+  if (Date.now() - calcUserMapTs < 3000) return false;   // 3초 내 재요청 방지
+  calcUserMapTs = Date.now();
   try {
     const token = encodeURIComponent(localStorage.getItem('ktl-auth') || '');
     const res = await fetch(`/api/calcData?action=list&token=${token}`);
     if (res.ok) {
       const data = await res.json();
       const items = Array.isArray(data) ? data : (data.items || []);
+      const m = {};
       items.forEach(d => {
         const rn = d.receiptNo || d.receipt_no, un = d.userName || d.user_name;
-        if (rn && un && !calcUserMap[rn]) calcUserMap[rn] = un;
+        if (rn && un && !m[rn]) m[rn] = un;
       });
+      calcUserMap = m;
     }
   } catch {}
+  return true;
 }
 
 function renderAdminReceiptsQuick() {
@@ -3616,8 +3620,8 @@ function renderAdminReceiptsQuick() {
   }
 
   container.style.display = 'block';
-  if (!calcUserMap) ensureCalcUserMap().then(renderAdminReceiptsQuick);
-  const nameOf = (t) => t.applicantName || (calcUserMap && calcUserMap[t.receiptNo]) || '';
+  ensureCalcUserMap().then(refetched => { if (refetched) renderAdminReceiptsQuick(); });
+  const nameOf = (t) => calcUserMap[t.receiptNo] || t.applicantName || '';
   container.innerHTML = `
     <div class="pv-admin-receipts-title">발행된 접수번호 (클릭 시 즉시 로드):</div>
     <div class="pv-quick-chips-grid">
