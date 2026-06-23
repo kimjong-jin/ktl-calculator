@@ -423,7 +423,7 @@ function renderTokenTable(chatLimits, chatUsage) {
   } else {
     contentHtml = `<table class="token-table">
       <thead><tr><th>#</th><th>이름</th><th>비밀번호</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>챗봇 한도</th><th>관리</th></tr></thead>
-      <tbody>${list.map(t => {
+      <tbody>${list.map((t, i) => {
         const userId = decodeTokenUserId(t.token);
         const usage  = userId ? (chatUsage?.[userId]) : null;
         const todayCount = (usage?.date === today) ? usage.count : 0;
@@ -432,7 +432,7 @@ function renderTokenTable(chatLimits, chatUsage) {
         const rowClass = isExpired(t.expiresAt) ? ' token-row--expired' : copied ? ' token-row--copied' : '';
         return `
         <tr class="token-row${rowClass}">
-          <td class="token-col--no">${t.no || '–'}</td>
+          <td class="token-col--no">${i + 1}</td>
           <td class="token-col--label">
             <div style="color:#38bdf8;font-weight:600">${t.label || '–'}</div>
             ${(calcDataUsers[t.receiptNo] || t.applicantName) ? `<div style="font-size:11px;color:#94a3b8">${calcDataUsers[t.receiptNo] || t.applicantName}</div>` : ''}
