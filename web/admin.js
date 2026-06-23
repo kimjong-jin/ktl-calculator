@@ -427,7 +427,7 @@ function renderTokenTable(chatLimits, chatUsage) {
     }).join('');
   } else {
     contentHtml = `<table class="token-table">
-      <thead><tr><th>#</th><th>이름</th><th>비밀번호</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>챗봇 한도</th><th>관리</th></tr></thead>
+      <thead><tr><th style="text-align:center">#</th><th>발급자</th><th>업체/접수</th><th>비밀번호</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>챗봇 한도</th><th>관리</th></tr></thead>
       <tbody>${list.map((t, i) => {
         const userId = decodeTokenUserId(t.token);
         const usage  = userId ? (chatUsage?.[userId]) : null;
@@ -435,15 +435,31 @@ function renderTokenTable(chatLimits, chatUsage) {
         const limit  = userId ? (chatLimits?.keys?.[userId] ?? defaultLimit) : defaultLimit;
         const copied = isCopied(t.id);
         const rowClass = isExpired(t.expiresAt) ? ' token-row--expired' : copied ? ' token-row--copied' : '';
+        const applicant = calcDataUsers[t.receiptNo] || t.applicantName;
+        const siteName = calcDataSites[t.receiptNo] || t.siteName;
         return `
         <tr class="token-row${rowClass}">
           <td class="token-col--no">${list.length - i}</td>
-          <td class="token-col--label">
-            <div style="color:#38bdf8;font-weight:600">${t.label || '–'}</div>
-            ${(calcDataUsers[t.receiptNo] || t.applicantName) ? `<div style="font-size:11px;color:#94a3b8">${calcDataUsers[t.receiptNo] || t.applicantName}</div>` : ''}
-            ${(calcDataSites[t.receiptNo] || t.siteName) ? `<div style="font-size:11px;color:#64748b">${calcDataSites[t.receiptNo] || t.siteName}</div>` : ''}
-            ${t.receiptNo ? `<div style="font-size:11px;color:#38bdf8;font-family:monospace;cursor:pointer;text-decoration:underline" data-open-no="${t.receiptNo}" title="정도검사 계산기로 불러오기">${t.receiptNo}</div>` : ''}
-            ${t.receiptNo && !calcDataReceipts.has(t.receiptNo) ? `<div style="font-size:11px;color:#f59e0b;font-weight:600">미사용</div>` : ''}
+          <td class="token-col--issuer">
+            <div class="token-issuer-name">${t.label || '–'}</div>
+          </td>
+          <td class="token-col--info">
+            <div class="token-info-container">
+              ${(applicant || siteName) ? `
+                <div class="token-info-meta">
+                  ${applicant ? `<span class="token-info-applicant" title="신청인">${applicant}</span>` : ''}
+                  ${siteName ? `<span class="token-info-site" title="현장명">${siteName}</span>` : ''}
+                </div>
+              ` : ''}
+              ${t.receiptNo ? `
+                <div class="token-info-receipt-row">
+                  <code class="token-receipt-clickable" data-open-no="${t.receiptNo}" title="정도검사 계산기로 불러오기">${t.receiptNo}</code>
+                  ${!calcDataReceipts.has(t.receiptNo) ? `
+                    <span class="badge-unused">미사용</span>
+                  ` : ''}
+                </div>
+              ` : `<span class="token-info-empty">–</span>`}
+            </div>
           </td>
           <td class="token-col--pw">
             ${t.pw
@@ -465,8 +481,6 @@ function renderTokenTable(chatLimits, chatUsage) {
               : `<span style="font-size:12px;color:#94a3b8">–</span>`}
           </td>
           <td class="token-col--actions">
-            ${t.receiptNo ? `<button class="btn btn--mini" data-open-no="${t.receiptNo}" style="background:#0ea5e9;color:#fff;border:none" title="이 접수번호의 정도검사 데이터를 불러옵니다">📋 정도검사</button>` : ''}
-            <button class="btn btn--mini${copied ? ' btn--copied' : ''}" data-copy="${t.id}">${copied ? '복사됨 ✓' : '복사'}</button>
             <button class="btn btn--mini btn--danger" data-del="${t.id}">삭제</button>
           </td>
         </tr>`;
