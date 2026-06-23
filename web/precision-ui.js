@@ -3583,6 +3583,25 @@ function getActiveReceipts() {
   }
 }
 
+// 칩 이름 폴백: 신청자명 없는 코드는 접수번호로 실제 저장 사용자(calc_data userName) 표시 (관리자 전용)
+let calcUserMap = null; // receiptNo → userName
+async function ensureCalcUserMap() {
+  if (calcUserMap) return;
+  calcUserMap = {};
+  try {
+    const token = encodeURIComponent(localStorage.getItem('ktl-auth') || '');
+    const res = await fetch(`/api/calcData?action=list&token=${token}`);
+    if (res.ok) {
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : (data.items || []);
+      items.forEach(d => {
+        const rn = d.receiptNo || d.receipt_no, un = d.userName || d.user_name;
+        if (rn && un && !calcUserMap[rn]) calcUserMap[rn] = un;
+      });
+    }
+  } catch {}
+}
+
 function renderAdminReceiptsQuick() {
   const container = document.getElementById('pv-admin-receipts-quick');
   if (!container) return;
@@ -3597,12 +3616,14 @@ function renderAdminReceiptsQuick() {
   }
 
   container.style.display = 'block';
+  if (!calcUserMap) ensureCalcUserMap().then(renderAdminReceiptsQuick);
+  const nameOf = (t) => t.applicantName || (calcUserMap && calcUserMap[t.receiptNo]) || '';
   container.innerHTML = `
     <div class="pv-admin-receipts-title">발행된 접수번호 (클릭 시 즉시 로드):</div>
     <div class="pv-quick-chips-grid">
       ${list.map(t => `
-        <button type="button" class="btn btn--mini btn--ghost pv-quick-chip" data-load-receipt="${t.receiptNo}" title="${t.applicantName || ''} - ${t.siteName || ''}">
-          <span class="pv-quick-chip-key">🔑</span><span class="pv-quick-chip-no">${t.receiptNo}</span>${t.applicantName ? `<span class="pv-quick-chip-name">(${t.applicantName})</span>` : ''}
+        <button type="button" class="btn btn--mini btn--ghost pv-quick-chip" data-load-receipt="${t.receiptNo}" title="${nameOf(t)} - ${t.siteName || ''}">
+          <span class="pv-quick-chip-key">🔑</span><span class="pv-quick-chip-no">${t.receiptNo}</span>${nameOf(t) ? `<span class="pv-quick-chip-name">(${nameOf(t)})</span>` : ''}
         </button>
       `).join('')}
     </div>
