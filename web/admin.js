@@ -11,6 +11,7 @@ const TAB_KEY      = 'ktl-admin-tab';      // 마지막 선택 탭
 const USER_KEY     = 'ktl-admin-user';     // 현재 접속자 이름
 let adminToken = '';
 let calcDataReceipts = new Set();
+let calcDataUsers = {};   // receiptNo → 실제 저장한 사용자명 (표시용, 신청자명 없을 때 폴백)
 let currentAdminId = '';   // 인증 토큰의 id = 로그인한 관리자 본인 이름
 
 const STAFF_NAMES = ['김종진','권민경','김성대','김수철','정슬기','강준','정진욱'];
@@ -295,6 +296,8 @@ export async function initAdmin(token) {
     if (r.ok) {
       const list = await r.json();
       calcDataReceipts = new Set(list.map(d => d.receiptNo).filter(Boolean));
+      calcDataUsers = {};
+      list.forEach(d => { if (d.receiptNo && d.userName) calcDataUsers[d.receiptNo] = d.userName; });
     }
   } catch {}
 
@@ -403,7 +406,7 @@ function renderTokenTable(chatLimits, chatUsage) {
           ${statusBadge(t.expiresAt)}
           ${t.receiptNo && !calcDataReceipts.has(t.receiptNo) ? '<span style="font-size:11px;color:#f59e0b;font-weight:600;margin-left:4px">미사용</span>' : ''}
         </div>
-        ${t.applicantName ? `<div class="token-card__meta">${t.applicantName}</div>` : ''}
+        ${(t.applicantName || calcDataUsers[t.receiptNo]) ? `<div class="token-card__meta">${t.applicantName || calcDataUsers[t.receiptNo]}</div>` : ''}
         ${t.siteName ? `<div class="token-card__meta">${t.siteName}</div>` : ''}
         ${t.receiptNo ? `<div class="token-card__meta" style="font-family:monospace;color:#38bdf8;cursor:pointer;text-decoration:underline" data-open-no="${t.receiptNo}" title="정도검사 계산기로 불러오기">${t.receiptNo}</div>` : ''}
         ${t.pw ? `<div class="token-card__pw">
@@ -432,7 +435,7 @@ function renderTokenTable(chatLimits, chatUsage) {
           <td class="token-col--no">${t.no || '–'}</td>
           <td class="token-col--label">
             <div style="color:#38bdf8;font-weight:600">${t.label || '–'}</div>
-            ${t.applicantName ? `<div style="font-size:11px;color:#94a3b8">${t.applicantName}</div>` : ''}
+            ${(t.applicantName || calcDataUsers[t.receiptNo]) ? `<div style="font-size:11px;color:#94a3b8">${t.applicantName || calcDataUsers[t.receiptNo]}</div>` : ''}
             ${t.siteName ? `<div style="font-size:11px;color:#64748b">${t.siteName}</div>` : ''}
             ${t.receiptNo ? `<div style="font-size:11px;color:#38bdf8;font-family:monospace;cursor:pointer;text-decoration:underline" data-open-no="${t.receiptNo}" title="정도검사 계산기로 불러오기">${t.receiptNo}</div>` : ''}
             ${t.receiptNo && !calcDataReceipts.has(t.receiptNo) ? `<div style="font-size:11px;color:#f59e0b;font-weight:600">미사용</div>` : ''}
