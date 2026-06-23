@@ -429,7 +429,7 @@ function renderTokenTable(chatLimits, chatUsage) {
     // 발급자 열은 '전체'(여러 발급자 혼재) 볼 때만 — 특정 발급자 화면에선 전 행 동일값이라 중복
     const showIssuer = (activeTab === '전체');
     contentHtml = `<table class="token-table">
-      <thead><tr><th style="text-align:center">#</th>${showIssuer ? '<th>발급자</th>' : ''}<th>업체/접수</th><th>비밀번호</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>챗봇 한도</th><th>관리</th></tr></thead>
+      <thead><tr><th style="text-align:center">#</th>${showIssuer ? '<th>발급자</th>' : ''}<th>업체/접수</th><th>비밀번호</th><th>발급일<br><span style="font-weight:400;font-size:11px;color:#94a3b8">만료일</span></th><th>기간</th><th>상태</th><th>챗봇 한도</th><th>관리</th></tr></thead>
       <tbody>${list.map((t, i) => {
         const userId = decodeTokenUserId(t.token);
         const usage  = userId ? (chatUsage?.[userId]) : null;
@@ -467,8 +467,10 @@ function renderTokenTable(chatLimits, chatUsage) {
                  <button class="btn btn--mini" data-copy-pw="${t.pw}" style="margin-left:6px;font-size:11px;background:#0ea5e9;color:#fff;border:none">복사</button>`
               : '<span style="color:#475569;font-size:11px">–</span>'}
           </td>
-          <td class="token-col--date">${new Date(t.createdAt).toLocaleDateString('ko-KR')}</td>
-          <td class="token-col--exp">${new Date(t.expiresAt).toLocaleDateString('ko-KR')}</td>
+          <td class="token-col--date">
+            <div>${new Date(t.createdAt).toLocaleDateString('ko-KR')}</div>
+            <div style="font-size:11px;color:#94a3b8">~ ${new Date(t.expiresAt).toLocaleDateString('ko-KR')}</div>
+          </td>
           <td class="token-col--days">${t.days}일</td>
           <td class="token-col--status">${statusBadge(t.expiresAt)}</td>
           <td class="token-col--chat" style="white-space:nowrap">
