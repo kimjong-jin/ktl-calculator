@@ -426,8 +426,10 @@ function renderTokenTable(chatLimits, chatUsage) {
       </div>`;
     }).join('');
   } else {
+    // 발급자 열은 '전체'(여러 발급자 혼재) 볼 때만 — 특정 발급자 화면에선 전 행 동일값이라 중복
+    const showIssuer = (activeTab === '전체');
     contentHtml = `<table class="token-table">
-      <thead><tr><th style="text-align:center">#</th><th>발급자</th><th>업체/접수</th><th>비밀번호</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>챗봇 한도</th><th>관리</th></tr></thead>
+      <thead><tr><th style="text-align:center">#</th>${showIssuer ? '<th>발급자</th>' : ''}<th>업체/접수</th><th>비밀번호</th><th>발급일</th><th>만료일</th><th>기간</th><th>상태</th><th>챗봇 한도</th><th>관리</th></tr></thead>
       <tbody>${list.map((t, i) => {
         const userId = decodeTokenUserId(t.token);
         const usage  = userId ? (chatUsage?.[userId]) : null;
@@ -440,9 +442,7 @@ function renderTokenTable(chatLimits, chatUsage) {
         return `
         <tr class="token-row${rowClass}">
           <td class="token-col--no">${list.length - i}</td>
-          <td class="token-col--issuer">
-            <div class="token-issuer-name">${t.label || '–'}</div>
-          </td>
+          ${showIssuer ? `<td class="token-col--issuer"><div class="token-issuer-name">${t.label || '–'}</div></td>` : ''}
           <td class="token-col--info">
             <div class="token-info-container">
               ${(applicant || siteName) ? `
