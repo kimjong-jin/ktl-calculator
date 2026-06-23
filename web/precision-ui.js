@@ -3578,8 +3578,15 @@ function init() {
 
 function getActiveReceipts() {
   try {
-    const list = JSON.parse(localStorage.getItem('ktl-issued-tokens') || '[]');
-    return list.filter(t => t.receiptNo && new Date(t.expiresAt).getTime() > Date.now());
+    const list = JSON.parse(localStorage.getItem('ktl-issued-tokens') || '[]')
+      .filter(t => t.receiptNo && new Date(t.expiresAt).getTime() > Date.now());
+    // 접수번호가 유일 키 — 한 접수번호에 코드가 여럿(분실 후 재발급 등)이어도 칩은 1개로 합침(만료 늦은 코드 우선)
+    const byReceipt = {};
+    for (const t of list) {
+      const ex = byReceipt[t.receiptNo];
+      if (!ex || new Date(t.expiresAt).getTime() > new Date(ex.expiresAt).getTime()) byReceipt[t.receiptNo] = t;
+    }
+    return Object.values(byReceipt);
   } catch {
     return [];
   }
