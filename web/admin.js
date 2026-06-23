@@ -432,7 +432,7 @@ function renderTokenTable(chatLimits, chatUsage) {
         const rowClass = isExpired(t.expiresAt) ? ' token-row--expired' : copied ? ' token-row--copied' : '';
         return `
         <tr class="token-row${rowClass}">
-          <td class="token-col--no">${i + 1}</td>
+          <td class="token-col--no">${list.length - i}</td>
           <td class="token-col--label">
             <div style="color:#38bdf8;font-weight:600">${t.label || '–'}</div>
             ${(calcDataUsers[t.receiptNo] || t.applicantName) ? `<div style="font-size:11px;color:#94a3b8">${calcDataUsers[t.receiptNo] || t.applicantName}</div>` : ''}
