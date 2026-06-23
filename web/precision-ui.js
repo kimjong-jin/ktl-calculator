@@ -159,7 +159,7 @@ async function saveToServer(opts) {
     const res = await fetch('/api/calcData', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, siteName: calcSiteName, data: bundle, ttlDays: 10, accessToken: localStorage.getItem('ktl-auth') || '' }),
+      body: JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, siteName: calcSiteName, data: bundle, ttlDays: 10 }),
     });
     if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
     const { expiresAt } = await res.json();
@@ -196,7 +196,7 @@ async function retryOfflineSaves() {
     try {
       const res = await fetch('/api/calcData', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ receiptNo: p.receiptNo, userName: p.userName, siteName: p.siteName || '', data: p.bundle, ttlDays: 10, accessToken: localStorage.getItem('ktl-auth') || '' }),
+        body: JSON.stringify({ receiptNo: p.receiptNo, userName: p.userName, siteName: p.siteName || '', data: p.bundle, ttlDays: 10 }),
       });
       if (res.ok) {
         try { localStorage.removeItem(k); } catch {}

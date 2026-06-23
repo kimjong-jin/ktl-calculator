@@ -9,7 +9,7 @@
  * DELETE /api/calcData?receiptNo=xxx&userName=yyy&token → 삭제 (관리자)
  */
 import { verifyToken } from '../src/authService.js';
-import { revokeTokenByReceiptNo, syncReceiptInfo } from '../src/tokenStore.js';
+import { revokeTokenByReceiptNo } from '../src/tokenStore.js';
 
 const BASE          = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || '').replace(/\/$/, '');
 const STUDIO_SECRET = process.env.STUDIO_SECRET || '';
@@ -109,18 +109,6 @@ export default async function handler(req, res) {
       revokeTokenByReceiptNo(receiptNo).catch(() => {});
     }
 
-    // 계산 저장 성공 시: 접속 토큰(ktl-auth)에 접수번호/현장명 역동기화 (비어있으면 채움 → 관리자 목록 자동 반영)
-    if (req.method === 'POST' && upstream.ok) {
-      const accessToken = (req.body && req.body.accessToken)
-        || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-      if (accessToken) {
-        const v = verifyToken(accessToken);
-        if (v.valid && v.id) {
-          const { receiptNo, siteName } = req.body || {};
-          syncReceiptInfo(v.id, receiptNo, siteName).catch(() => {});
-        }
-      }
-    }
 
     return res.status(upstream.status).json(data);
 
