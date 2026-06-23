@@ -2582,7 +2582,9 @@ function setupPipelineAndGraph(tab) {
   const importBtn = document.getElementById('pv-seq-import-btn');
   if (importBtn) {
     importBtn.addEventListener('click', () => {
-      const src = tabs.find(t => t.subNo === 1);
+      // subNo 누락 가능(불러온 탭) → 라벨 끝번호(-1)로 폴백해서 첫 탭 찾기
+      const subOf = (t) => t.subNo || parseInt(String(t.label || '').split('-').pop(), 10) || 0;
+      const src = tabs.find(t => subOf(t) === 1);
       if (!src) { setSaveStatus('⚠️ -1 탭이 없습니다.', 'warn'); return; }
       if (src.id === tab.id) { setSaveStatus('⚠️ 현재 탭이 이미 -1입니다.', 'warn'); return; }
       const srcSeq = (loadData(src.id) || {})['seq'] || '';
