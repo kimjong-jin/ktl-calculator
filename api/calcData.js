@@ -103,6 +103,19 @@ export default async function handler(req, res) {
     const upstream = await fetch(url, { ...options, signal: AbortSignal.timeout(8000) });
     const data = await upstream.json();
 
+    // 담당자/접수번호 변경 시: 새 신원으로 저장 성공 후 옛 레코드 제자리 이전(삭제) — 중복 누적 방지.
+    // 오용 방지: 접수번호 또는 담당자 중 하나는 공유될 때만(= 진짜 이름/접수 정정) 옛 행 삭제.
+    if (req.method === 'POST' && upstream.ok) {
+      const prev = req.body && req.body.prev;
+      const nr = req.body.receiptNo, nu = req.body.userName;
+      if (prev && prev.receiptNo && prev.userName &&
+          (prev.receiptNo !== nr || prev.userName !== nu) &&
+          (prev.receiptNo === nr || prev.userName === nu)) {
+        fetch(`${BASE}/api/calc/${encodeURIComponent(prev.receiptNo)}?userName=${encodeURIComponent(prev.userName)}`,
+          { method: 'DELETE', headers: { 'x-studio-secret': STUDIO_SECRET }, signal: AbortSignal.timeout(8000) }).catch(() => {});
+      }
+    }
+
     // 계산 데이터 삭제 성공 시 Blob 접속 토큰도 함께 무효화
     if (req.method === 'DELETE' && upstream.ok) {
       const { receiptNo } = req.query;

@@ -155,11 +155,20 @@ async function saveToServer(opts) {
   const sig = bundleSig(bundle);
   if (skipIfUnchanged && sig !== null && sig === lastSavedSig) return;   // 변경 없음 → 조용히 스킵
   if (!silentSuccess) setSaveStatus('💾 저장 중…', 'loading');
+  // 담당자/접수번호를 바꿔 저장하면 옛 레코드를 새 신원으로 제자리 이전(중복 방지) — 고객만.
+  let prev = null;
+  if (!isAdmin()) {
+    try {
+      const ls = JSON.parse(localStorage.getItem('ktl-calc-last-save') || 'null');
+      if (ls && ls.receiptNo && ls.userName && (ls.receiptNo !== calcReceiptNo || ls.userName !== calcUserName))
+        prev = { receiptNo: ls.receiptNo, userName: ls.userName };
+    } catch {}
+  }
   try {
     const res = await fetch('/api/calcData', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, siteName: calcSiteName, data: bundle, ttlDays: 10 }),
+      body: JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, siteName: calcSiteName, data: bundle, ttlDays: 10, ...(prev ? { prev } : {}) }),
     });
     if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
     const { expiresAt } = await res.json();
