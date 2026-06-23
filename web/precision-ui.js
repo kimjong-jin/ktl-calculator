@@ -1935,6 +1935,43 @@ function parseSequenceString(code, seqStr) {
       repCount++;
       i += 2;
     }
+    // 4b. 드리프트 블록 — 스팬 먼저 (SSZZ): ZZSS와 동일 필드, 표시 순서만 S→Z
+    else if (sub4 === 'SSZZ') {
+      if (driftCount === 0) {
+        pushStepById('s1', poolS); pushStepById('s2', poolS);
+        pushStepById('z1', poolZ); pushStepById('z2', poolZ);
+      } else {
+        pushStepById('s3', poolS); pushStepById('s4', poolS);
+        pushStepById('z3', poolZ); pushStepById('z4', poolZ);
+      }
+      driftCount++;
+      i += 4;
+    }
+    // 4c. 반복성 3회 — 스팬 먼저 (SZSZSZ)
+    else if (sub6 === 'SZSZSZ') {
+      pushStepById('s5', poolS); pushStepById('z5', poolZ);
+      pushStepById('s6', poolS); pushStepById('z6', poolZ);
+      pushStepById('s7', poolS); pushStepById('z7', poolZ);
+      i += 6;
+    }
+    // 4d. 반복성 2회 — 스팬 먼저 (SZSZ)
+    else if (sub4 === 'SZSZ') {
+      pushStepById('s5', poolS); pushStepById('z5', poolZ);
+      pushStepById('s6', poolS); pushStepById('z6', poolZ);
+      i += 4;
+    }
+    // 4e. 반복성 1회 — 스팬 먼저 (SZ)
+    else if (sub2 === 'SZ') {
+      if (repCount === 0) {
+        pushStepById('s5', poolS); pushStepById('z5', poolZ);
+      } else if (repCount === 1) {
+        pushStepById('s6', poolS); pushStepById('z6', poolZ);
+      } else {
+        pushStepById('s7', poolS); pushStepById('z7', poolZ);
+      }
+      repCount++;
+      i += 2;
+    }
     // 5. 직선성 (M)
     else if (char === 'M') {
       if (mIdx < mSteps.length) {
