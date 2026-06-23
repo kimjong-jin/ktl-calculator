@@ -2061,11 +2061,17 @@ function updatePipeline(code) {
   // 측정 단계 그룹(라벨 접두: 드/반/직/온도/현장·수분/변동/응답)이 바뀌면 구분선 삽입.
   // 드리프트(드)는 초기/2h(후)를 별도 그룹으로 분리 → pH·DO에서 ZZZSSS‖ZZZSSS, 444777‖444777 표기.
   // (기본형 TOC는 라벨에 초/후가 없어 '드' 단일 — 1차·2차는 사이의 반복성으로 갈림)
-  const groupOf = (label) => {
-    const t = (label || '').trim();
+  const groupOf = (step) => {
+    const t = (step.label || '').trim();
     const c = t.charAt(0);
     if (c === '현' || c === '수') return '현장';
-    if (c === '드') return t.includes('후') ? '드후' : (t.includes('초') ? '드초' : '드');
+    if (c === '드') {
+      if (t.includes('초')) return '드초';   // pH·DO 초기 드리프트
+      if (t.includes('후')) return '드후';   // pH·DO 2h 드리프트
+      // 기본형: id 숫자로 1차(z1·z2·s1·s2)/2차(z3·z4·s3·s4) 구분 → 붙어 있어도 구분선
+      const n = parseInt(String(step.id).replace(/\D/g, ''), 10);
+      return (n >= 3) ? '드2' : '드1';
+    }
     return c;
   };
   let prevGroup = null;
@@ -2082,7 +2088,7 @@ function updatePipeline(code) {
       displayVal = isNaN(numVal) ? val : (Number.isInteger(numVal) ? numVal : parseFloat(numVal.toFixed(3)));
     }
 
-    const g = groupOf(step.label);
+    const g = groupOf(step);
     const sep = (prevGroup !== null && g !== prevGroup)
       ? '<div class="pv-pipeline-sep" aria-hidden="true"></div>' : '';
     prevGroup = g;
