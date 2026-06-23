@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     let url;
     const options = {
       method: req.method === 'DELETE' ? 'DELETE' : req.method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-studio-secret': STUDIO_SECRET },
     };
 
     if (req.method === 'GET') {
