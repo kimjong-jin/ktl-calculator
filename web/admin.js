@@ -160,7 +160,7 @@ async function saveCalcUserEdit(receiptNo, oldUser, newUser, siteName) {
     // 3) 저장 — ON CONFLICT(receipt_no) → user_name + data 갱신
     const postRes = await fetch('/api/calcData', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ receiptNo, userName: newUser, siteName: cur.siteName || siteName || '', data, ttlDays: 10 }),
+      body: JSON.stringify({ receiptNo, userName: newUser, siteName: cur.siteName || siteName || '', data, ttlDays: 10, preserveTime: true }),
     });
     return postRes.ok;
   } catch { return false; }
