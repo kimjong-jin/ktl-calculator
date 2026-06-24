@@ -99,17 +99,22 @@ let primaryTimer   = null;    // 주 사용자: 10초 자동 저장
 let viewerTimer    = null;    // 확인용: 10초 자동 불러오기
 try { isPrimaryUser = isAdmin() ? false : (localStorage.getItem('ktl-calc-primary') === '1'); } catch {}
 
+let adminEdits = [];   // 관리자 담당자 변경 이력(번들 메타) — 로드시 채워지고 저장시 보존
+
 function bundleState() {
   if (activeId) saveData(activeId);
   const fields = {};
   tabs.forEach(t => { fields[t.id] = loadData(t.id); });
-  return { tabs: tabs.map(({id,code,label,pass}) => ({id,code,label,pass})), activeId, fields };
+  const b = { tabs: tabs.map(({id,code,label,pass}) => ({id,code,label,pass})), activeId, fields };
+  if (Array.isArray(adminEdits) && adminEdits.length) b._adminEdits = adminEdits;   // 메타 보존(고객 저장에도 유지)
+  return b;
 }
 
 function restoreBundle(bundle) {
   // 보던 탭 유지: 현재 활성 탭의 라벨(예: TN-2)이 새 목록에도 있으면 그 탭을 유지.
   // (10초 자동 불러오기 때 주 사용자의 활성 탭으로 화면이 튀지 않도록)
   const isAdm = isAdmin();
+  adminEdits = Array.isArray(bundle._adminEdits) ? bundle._adminEdits : [];   // 메타 캡처(저장시 재방출용)
   const prevTab = tabs.find(t => t.id === activeId);
   const prevLabel = prevTab ? prevTab.label : null;
   if (isAdm) {
@@ -136,6 +141,30 @@ function restoreBundle(bundle) {
 function setSaveStatus(msg, type = 'ok') {
   const el = document.getElementById('pv-save-status');
   if (el) el.innerHTML = `<span class="pv-ss-${type}">${msg}</span>`;
+}
+
+// 관리자가 담당자를 변경한 기록(_adminEdits)이 있으면 고객에게 1회 안내 배너 표시.
+function showAdminEditNotice(data) {
+  try {
+    if (isAdmin()) return;   // 관리자 본인 화면엔 불필요
+    const edits = (data && Array.isArray(data._adminEdits)) ? data._adminEdits : [];
+    if (!edits.length) return;
+    const last = edits[edits.length - 1];
+    const ackKey = `ktl-adminedit-ack-${calcReceiptNo}`;
+    let acked = 0; try { acked = Number(localStorage.getItem(ackKey) || 0); } catch {}
+    if (last.at <= acked) return;   // 이미 확인한 변경
+    const when = new Date(last.at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' });
+    const ss = document.getElementById('pv-save-status');
+    if (!ss || !ss.parentNode) return;
+    let banner = document.getElementById('pv-admin-edit-notice');
+    if (!banner) { banner = document.createElement('div'); banner.id = 'pv-admin-edit-notice'; ss.parentNode.insertBefore(banner, ss); }
+    banner.innerHTML = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fef9c3;border:1px solid #fde047;color:#1f2328;border-radius:8px;padding:8px 12px;margin:6px 0;font-size:13px">
+      <span>ℹ️ 담당자가 <b>관리자(${last.by || '관리자'})</b>에 의해 <b>${last.from || '–'}</b> → <b>${last.to || '–'}</b> 로 변경되었습니다 <span style="color:#64748b">(${when})</span></span>
+      <button type="button" id="pv-admin-edit-ack" style="margin-left:auto;border:none;background:#1f2328;color:#fff;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px">확인</button>
+    </div>`;
+    const ackBtn = document.getElementById('pv-admin-edit-ack');
+    if (ackBtn) ackBtn.onclick = () => { try { localStorage.setItem(ackKey, String(last.at)); } catch {} banner.remove(); };
+  } catch {}
 }
 
 let lastSavedSig = null;   // 마지막 서버 저장 시점의 데이터 시그니처 (무변경 스킵용)
@@ -280,6 +309,7 @@ async function loadFromServer() {
     if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
     const { data, siteName: loadedSite, updatedAt } = await res.json();
     restoreBundle(data);
+    showAdminEditNotice(data);   // 관리자가 담당자를 바꿨으면 고객에게 안내
     if (loadedSite) {
       calcSiteName = loadedSite;
       const siteEl = document.getElementById('pv-site-name');

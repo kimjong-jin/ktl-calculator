@@ -74,16 +74,18 @@ async function loadCalcDataList(token) {
         : matchedToken
           ? '<span style="color:#22c55e;font-size:12px;font-weight:600">유효</span>'
           : '<span style="color:#f59e0b;font-size:12px;font-weight:600">무효</span>';
-      return `<div class="calc-data-row">
+      return `<div class="calc-data-row" data-receipt="${d.receiptNo}">
         <div class="calc-data-row__main">
           <span style="font-family:monospace;color:#38bdf8;font-size:13px">${d.receiptNo}</span>
           ${statusBadge}
           ${pwBadge}
         </div>
         <div class="calc-data-row__sub">
-          <span style="color:#94a3b8">${d.userName}</span>
-          ${d.siteName ? `<span style="color:#7dd3fc">${d.siteName}</span>` : ''}
-          <span style="color:#64748b;font-size:11px">저장 ${updated} | 만료 ${expires}</span>
+          <span style="color:#64748b">담당자:</span>
+          <span class="cd-user-name" style="color:#e2e8f0;font-weight:600">${d.userName}</span>
+          <button class="btn btn--mini btn--ghost cd-user-edit" data-receipt="${d.receiptNo}" data-user="${d.userName}" data-site="${d.siteName || ''}" title="담당자 수정" style="padding:0 6px">✏️</button>
+          ${d.siteName ? `<span style="color:#7dd3fc">· ${d.siteName}</span>` : ''}
+          <span style="color:#64748b;font-size:11px">· 저장 ${updated} · 만료 ${expires}</span>
         </div>
         <div class="calc-data-row__actions">
           <button class="btn btn--mini" style="background:#dc2626;color:#fff;border:none"
@@ -104,9 +106,64 @@ async function loadCalcDataList(token) {
         else alert('삭제 실패');
       });
     });
+    // 담당자 인라인 수정
+    listEl.querySelectorAll('.cd-user-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const row = btn.closest('.calc-data-row');
+        const nameSpan = row.querySelector('.cd-user-name');
+        if (row.querySelector('.cd-user-edit-wrap')) return;   // 이미 편집 중
+        const oldUser = btn.dataset.user, receiptNo = btn.dataset.receipt, siteName = btn.dataset.site;
+        nameSpan.style.display = 'none';
+        btn.style.display = 'none';
+        const wrap = document.createElement('span');
+        wrap.className = 'cd-user-edit-wrap';
+        wrap.style.cssText = 'display:inline-flex;gap:4px;align-items:center';
+        wrap.innerHTML = `<input class="cd-user-input field__control" type="text" value="${oldUser}" style="width:120px;padding:2px 6px;font-size:13px">
+          <button class="btn btn--mini cd-user-save" style="background:#0ea5e9;color:#fff;border:none;font-size:11px">저장</button>
+          <button class="btn btn--mini btn--ghost cd-user-cancel" style="font-size:11px">취소</button>`;
+        nameSpan.after(wrap);
+        const input = wrap.querySelector('.cd-user-input');
+        input.focus(); input.select();
+        const cleanup = () => { wrap.remove(); nameSpan.style.display = ''; btn.style.display = ''; };
+        wrap.querySelector('.cd-user-cancel').onclick = cleanup;
+        wrap.querySelector('.cd-user-save').onclick = async () => {
+          const newUser = input.value.trim();
+          if (!newUser || newUser === oldUser) { cleanup(); return; }
+          const saveBtn = wrap.querySelector('.cd-user-save');
+          saveBtn.textContent = '저장중…'; saveBtn.disabled = true;
+          const ok = await saveCalcUserEdit(receiptNo, oldUser, newUser, siteName);
+          if (ok) loadCalcDataList(token);
+          else { alert('담당자 변경 실패'); cleanup(); }
+        };
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') wrap.querySelector('.cd-user-save').click();
+          else if (e.key === 'Escape') cleanup();
+        });
+      });
+    });
   } catch (e) {
     listEl.innerHTML = `<p class="admin-card__sub">❌ 오류: ${e.message}</p>`;
   }
+}
+
+// 관리자가 담당자(userName) 변경 → calc_data 같은 접수번호 레코드 갱신 + 번들 메타에 변경 이력 기록.
+async function saveCalcUserEdit(receiptNo, oldUser, newUser, siteName) {
+  try {
+    // 1) 현재 번들 조회 (접수번호 단일 키)
+    const getRes = await fetch(`/api/calcData?receiptNo=${encodeURIComponent(receiptNo)}`);
+    if (!getRes.ok) return false;
+    const cur = await getRes.json();
+    const data = cur.data || {};
+    // 2) 변경 이력 메타 기록 (고객 화면에 "관리자에 의해 변경" 안내용)
+    if (!Array.isArray(data._adminEdits)) data._adminEdits = [];
+    data._adminEdits.push({ field: 'userName', from: oldUser, to: newUser, by: getAdminUser(), at: Date.now() });
+    // 3) 저장 — ON CONFLICT(receipt_no) → user_name + data 갱신
+    const postRes = await fetch('/api/calcData', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ receiptNo, userName: newUser, siteName: cur.siteName || siteName || '', data, ttlDays: 10 }),
+    });
+    return postRes.ok;
+  } catch { return false; }
 }
 
 // ── AI 법령 3단계 모드 ────────────────────────────────────────
