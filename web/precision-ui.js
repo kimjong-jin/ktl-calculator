@@ -3648,6 +3648,7 @@ async function ensureCalcUserMap() {
 function renderAdminReceiptsQuick() {
   const container = document.getElementById('pv-admin-receipts-quick');
   if (!container) return;
+  if (typeof window !== 'undefined') window.renderAdminReceiptsQuick = renderAdminReceiptsQuick;  // admin.js 주기 동기화에서 칩 갱신 호출용
   if (!isAdmin()) {
     container.style.display = 'none';
     return;

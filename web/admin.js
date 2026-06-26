@@ -264,7 +264,7 @@ function daysLeft(expiresAt) {
 }
 
 // ── 초기화 ──────────────────────────────────────────────────
-export async function initAdmin(token) {
+export async function initAdmin(token, silent = false) {
   adminToken = token;
   syncSkillsFromServer();   // Mac Studio 스킬을 localStorage 캐시로 동기화(비차단)
   syncPendingChatMode();    // 오프라인 중 보류된 채팅모드 변경을 서버에 재동기화
@@ -365,8 +365,21 @@ export async function initAdmin(token) {
 
   const wrap = document.getElementById('admin-wrap');
   if (!wrap) return;
-  wrap.innerHTML = '<p class="admin-loading">관리자 데이터 로드 중…</p>';
+  if (!silent) wrap.innerHTML = '<p class="admin-loading">관리자 데이터 로드 중…</p>';
   await loadAndRender(wrap);
+
+  // 실시간 연동: 휴대폰(사용자)이 채운 접수번호/현장명이 Blob 토큰에 올라오면,
+  // 관리자 코드목록·발행된 접수번호 칩에 자동 반영되도록 10초 주기 재동기화.
+  if (!silent && typeof window !== 'undefined') {
+    if (window._adminSyncTimer) clearInterval(window._adminSyncTimer);
+    window._adminSyncTimer = setInterval(() => {
+      // 인라인 수정 등 입력 중이면 재렌더 건너뜀(편집 유실 방지)
+      const a = document.activeElement;
+      if (a && ['INPUT', 'SELECT', 'TEXTAREA'].includes(a.tagName)) return;
+      initAdmin(token, true).catch(() => {});
+      try { window.renderAdminReceiptsQuick && window.renderAdminReceiptsQuick(); } catch {}
+    }, 10_000);
+  }
 }
 
 async function loadAndRender(wrap) {
