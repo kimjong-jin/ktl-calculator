@@ -294,12 +294,10 @@ async function loadFromServer() {
     }
     return;
   }
-  if (!calcUserName) {
-    setSaveStatus('⚠️ 접수번호와 사용자 이름을 입력하세요.', 'warn'); return;
-  }
+  // 접수번호가 유일 키 — userName 없어도 접수번호로 로드(이름 없이 발급된 코드의 device B 자동 로드)
   setSaveStatus('🔄 불러오는 중…', 'loading');
   try {
-    const res = await fetch(`/api/calcData?receiptNo=${encodeURIComponent(calcReceiptNo)}&userName=${encodeURIComponent(calcUserName)}`);
+    const res = await fetch(`/api/calcData?receiptNo=${encodeURIComponent(calcReceiptNo)}${calcUserName ? `&userName=${encodeURIComponent(calcUserName)}` : ''}`);
     if (res.status === 404) {
       // 오프라인 폴백 확인
       const local = localStorage.getItem(`ktl-calc-offline-${calcReceiptNo}-${calcUserName}`);
@@ -318,9 +316,15 @@ async function loadFromServer() {
       return;
     }
     if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
-    const { data, siteName: loadedSite, updatedAt } = await res.json();
+    const { data, userName: loadedUser, siteName: loadedSite, updatedAt } = await res.json();
     restoreBundle(data);
     showAdminEditNotice(data);   // 관리자가 담당자를 바꿨으면 고객에게 안내
+    if (loadedUser && !calcUserName) {   // 이름 없이 들어온 경우 서버 값으로 채움
+      calcUserName = loadedUser;
+      const userEl = document.getElementById('pv-user-name');
+      if (userEl) { userEl.value = loadedUser; userEl.dispatchEvent(new Event('input')); }
+      if (!isAdmin()) { try { localStorage.setItem('ktl-calc-username', loadedUser); } catch {} }
+    }
     if (loadedSite) {
       calcSiteName = loadedSite;
       const siteEl = document.getElementById('pv-site-name');
@@ -3619,7 +3623,7 @@ function init() {
   });
   applyAccessMode();   // 초기 권한 적용
   retryOfflineSaves();   // 미전송(오프라인) 저장분이 있으면 서버에 자동 재전송
-  if (!isAdm && calcReceiptNo && calcUserName) {
+  if (!isAdm && calcReceiptNo) {   // 접수번호만 있으면 자동 로드(이름 없이 발급된 코드도 device B 자동 불러오기)
     loadFromServer();
   }
   document.getElementById('pv-form-area')?.addEventListener('input', e => {
