@@ -365,7 +365,7 @@ function applyAccessMode() {
     primaryTimer = setInterval(() => { if (calcReceiptNo && calcUserName) saveToServer({ skipIfUnchanged: true, silentSuccess: true }); }, 30_000);  // 쓰기: 30초 주기 — 변경 없으면 조용히 스킵, 성공 무음(실패는 알림)
   } else if (!primary && !isAdmin()) {
     viewerTimer = setInterval(() => {
-      if (calcReceiptNo && calcUserName) {
+      if (calcReceiptNo) {
         loadFromServer();
       } else {
         pollTokenMetadata();
