@@ -3619,6 +3619,9 @@ function init() {
   });
   applyAccessMode();   // 초기 권한 적용
   retryOfflineSaves();   // 미전송(오프라인) 저장분이 있으면 서버에 자동 재전송
+  if (!isAdm && calcReceiptNo && calcUserName) {
+    loadFromServer();
+  }
   document.getElementById('pv-form-area')?.addEventListener('input', e => {
     scheduleAutoSave();
   });
