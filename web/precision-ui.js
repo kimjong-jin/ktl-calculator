@@ -348,6 +348,49 @@ function scheduleAutoSave() {
   autoSaveTimer = setTimeout(() => saveToServer(), 30_000);   // 입력 멈춘 뒤 30초: 변경 있으니 토스트 표시
 }
 
+// ── 주사용자 단일 락 (접수번호별 1명, 관리자 논외) ───────────
+let heartbeatTimer = null;
+function getSessionId() {
+  let id = '';
+  try { id = localStorage.getItem('ktl-session-id') || ''; } catch {}
+  if (!id) { id = 'd' + Math.random().toString(36).slice(2) + Date.now().toString(36); try { localStorage.setItem('ktl-session-id', id); } catch {} }
+  return id;
+}
+// 점유 획득/뺏기. 응답 {ok, held} 또는 {ok:false, occupied:true}
+async function claimPrimary(force) {
+  if (!calcReceiptNo) return { ok: true, held: true };   // 접수번호 없으면 락 대상 없음
+  try {
+    const res = await fetch('/api/calcPrimary', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'claim', receiptNo: calcReceiptNo, sessionId: getSessionId(), force: !!force }) });
+    return await res.json();
+  } catch { return { ok: true, held: true }; }   // 통신 실패 시 막지 않음(오프라인 관용)
+}
+async function releasePrimary() {
+  if (!calcReceiptNo) return;
+  try { await fetch('/api/calcPrimary', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'release', receiptNo: calcReceiptNo, sessionId: getSessionId() }) }); } catch {}
+}
+function startHeartbeat() {
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(async () => {
+    if (!isPrimaryUser || !calcReceiptNo || isAdmin()) return;
+    try {
+      const res = await fetch('/api/calcPrimary', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'heartbeat', receiptNo: calcReceiptNo, sessionId: getSessionId() }) });
+      const d = await res.json();
+      if (d && d.held === false) {   // 다른 기기가 뺏어감 → 확인용으로 강등
+        isPrimaryUser = false;
+        try { if (!isAdmin()) localStorage.setItem('ktl-calc-primary', '0'); } catch {}
+        clearInterval(heartbeatTimer);
+        applyAccessMode();
+        if (calcReceiptNo) loadFromServer();
+        alert('⚠️ 다른 기기에서 편집 권한을 가져갔습니다. 확인용(읽기 전용)으로 전환됩니다.');
+      }
+    } catch {}
+  }, 10_000);
+}
+function stopHeartbeat() { clearInterval(heartbeatTimer); }
+
 // ── 접속자 권한 모드 ────────────────────────────────────────
 // 주 사용자/관리자: 읽기·쓰기·저장·불러오기 + 10초 자동 저장.
 // 확인용(제2 접속자): 읽기·불러오기만(쓰기·저장 불가) + 10초 자동 불러오기.
@@ -363,7 +406,9 @@ function applyAccessMode() {
   clearInterval(primaryTimer); clearInterval(viewerTimer);
   if (primary && !isAdmin()) {
     primaryTimer = setInterval(() => { if (calcReceiptNo && calcUserName) saveToServer({ skipIfUnchanged: true, silentSuccess: true }); }, 30_000);  // 쓰기: 30초 주기 — 변경 없으면 조용히 스킵, 성공 무음(실패는 알림)
+    startHeartbeat();   // 락 유지 (10초마다 heartbeat, 뺏기면 자동 강등)
   } else if (!primary && !isAdmin()) {
+    stopHeartbeat();
     viewerTimer = setInterval(() => {
       if (calcReceiptNo) {
         loadFromServer();
@@ -3577,13 +3622,24 @@ function init() {
   });
   document.getElementById('pv-save-btn')?.addEventListener('click', () => saveToServer());  // 수동 저장: 항상 저장 + 토스트
   document.getElementById('pv-load-btn')?.addEventListener('click', loadFromServer);
-  document.getElementById('pv-primary-btn')?.addEventListener('click', () => {
-    isPrimaryUser = !isPrimaryUser;        // 누구나 토글 (누르면 주 사용자)
+  document.getElementById('pv-primary-btn')?.addEventListener('click', async () => {
+    const turningOn = !isPrimaryUser;
+    // 주사용자 되려 할 때: 락 요청(관리자는 논외 — 락 없이 자유). 점유 중이면 뺏어오기 확인.
+    if (turningOn && !isAdm) {
+      const r = await claimPrimary(false);
+      if (r && r.occupied) {
+        if (!confirm('다른 기기에서 지금 쓰고 있습니다 — 뺏어올까요?')) return;   // 취소 → 확인용 유지
+        const r2 = await claimPrimary(true);   // 강제 뺏기
+        if (!r2 || r2.held !== true) { alert('편집 권한 획득 실패 — 잠시 후 다시 시도해주세요.'); return; }
+      }
+    }
+    isPrimaryUser = turningOn;
     if (!isAdm) {
       try { localStorage.setItem('ktl-calc-primary', isPrimaryUser ? '1' : '0'); } catch {}
+      if (!isPrimaryUser) releasePrimary();   // 확인용으로 내려가면 락 해제
     }
-    applyAccessMode();
-    if (!isPrimaryUser && calcReceiptNo) loadFromServer();   // 확인용 전환 시 즉시 최신 반영
+    applyAccessMode();                                          // primary면 startHeartbeat 포함
+    if (!isPrimaryUser && calcReceiptNo) loadFromServer();      // 확인용 전환 시 즉시 최신 반영
   });
   document.getElementById('pv-reset-btn')?.addEventListener('click', () => {
     if (!confirm('화면의 모든 입력 데이터와 탭을 지우고 깨끗이 청소하시겠습니까?')) return;
@@ -3621,6 +3677,17 @@ function init() {
     renderAdminReceiptsQuick();
     setSaveStatus('🧹 화면이 깨끗하게 청소되었습니다.', 'ok');
   });
+  // 복귀한 주사용자(저장된 primary 상태)는 락 재확인 — 다른 기기가 점유 중이면 조용히 확인용으로 강등
+  if (isPrimaryUser && !isAdm && calcReceiptNo) {
+    (async () => {
+      const r = await claimPrimary(false);
+      if (r && r.occupied) {
+        isPrimaryUser = false;
+        try { localStorage.setItem('ktl-calc-primary', '0'); } catch {}
+        applyAccessMode();
+      }
+    })();
+  }
   applyAccessMode();   // 초기 권한 적용
   retryOfflineSaves();   // 미전송(오프라인) 저장분이 있으면 서버에 자동 재전송
   if (!isAdm && calcReceiptNo) {   // 접수번호만 있으면 자동 로드(이름 없이 발급된 코드도 device B 자동 불러오기)
