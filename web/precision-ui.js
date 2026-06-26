@@ -185,9 +185,14 @@ async function saveToServer(opts) {
   if (skipIfUnchanged && sig !== null && sig === lastSavedSig) return;   // 변경 없음 → 조용히 스킵
   if (!silentSuccess) setSaveStatus('💾 저장 중…', 'loading');
   try {
+    const token = localStorage.getItem('ktl-auth') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
     const res = await fetch('/api/calcData', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ receiptNo: calcReceiptNo, userName: calcUserName, siteName: calcSiteName, data: bundle, ttlDays: 10 }),
     });
     if (!res.ok) throw new Error((await res.json()).error || '서버 오류');
@@ -223,8 +228,14 @@ async function retryOfflineSaves() {
     let p; try { p = JSON.parse(localStorage.getItem(k)); } catch { continue; }
     if (!p || !p.receiptNo || !p.userName || !p.bundle) continue;   // 구형식(메타 없음)은 자동재전송 대상 아님
     try {
+      const token = localStorage.getItem('ktl-auth') || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       const res = await fetch('/api/calcData', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers,
         body: JSON.stringify({ receiptNo: p.receiptNo, userName: p.userName, siteName: p.siteName || '', data: p.bundle, ttlDays: 10 }),
       });
       if (res.ok) {
@@ -327,6 +338,7 @@ async function loadFromServer() {
 
 function scheduleAutoSave() {
   if (isAdmin()) return;
+  if (!isPrimaryUser) return;
   if (!calcReceiptNo || !calcUserName) return;
   clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(() => saveToServer(), 30_000);   // 입력 멈춘 뒤 30초: 변경 있으니 토스트 표시
@@ -348,7 +360,13 @@ function applyAccessMode() {
   if (primary && !isAdmin()) {
     primaryTimer = setInterval(() => { if (calcReceiptNo && calcUserName) saveToServer({ skipIfUnchanged: true, silentSuccess: true }); }, 30_000);  // 쓰기: 30초 주기 — 변경 없으면 조용히 스킵, 성공 무음(실패는 알림)
   } else if (!primary && !isAdmin()) {
-    viewerTimer = setInterval(() => { if (calcReceiptNo) loadFromServer(); }, 10_000);                 // 읽기: 10초 자동 불러오기
+    viewerTimer = setInterval(() => {
+      if (calcReceiptNo && calcUserName) {
+        loadFromServer();
+      } else {
+        pollTokenMetadata();
+      }
+    }, 10_000);                 // 읽기: 10초 자동 불러오기
   }
   const btn = document.getElementById('pv-primary-btn');
   if (btn) {
@@ -361,6 +379,41 @@ function applyAccessMode() {
       : '읽기 전용 상태. 눌러서 주 사용자 활성화(쓰기·저장).';
   }
 }
+
+async function pollTokenMetadata() {
+  const token = localStorage.getItem('ktl-auth');
+  if (!token) return;
+  try {
+    const res = await fetch(`/api/auth?token=${encodeURIComponent(token)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.valid && data.receiptNo) {
+      calcReceiptNo = data.receiptNo;
+      calcUserName = data.applicantName || '';
+      calcSiteName = data.siteName || '';
+      
+      const receiptEl = document.getElementById('pv-receipt-no');
+      const userEl = document.getElementById('pv-user-name');
+      const siteEl = document.getElementById('pv-site-name');
+      
+      if (receiptEl) receiptEl.value = calcReceiptNo;
+      if (userEl) userEl.value = calcUserName;
+      if (siteEl) siteEl.value = calcSiteName;
+      
+      try {
+        localStorage.setItem('ktl-calc-receipt', calcReceiptNo);
+        localStorage.setItem('ktl-calc-username', calcUserName);
+        localStorage.setItem('ktl-site-name', calcSiteName);
+      } catch {}
+      
+      loadFromServer();
+      applyAccessMode();
+    }
+  } catch (err) {
+    console.error('Failed to poll token metadata:', err);
+  }
+}
+
 
 function saveMeta() {
   if (isAdmin()) return;

@@ -4,7 +4,7 @@
  *   GET  /api/auth?token=...      → { valid, exp }  (토큰 유효성 확인)
  */
 import { verifyAccess, verifyToken, issueUserSession } from '../src/authService.js';
-import { isTokenValid, findTokenByPw } from '../src/tokenStore.js';
+import { isTokenValid, findTokenByPw, getTokenMetadata } from '../src/tokenStore.js';
 
 async function readJson(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -18,7 +18,26 @@ async function readJson(req) {
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     const token = (req.query && req.query.token) || '';
-    return res.status(200).json(verifyToken(String(token)));
+    const v = verifyToken(String(token));
+    if (v.valid && v.role === 'user' && v.id) {
+      try {
+        const meta = await getTokenMetadata(v.id);
+        if (meta) {
+          return res.status(200).json({
+            valid: true,
+            exp: v.exp,
+            role: v.role,
+            id: v.id,
+            applicantName: meta.applicantName || '',
+            receiptNo: meta.receiptNo || '',
+            siteName: meta.siteName || '',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch token metadata:', err);
+      }
+    }
+    return res.status(200).json(v);
   }
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, GET');

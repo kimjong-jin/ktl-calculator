@@ -186,18 +186,37 @@ export async function updateApplicantName(tokenId, applicantName) {
   return { oldName, receiptNo };
 }
 
-/** 업체가 계산기에서 입력·저장한 접수번호/현장명을 토큰에 역동기화 (비어있을 때만 채움) */
+/** 업체가 계산기에서 입력·저장한 접수번호/현장명을 토큰에 역동기화 */
 export async function syncReceiptInfo(tokenId, receiptNo, siteName) {
   if (!tokenId) return false;
   const map = await readCodes();
   const e = map[tokenId];
   if (!e) return false;
   let changed = false;
-  if (receiptNo && !e.receiptNo) { e.receiptNo = String(receiptNo).slice(0, 30); changed = true; }
-  if (siteName && !e.siteName) { e.siteName = String(siteName).slice(0, 60); changed = true; }
+  if (receiptNo && e.receiptNo !== receiptNo) { e.receiptNo = String(receiptNo).slice(0, 30); changed = true; }
+  if (siteName && e.siteName !== siteName) { e.siteName = String(siteName).slice(0, 60); changed = true; }
   if (changed) await writeCodes(map);
   return changed;
 }
+
+/** 특정 토큰 ID의 만료되지 않은 메타데이터 조회 */
+export async function getTokenMetadata(tokenId) {
+  if (!tokenId) return null;
+  const map = await readCodes();
+  const e = map[tokenId];
+  if (!e) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (e.exp <= now) return null;
+  return {
+    tokenId,
+    exp: e.exp,
+    applicantName: e.applicantName || '',
+    receiptNo: e.receiptNo || '',
+    siteName: e.siteName || '',
+    issuer: e.issuer || '',
+  };
+}
+
 
 /** 접수번호로 토큰 즉시 무효화 (로컬 삭제 시 연동) */
 export async function revokeTokenByReceiptNo(receiptNo) {

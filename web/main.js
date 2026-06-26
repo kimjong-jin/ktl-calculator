@@ -29,6 +29,22 @@ async function tryInviteLogin(onSuccess) {
     if (res.ok) {
       storeToken(data.token);
       window.history.replaceState(null, '', location.pathname);
+      if (data.role !== 'admin') {
+        try {
+          localStorage.setItem('ktl-applicant-name', data.applicantName || '');
+          localStorage.setItem('ktl-receipt-no', data.receiptNo || '');
+          localStorage.setItem('ktl-calc-username', data.applicantName || '');
+          localStorage.setItem('ktl-calc-receipt', data.receiptNo || '');
+          localStorage.setItem('ktl-site-name', data.siteName || '');
+          
+          const receiptEl = document.getElementById('pv-receipt-no');
+          const userEl = document.getElementById('pv-user-name');
+          const siteEl = document.getElementById('pv-site-name');
+          if (receiptEl) receiptEl.value = data.receiptNo || '';
+          if (userEl) userEl.value = data.applicantName || '';
+          if (siteEl) siteEl.value = data.siteName || '';
+        } catch {}
+      }
       if (data.applicantName) {
         showNameConfirmModal(data.applicantName, data.receiptNo || '', data.siteName || '', () => onSuccess(data.role || 'user'), data.token);
       } else {
@@ -332,6 +348,22 @@ function setupAuthGate(onSuccess) {
       const data = await res.json();
       if (!res.ok) { showAuthError(data.error || '비밀번호가 올바르지 않습니다.'); return; }
       storeToken(data.token);
+      if (data.role !== 'admin') {
+        try {
+          localStorage.setItem('ktl-applicant-name', data.applicantName || '');
+          localStorage.setItem('ktl-receipt-no', data.receiptNo || '');
+          localStorage.setItem('ktl-calc-username', data.applicantName || '');
+          localStorage.setItem('ktl-calc-receipt', data.receiptNo || '');
+          localStorage.setItem('ktl-site-name', data.siteName || '');
+          
+          const receiptEl = document.getElementById('pv-receipt-no');
+          const userEl = document.getElementById('pv-user-name');
+          const siteEl = document.getElementById('pv-site-name');
+          if (receiptEl) receiptEl.value = data.receiptNo || '';
+          if (userEl) userEl.value = data.applicantName || '';
+          if (siteEl) siteEl.value = data.siteName || '';
+        } catch {}
+      }
       if (data.applicantName) {
         showNameConfirmModal(data.applicantName, data.receiptNo || '', data.siteName || '', () => onSuccess(data.role || 'user'), data.token);
       } else {

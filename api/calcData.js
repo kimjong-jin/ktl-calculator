@@ -9,7 +9,7 @@
  * DELETE /api/calcData?receiptNo=xxx&userName=yyy&token → 삭제 (관리자)
  */
 import { verifyToken } from '../src/authService.js';
-import { revokeTokenByReceiptNo } from '../src/tokenStore.js';
+import { syncReceiptInfo, revokeTokenByReceiptNo } from '../src/tokenStore.js';
 
 const BASE          = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || '').replace(/\/$/, '');
 const STUDIO_SECRET = process.env.STUDIO_SECRET || '';
@@ -82,11 +82,28 @@ export default async function handler(req, res) {
       }
 
     } else if (req.method === 'POST') {
-      const { receiptNo, userName } = req.body || {};
+      const { receiptNo, userName, siteName } = req.body || {};
       if (!receiptNo || !userName)
         return res.status(400).json({ error: 'receiptNo, userName 필수' });
       url = `${BASE}/api/calc`;
       options.body = JSON.stringify(req.body);
+
+      // Auth token verification for client mapping sync
+      const authHeader = req.headers.authorization || '';
+      let token = '';
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+      if (token) {
+        try {
+          const verified = verifyToken(token);
+          if (verified.valid && verified.id) {
+            await syncReceiptInfo(verified.id, receiptNo, siteName);
+          }
+        } catch (err) {
+          console.error('Failed to sync receipt info:', err);
+        }
+      }
 
     } else if (req.method === 'DELETE') {
       if (!isAdminJwt(req) && !requireAdmin(req, res)) return;
