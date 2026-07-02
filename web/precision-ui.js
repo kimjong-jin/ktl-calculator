@@ -2323,11 +2323,52 @@ function parsePhTimerSteps(code, seqStr) {
   return steps;
 }
 
+const TIMER_WATERMEAS_KEY  = 'ktl-timer-watermeas-min';   // Cl·TU 측정(기본 6분, 조절가능)
+const TIMER_WATERDRIFT_KEY = 'ktl-timer-waterdrift-min';  // Cl·TU 드리프트 대기(기본 2시간=120분)
+
+// Cl·TU(먹는물 단순형) 진행순서(Z/S/M) → 타이머. 다 6분 균일, 드리프트 초기↔후기 사이 2시간.
+// ZZ·SS(묶음)=드리프트, Z·S(단독)=반복성, M=현장. SS 파서와 구조 동일, 시간만 다름.
+// Cl·TU 먹는물 고정 진행순서 (사용자가 안 침): 초기드리프트 ZZSS ─2시간─ 후기 ZZSS · 반복성 ZS · M
+const WATER_FIXED_SEQ = 'ZZSSZZSSZSM';
+function parseWaterTimerSteps(seqStr) {
+  // 괄호 안 (Z)는 '2시간 대기 위치 표시'라 측정 글자에서 제외 → 뒤 ZZ와 안 붙게
+  let raw = String(seqStr || '').toUpperCase().replace(/\([^)]*\)/g, '').replace(/[^A-Z]/g, '');
+  if (!raw) raw = WATER_FIXED_SEQ;   // 진행순서 안 쳐도 고정 순서로 타이머 자동 생성
+  const groups = [];
+  for (const ch of raw) { const l = groups[groups.length - 1]; if (l && l.ch === ch) l.n++; else groups.push({ ch, n: 1 }); }
+  const meas = parseInt(localStorage.getItem(TIMER_WATERMEAS_KEY) || '6', 10) || 6;
+  const steps = [];
+  groups.forEach((g, i) => {
+    const gid = `${g.ch}${g.n}_${i}`;
+    if (g.ch === 'Z' || g.ch === 'S') {
+      const pair = g.n >= 2;
+      steps.push({ key: gid, label: g.ch.repeat(g.n), min: meas, kind: 'step', group: pair ? '드리프트' : '반복성', adjustable: 'watermeas' });
+    } else if (g.ch === 'M') {
+      steps.push({ key: gid, label: g.ch.repeat(g.n), min: meas, kind: 'step', group: 'M', adjustable: 'watermeas' });
+    } else {
+      steps.push({ key: gid, label: g.ch.repeat(g.n), min: meas, kind: 'step', group: '기타', adjustable: 'watermeas' });
+    }
+  });
+  // 초기 드리프트(첫 ZZ·SS) ↔ 후기 드리프트 사이 2시간 대기
+  const firstZZ = steps.findIndex(s => s.label === 'ZZ'), firstSS = steps.findIndex(s => s.label === 'SS');
+  if (firstZZ >= 0 && firstSS >= 0) {
+    const after = Math.max(firstZZ, firstSS);
+    const hasLater = steps.slice(after + 1).some(s => s.label === 'ZZ' || s.label === 'SS');
+    if (hasLater) {
+      const dMin = parseInt(localStorage.getItem(TIMER_WATERDRIFT_KEY) || '120', 10) || 120;
+      steps.splice(after + 1, 0, { key: `wdrift_${after}`, label: '⏳2시간(선택)', min: dMin, kind: 'drift', adjustable: 'waterdrift', group: '대기' });
+    }
+  }
+  return steps;
+}
+
 // 진행순서 → 묶음 스텝 배열. 각 스텝: {key, label, min, kind}
 // kind: 'step'(측정) | 'drift'(4시간 기준선, 초기 드리프트 뒤 1회 삽입)
 function parseTimerSteps(code, seqStr) {
-  if (String(code).toUpperCase() === 'PH') return parsePhTimerSteps(code, seqStr);
-  if (String(code).toUpperCase() === 'DO') return parseDoTimerSteps(code, seqStr);
+  const C = String(code).toUpperCase();
+  if (C === 'PH') return parsePhTimerSteps(code, seqStr);
+  if (C === 'DO') return parseDoTimerSteps(code, seqStr);
+  if (C === 'CL' || C === 'TU') return parseWaterTimerSteps(seqStr);
   const raw = String(seqStr || '').toUpperCase().replace(/[^A-Z]/g, '');
   if (!raw) return [];
   // 연속 동일글자 묶기
@@ -2469,7 +2510,7 @@ function renderTimerRow(code, seqStr) {
   if (!row) return;
   // 측정 타이머는 센서 타입(SS·pH)만 대상 — 다른 항목엔 표시 안 함
   const CODE = String(code).toUpperCase();
-  if (CODE !== 'SS' && CODE !== 'PH' && CODE !== 'DO') { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
+  if (!['SS', 'PH', 'DO', 'CL', 'TU'].includes(CODE)) { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
   const steps = parseTimerSteps(code, seqStr);
   // pH 진행순서 필수 블록 검증: 반복성·드리프트초기·드리프트후기·직선성·온도보상 다 있어야 함
   let phWarn = '';
@@ -2619,6 +2660,14 @@ function renderTimerRow(code, seqStr) {
           const curMin = parseInt(localStorage.getItem(TIMER_DODRIFT_KEY) || '120', 10);
           const v = prompt('DO 드리프트 대기 조절 (분 단위, 기본 120=2시간, 10분씩 권장):', curMin);
           if (v !== null) { const n = Math.max(10, parseInt(v, 10) || curMin); localStorage.setItem(TIMER_DODRIFT_KEY, String(n)); renderTimerRow(code, seqStr); }
+        } else if (kind === 'watermeas') {
+          const cur = parseInt(localStorage.getItem(TIMER_WATERMEAS_KEY) || '6', 10);
+          const v = prompt('Cl·TU 측정 시간(분, 기본 6):', cur);
+          if (v !== null) { const n = Math.max(1, parseInt(v, 10) || cur); localStorage.setItem(TIMER_WATERMEAS_KEY, String(n)); renderTimerRow(code, seqStr); }
+        } else if (kind === 'waterdrift') {
+          const curMin = parseInt(localStorage.getItem(TIMER_WATERDRIFT_KEY) || '120', 10);
+          const v = prompt('Cl·TU 드리프트 대기 조절 (분 단위, 기본 120=2시간, 10분씩 권장):', curMin);
+          if (v !== null) { const n = Math.max(10, parseInt(v, 10) || curMin); localStorage.setItem(TIMER_WATERDRIFT_KEY, String(n)); renderTimerRow(code, seqStr); }
         } else {
           const curMin = parseInt(localStorage.getItem(TIMER_DRIFT_KEY) || '240', 10);
           const v = prompt('4시간 대기 조절 (분 단위, 10분씩 조절 권장):', curMin);
