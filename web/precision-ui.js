@@ -2394,7 +2394,7 @@ function renderTimerRow(code, seqStr) {
   const drawChips = () => {
     const state = loadTimerState()[tabKey] || {};
     row.classList.toggle('is-viewonly', !isPrimaryUser);   // 확인용: 흐리게(조작 불가 표시), 진행/완료는 보임
-    const hint = isPrimaryUser ? '탭=타이머 시작 · 길게(5초)=수기 완료 · 값과 무관' : '👁 확인용 — 주사용자 전환 시 조작 가능';
+    const hint = isPrimaryUser ? '탭=타이머 시작 · 길게(5초)=완료↔취소 · 값과 무관' : '👁 확인용 — 주사용자 전환 시 조작 가능';
     let prevGroup = null;
     let firstChip = true;
     const warnHtml = phWarn ? `<div class="pv-timer-warn">${phWarn}</div>` : '';
@@ -2421,7 +2421,7 @@ function renderTimerRow(code, seqStr) {
         <span class="pv-timer-lbl">${st.label}</span>${status}${chk}${adj}</div>`;
     }).join('') + `</div>`;
 
-    // 수기 완료: 칩을 길게(5초) 누르면 완료 처리 ('done' 마커 — 알람 안 울림). 작은 버튼 없앰(오터치 방지).
+    // 칩 길게(5초) 누르기 = 완료↔취소 토글. 미완료→수기완료('done'), 완료→미완료. 작은 버튼 없앰(오터치 방지).
     row.querySelectorAll('.pv-timer-chip').forEach(chip => {
       let lpTimer = null, lpFired = false;
       const startLP = () => {
@@ -2432,10 +2432,16 @@ function renderTimerRow(code, seqStr) {
           const key = chip.dataset.key;
           const st = steps.find(s => s.key === key);
           const all = loadTimerState(); const t = all[tabKey] || {};
-          _alarmedKeys.add(tabKey + key);
-          t[key] = 'done'; all[tabKey] = t; saveTimerState(all);
-          if (navigator.vibrate) { try { navigator.vibrate(60); } catch {} }   // 완료 피드백
-          setSaveStatus(`✓ [${st ? st.label : ''}] 수기 완료 처리됨`, 'ok');
+          const isDone = t[key] === 'done' || (typeof t[key] === 'number' && t[key] <= Date.now());
+          if (isDone) {   // 완료 상태 → 취소(미완료)
+            delete t[key]; all[tabKey] = t; saveTimerState(all); _alarmedKeys.delete(tabKey + key);
+            setSaveStatus(`↩️ [${st ? st.label : ''}] 완료 취소(미완료)`, 'ok');
+          } else {        // 미완료/진행중 → 수기 완료
+            _alarmedKeys.add(tabKey + key);
+            t[key] = 'done'; all[tabKey] = t; saveTimerState(all);
+            setSaveStatus(`✓ [${st ? st.label : ''}] 수기 완료 처리됨`, 'ok');
+          }
+          if (navigator.vibrate) { try { navigator.vibrate(60); } catch {} }
           drawChips();
         }, 5000);
       };
@@ -2457,8 +2463,8 @@ function renderTimerRow(code, seqStr) {
         const key = chip.dataset.key;
         const st = steps.find(s => s.key === key);
         const all = loadTimerState(); const t = all[tabKey] || {};
-        if (t[key] === 'done' || (typeof t[key] === 'number' && t[key] <= Date.now())) {   // 완료 → 되돌리기
-          if (confirm(`[${st.label}] 완료를 취소(미완료)할까요?`)) { delete t[key]; all[tabKey] = t; saveTimerState(all); _alarmedKeys.delete(tabKey + key); drawChips(); }
+        if (t[key] === 'done' || (typeof t[key] === 'number' && t[key] <= Date.now())) {   // 완료 상태 → 취소는 '길게(5초)'로
+          setSaveStatus(`[${st.label}] 이미 완료 — 취소하려면 길게(5초) 누르세요`, 'warn');
           return;
         }
         if (typeof t[key] === 'number' && t[key] > Date.now()) {   // 진행중 → 취소 확인
