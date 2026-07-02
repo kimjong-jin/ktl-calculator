@@ -4,7 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>KTL 고객 서비스</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0b0f14" />
+    <!-- iOS: 홈 화면 추가 시 앱처럼 + 웹푸시(iOS 16.4+, 홈화면 추가 필수) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="KTL 계산기" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="stylesheet" href="./style.css" />
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+      }
+    </script>
   </head>
   <body>
 

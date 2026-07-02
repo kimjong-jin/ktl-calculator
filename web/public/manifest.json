@@ -1,0 +1,14 @@
+{
+  "name": "KTL 정도검사 계산기",
+  "short_name": "KTL 계산기",
+  "description": "수질·먹는물 정도검사 계산 + 측정 타이머 알람",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

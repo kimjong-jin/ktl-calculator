@@ -2196,6 +2196,51 @@ function saveTimerLabel(tabKey, stepKey, label) { try { const m = loadTimerLabel
 function loadTimerState() { try { return JSON.parse(localStorage.getItem(TIMER_STATE_KEY) || '{}'); } catch { return {}; } }
 function saveTimerState(s) { try { localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(s)); } catch {} }
 
+// ── 웹 푸시 (화면 꺼져도 OS 알림) ─────────────────────────────
+let _pushEndpoint = null, _pushReady = null;
+function b64ToU8(base64) {
+  const pad = '='.repeat((4 - base64.length % 4) % 4);
+  const b = (base64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(b); const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+// SW 등록 + 알림 권한 + 구독 → 백엔드 저장. endpoint 반환(실패 시 null). 한 번만 준비.
+async function ensurePush() {
+  if (_pushEndpoint) return _pushEndpoint;
+  if (_pushReady) return _pushReady;
+  _pushReady = (async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') return null;
+        const r = await fetch('/api/push?action=vapid'); const { key } = await r.json();
+        if (!key) return null;
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(key) });
+      }
+      await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'subscribe', subscription: sub, userName: (typeof calcUserName !== 'undefined' ? calcUserName : '') }) });
+      _pushEndpoint = sub.endpoint;
+      return _pushEndpoint;
+    } catch { return null; }
+  })();
+  return _pushReady;
+}
+async function schedulePush(id, fireAt, title, body) {
+  try {
+    const endpoint = await ensurePush();
+    if (!endpoint) return;
+    await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'schedule', id, endpoint, fireAt, title, body }) });
+  } catch {}
+}
+async function cancelPush(id) {
+  try { await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'cancel', id }) }); } catch {}
+}
+
 const TIMER_PHDRIFT_KEY = 'ktl-timer-phdrift-min';  // pH 드리프트 대기(기본 2시간=120분)
 const TIMER_PHREP_KEY   = 'ktl-timer-phrep-min';    // pH 반복성 측정(기본 10분, 조절가능)
 const TIMER_PHMEAS_KEY  = 'ktl-timer-phmeas-min';   // pH 직선성·드리프트 측정(기본 20분, 조절가능)
@@ -2449,11 +2494,11 @@ function renderTimerRow(code, seqStr) {
           const all = loadTimerState(); const t = all[tabKey] || {};
           const isDone = t[key] === 'done' || (typeof t[key] === 'number' && t[key] <= Date.now());
           if (isDone) {   // 완료 상태 → 취소(미완료)
-            delete t[key]; all[tabKey] = t; saveTimerState(all); _alarmedKeys.delete(tabKey + key);
+            delete t[key]; all[tabKey] = t; saveTimerState(all); _alarmedKeys.delete(tabKey + key); cancelPush(tabKey + '|' + key);
             setSaveStatus(`↩️ [${st ? st.label : ''}] 완료 취소(미완료)`, 'ok');
           } else {        // 미완료/진행중 → 수기 완료
             _alarmedKeys.add(tabKey + key);
-            t[key] = 'done'; all[tabKey] = t; saveTimerState(all);
+            t[key] = 'done'; all[tabKey] = t; saveTimerState(all); cancelPush(tabKey + '|' + key);
             setSaveStatus(`✓ [${st ? st.label : ''}] 수기 완료 처리됨`, 'ok');
           }
           if (navigator.vibrate) { try { navigator.vibrate(60); } catch {} }
@@ -2483,7 +2528,7 @@ function renderTimerRow(code, seqStr) {
           return;
         }
         if (typeof t[key] === 'number' && t[key] > Date.now()) {   // 진행중 → 취소 확인
-          if (confirm(`[${st.label}] 타이머를 취소할까요?`)) { delete t[key]; all[tabKey] = t; saveTimerState(all); drawChips(); }
+          if (confirm(`[${st.label}] 타이머를 취소할까요?`)) { delete t[key]; all[tabKey] = t; saveTimerState(all); cancelPush(tabKey + '|' + key); drawChips(); }
           return;
         }
         // 후기 드리프트인데 4시간 기준선 아직이면 경고(막진 않음)
@@ -2501,6 +2546,9 @@ function renderTimerRow(code, seqStr) {
         t[key] = Date.now() + st.min * 60000; all[tabKey] = t; saveTimerState(all);
         saveTimerLabel(tabKey, key, st.label);   // 알람에 스텝명(ZZ/SS/ZS…) 표시용
         refreshWakeLock();   // 타이머 시작 즉시 화면 켜짐 유지
+        // 웹푸시 예약 — 화면 꺼져도 OS 알림 (백엔드 스케줄러가 종료시각에 발송)
+        { const tb = tabs.find(x => x.id === (tabKey.split('::')[1] || activeId)); const item = tb ? (tb.label || tabKey.split('::')[0]) : tabKey.split('::')[0];
+          schedulePush(tabKey + '|' + key, t[key], `⏱️ ${item} 측정 완료`, `${st.label} 측정 시간이 완료되었습니다.`); }
         drawChips();
       });
     });
