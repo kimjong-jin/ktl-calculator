@@ -2500,6 +2500,7 @@ function renderTimerRow(code, seqStr) {
         _alarmedKeys.delete(tabKey + key);
         t[key] = Date.now() + st.min * 60000; all[tabKey] = t; saveTimerState(all);
         saveTimerLabel(tabKey, key, st.label);   // 알람에 스텝명(ZZ/SS/ZS…) 표시용
+        console.log('[타이머시작]', tabKey, key, '| min=', st.min, '| 종료=', new Date(t[key]).toLocaleTimeString(), '| primary=', isPrimaryUser);   // DEBUG
         drawChips();
       });
     });
@@ -2549,6 +2550,7 @@ function renderTimerRow(code, seqStr) {
 let _globalWatch = null;
 function startGlobalTimerWatch() {
   if (_globalWatch) return;
+  console.log('[타이머감시] 전역 감시 시작됨');   // DEBUG
   // 시작 시점에 이미 지난 타이머·수기완료는 알람 완료로 표시(재알람 방지)
   const st0 = loadTimerState();
   for (const tk of Object.keys(st0)) for (const sk of Object.keys(st0[tk] || {})) {
@@ -2564,12 +2566,16 @@ function startGlobalTimerWatch() {
         const end = state[tk][sk];
         if (!end || typeof end !== 'number') continue;   // 수기완료('done')는 알람 대상 아님
         if (end <= Date.now() && !_alarmedKeys.has(tk + sk)) {
+          console.log('[타이머감시] 만료 감지:', tk, sk, '| primary=', primary, '| alarmed=', _alarmedKeys.has(tk + sk));   // DEBUG
           _alarmedKeys.add(tk + sk);
           if (primary) {
             const t = tabs.find(x => x.id === tabId);
             const itemLabel = t ? (t.label || code) : code;
             const stepLabel = loadTimerLabels()[tk + '|' + sk] || '';   // 완료된 스텝(ZZ/SS/ZS…)
+            console.log('[타이머감시] 알람 발사:', itemLabel, stepLabel);   // DEBUG
             fireAlarm(itemLabel, tabId, stepLabel);   // 항목명 + 스텝 + 이동대상 탭
+          } else {
+            console.log('[타이머감시] ⚠️ 주사용자 아니라 알람 억제됨');   // DEBUG
           }
         }
       }
