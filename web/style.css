@@ -2185,14 +2185,19 @@ select.field__control {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;              /* 긴 진행순서 넘치면 다음 줄로 */
   font-size: 11px;
   color: var(--text-dim);
 }
 .pv-pipeline-seq-input {
-  width: 160px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 600;
+  flex: 1 1 320px;             /* 넉넉히 늘어남 — 긴 pH 시퀀스도 보이게 */
+  min-width: 260px;
+  max-width: 100%;
+  padding: 6px 10px;
+  font-size: 14px;             /* 키워서 잘 보이게 */
+  font-weight: 700;
+  font-family: monospace;      /* 숫자 정렬 */
+  letter-spacing: 1px;
   border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: var(--surface-2);
