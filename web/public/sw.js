@@ -21,7 +21,7 @@ self.addEventListener('push', (event) => {
       body: body,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      tag: 'ktl-timer',
+      tag: 'ktl-timer-' + Date.now(),   // 고유 tag → 반복 발송마다 개별 알림·진동(놓침 방지)
       data: { url: '/' },
     }).catch(() => self.registration.showNotification(title, { body: body }))
   );
