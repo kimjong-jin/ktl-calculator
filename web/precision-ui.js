@@ -2229,29 +2229,41 @@ function fmtRemain(ms) {
 }
 
 let _alarmedKeys = new Set();
-let _alarmCtx = null, _alarmLoop = null, _alarmLabels = [];
-// 사용자 클릭(제스처) 시 오디오 컨텍스트 생성·재개 + 무음 blip 1회 → 모바일 자동재생 정책 해제.
-// 이걸 안 하면 나중 setInterval에서 소리가 막힘. 칩 탭할 때마다 호출.
+let _alarmLoop = null, _alarmLabels = [], _alarmAudio = null, _vibLoop = null;
+
+// 삐-삐-(무음) 반복되는 WAV를 만들어 <audio loop>로 재생 — 모바일(안드/iOS)에서 AudioContext보다 안정적.
+function buildAlarmAudio() {
+  if (_alarmAudio) return _alarmAudio;
+  const sr = 8000, beep = 0.18, gap = 0.12, pat = beep + gap + beep + gap; // 삐 삐 (무음)
+  const N = Math.floor(sr * pat), data = new Uint8Array(44 + N * 2);
+  const dv = new DataView(data.buffer);
+  const wr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  wr(0, 'RIFF'); dv.setUint32(4, 36 + N * 2, true); wr(8, 'WAVE'); wr(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true);
+  dv.setUint16(34, 16, true); wr(36, 'data'); dv.setUint32(40, N * 2, true);
+  for (let i = 0; i < N; i++) {
+    const t = i / sr; let v = 0;
+    const inBeep = (t < beep) || (t >= beep + gap && t < beep + gap + beep);
+    if (inBeep) v = Math.sin(2 * Math.PI * 880 * t) * 0.6;
+    dv.setInt16(44 + i * 2, v * 32767, true);
+  }
+  const blob = new Blob([data.buffer], { type: 'audio/wav' });
+  _alarmAudio = new Audio(URL.createObjectURL(blob));
+  _alarmAudio.loop = true;
+  return _alarmAudio;
+}
+// 사용자 클릭(제스처) 때 오디오 잠금 해제 — 음소거로 잠깐 play→pause 하면 이후 자동재생 허용됨.
 function unlockAudio() {
   try {
-    if (!_alarmCtx) _alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (_alarmCtx.state === 'suspended') _alarmCtx.resume();
-    const o = _alarmCtx.createOscillator(), g = _alarmCtx.createGain();
-    g.gain.value = 0.0001; o.connect(g); g.connect(_alarmCtx.destination);
-    o.start(); o.stop(_alarmCtx.currentTime + 0.02);   // 거의 무음, 컨텍스트 활성화용
+    const a = buildAlarmAudio();
+    a.muted = true;
+    a.play().then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; });
   } catch {}
 }
-// 완료 알람: OFF 누를 때까지 삐-삐 반복 + 진동 반복. (앱/탭 열려있는 동안 유효 — 웹은 앱이 완전히 멈추면 못 울림)
+// 완료 알람: OFF 누를 때까지 소리 반복 + (지원 기기)진동 반복. iOS 사파리는 진동 API 없음 → 소리만.
 function beepOnce() {
-  try {
-    if (!_alarmCtx) _alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (_alarmCtx.state === 'suspended') _alarmCtx.resume();
-    const ctx = _alarmCtx;
-    [0, 0.25].forEach(t => { const o = ctx.createOscillator(), g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination); o.frequency.value = 880; o.type = 'sine';
-      g.gain.setValueAtTime(0.001, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.2); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.22); });
-  } catch {}
+  try { const a = buildAlarmAudio(); a.muted = false; if (a.paused) { a.currentTime = 0; a.play().catch(() => {}); } } catch {}
   if (navigator.vibrate) { try { navigator.vibrate([250, 150, 250]); } catch {} }
 }
 function fireAlarm(label) {
@@ -2263,6 +2275,7 @@ function fireAlarm(label) {
 function stopAlarm() {
   if (_alarmLoop) { clearInterval(_alarmLoop); _alarmLoop = null; }
   _alarmLabels = [];
+  if (_alarmAudio) { try { _alarmAudio.pause(); _alarmAudio.currentTime = 0; } catch {} }
   if (navigator.vibrate) { try { navigator.vibrate(0); } catch {} }
   const b = document.getElementById('pv-alarm-stop'); if (b) b.remove();
 }

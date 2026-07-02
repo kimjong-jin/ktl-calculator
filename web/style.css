@@ -2232,8 +2232,9 @@ select.field__control {
 }
 .pv-timer-chip:hover { border-color: var(--border-strong); }
 .pv-timer-chip.is-drift { background: #422006; color: #fcd34d; border-color: #a16207; }
-.pv-timer-chip.is-running { background: #0c4a6e; color: #7dd3fc; border-color: #0284c7; box-shadow: 0 0 0 2px rgba(2,132,199,.25); }
-.pv-timer-chip.is-done { background: #052e16; color: #4ade80; border-color: #16a34a; }
+.pv-timer-chip.is-running { background: #0ea5e9; color: #fff; border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,.35); }
+.pv-timer-chip.is-done { background: #16a34a !important; color: #fff !important; border-color: #22c55e !important; }
+.pv-timer-chip.is-done .pv-timer-done { color: #fff; }
 .pv-timer-lbl { font-family: monospace; letter-spacing: .5px; }
 .pv-timer-min { font-size: 11px; font-weight: 600; opacity: .85; }
 .pv-timer-remain { font-family: monospace; font-size: 12px; font-weight: 800; }
