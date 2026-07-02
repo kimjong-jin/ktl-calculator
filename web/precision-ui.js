@@ -2230,6 +2230,17 @@ function fmtRemain(ms) {
 
 let _alarmedKeys = new Set();
 let _alarmCtx = null, _alarmLoop = null, _alarmLabels = [];
+// 사용자 클릭(제스처) 시 오디오 컨텍스트 생성·재개 + 무음 blip 1회 → 모바일 자동재생 정책 해제.
+// 이걸 안 하면 나중 setInterval에서 소리가 막힘. 칩 탭할 때마다 호출.
+function unlockAudio() {
+  try {
+    if (!_alarmCtx) _alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_alarmCtx.state === 'suspended') _alarmCtx.resume();
+    const o = _alarmCtx.createOscillator(), g = _alarmCtx.createGain();
+    g.gain.value = 0.0001; o.connect(g); g.connect(_alarmCtx.destination);
+    o.start(); o.stop(_alarmCtx.currentTime + 0.02);   // 거의 무음, 컨텍스트 활성화용
+  } catch {}
+}
 // 완료 알람: OFF 누를 때까지 삐-삐 반복 + 진동 반복. (앱/탭 열려있는 동안 유효 — 웹은 앱이 완전히 멈추면 못 울림)
 function beepOnce() {
   try {
@@ -2296,6 +2307,7 @@ function renderTimerRow(code, seqStr) {
     row.querySelectorAll('.pv-timer-chip').forEach(chip => {
       chip.addEventListener('click', (e) => {
         if (e.target.closest('.pv-timer-adj')) return;
+        unlockAudio();   // 사용자 클릭 제스처에서 오디오 깨움 → 나중에 setInterval 알람 소리 재생 가능(모바일 정책)
         const key = chip.dataset.key;
         const st = steps.find(s => s.key === key);
         const all = loadTimerState(); const t = all[tabKey] || {};
