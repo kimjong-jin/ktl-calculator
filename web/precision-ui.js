@@ -2197,6 +2197,8 @@ function loadTimerState() { try { return JSON.parse(localStorage.getItem(TIMER_S
 function saveTimerState(s) { try { localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(s)); } catch {} }
 
 const TIMER_PHDRIFT_KEY = 'ktl-timer-phdrift-min';  // pH 드리프트 대기(기본 2시간=120분)
+const TIMER_PHREP_KEY   = 'ktl-timer-phrep-min';    // pH 반복성 측정(기본 10분, 조절가능)
+const TIMER_PHMEAS_KEY  = 'ktl-timer-phmeas-min';   // pH 직선성·드리프트 측정(기본 20분, 조절가능)
 
 // pH 진행순서(4·7·10 숫자) → 타이머 스텝. 연속 같은 숫자=묶음 20분(직선성·드리프트),
 // 7·4 교대=반복성 각 10분. 직선성(뒤에 10)과 드리프트(10 없음×2회) 구분, 드리프트 1↔2차 사이 2시간 대기.
@@ -2206,25 +2208,27 @@ const TIMER_PHDRIFT_KEY = 'ktl-timer-phdrift-min';  // pH 드리프트 대기(�
 function parsePhTimerSteps(code, seqStr) {
   const fields = parsePhDigitSeq(code, seqStr);   // 파이프라인이 쓰는 바로 그 파스
   if (!fields || !fields.length) return [];
+  const repMin  = parseInt(localStorage.getItem(TIMER_PHREP_KEY)  || '10', 10) || 10;
+  const measMin = parseInt(localStorage.getItem(TIMER_PHMEAS_KEY) || '20', 10) || 20;
   const catOf = (id) => {
-    if (/^ph[47][a-c]$/.test(id))          return { cat: '반복성',      buf: id.charAt(2), min: 10, indiv: true };
-    if (/^phm(10|4|7)[a-c]$/.test(id))     return { cat: '직선성',      buf: id.match(/^phm(10|4|7)/)[1], min: 20 };
-    if (/^phsi/.test(id))                  return { cat: '드리프트 초기', buf: '4', min: 20 };
-    if (/^phzi/.test(id))                  return { cat: '드리프트 초기', buf: '7', min: 20 };
-    if (/^phsf/.test(id))                  return { cat: '드리프트 후기', buf: '4', min: 20 };
-    if (/^phzf/.test(id))                  return { cat: '드리프트 후기', buf: '7', min: 20 };
+    if (/^ph[47][a-c]$/.test(id))          return { cat: '반복성',      buf: id.charAt(2), min: repMin, indiv: true, adj: 'phrep' };
+    if (/^phm(10|4|7)[a-c]$/.test(id))     return { cat: '직선성',      buf: id.match(/^phm(10|4|7)/)[1], min: measMin, adj: 'phmeas' };
+    if (/^phsi/.test(id))                  return { cat: '드리프트 초기', buf: '4', min: measMin, adj: 'phmeas' };
+    if (/^phzi/.test(id))                  return { cat: '드리프트 초기', buf: '7', min: measMin, adj: 'phmeas' };
+    if (/^phsf/.test(id))                  return { cat: '드리프트 후기', buf: '4', min: measMin, adj: 'phmeas' };
+    if (/^phzf/.test(id))                  return { cat: '드리프트 후기', buf: '7', min: measMin, adj: 'phmeas' };
     return null;   // 온도(pht)·현장·응답 = 타이머 없음
   };
   const steps = [];
   for (const f of fields) {
     const c = catOf(f.id);
     if (!c) continue;
-    if (c.indiv) {   // 반복성: 각 10분 개별
-      steps.push({ key: `ph_${f.id}`, label: c.buf, min: c.min, kind: 'step', group: c.cat });
-    } else {         // 직선성·드리프트: 같은 (카테고리+버퍼) 연속 3회 → 20분 1개로 묶기
+    if (c.indiv) {   // 반복성: 각 10분(조절가능) 개별
+      steps.push({ key: `ph_${f.id}`, label: c.buf, min: c.min, kind: 'step', group: c.cat, adjustable: c.adj });
+    } else {         // 직선성·드리프트: 같은 (카테고리+버퍼) 연속 3회 → 20분(조절가능) 1개로 묶기
       const last = steps[steps.length - 1];
       if (last && last._cat === c.cat && last._buf === c.buf) continue;
-      steps.push({ key: `ph_${f.id}`, label: c.buf, min: c.min, kind: 'step', group: c.cat, _cat: c.cat, _buf: c.buf });
+      steps.push({ key: `ph_${f.id}`, label: c.buf, min: c.min, kind: 'step', group: c.cat, adjustable: c.adj, _cat: c.cat, _buf: c.buf });
     }
   }
   // 드리프트 초기 끝 ↔ 후기 시작 사이 2시간 대기 삽입
@@ -2512,6 +2516,14 @@ function renderTimerRow(code, seqStr) {
           const curMin = parseInt(localStorage.getItem(TIMER_PHDRIFT_KEY) || '120', 10);
           const v = prompt('pH 드리프트 대기 조절 (분 단위, 기본 120=2시간, 10분씩 권장):', curMin);
           if (v !== null) { const n = Math.max(10, parseInt(v, 10) || curMin); localStorage.setItem(TIMER_PHDRIFT_KEY, String(n)); renderTimerRow(code, seqStr); }
+        } else if (kind === 'phrep') {
+          const cur = parseInt(localStorage.getItem(TIMER_PHREP_KEY) || '10', 10);
+          const v = prompt('pH 반복성 측정 시간(분, 기본 10):', cur);
+          if (v !== null) { const n = Math.max(1, parseInt(v, 10) || cur); localStorage.setItem(TIMER_PHREP_KEY, String(n)); renderTimerRow(code, seqStr); }
+        } else if (kind === 'phmeas') {
+          const cur = parseInt(localStorage.getItem(TIMER_PHMEAS_KEY) || '20', 10);
+          const v = prompt('pH 직선성·드리프트 측정 시간(분, 기본 20):', cur);
+          if (v !== null) { const n = Math.max(1, parseInt(v, 10) || cur); localStorage.setItem(TIMER_PHMEAS_KEY, String(n)); renderTimerRow(code, seqStr); }
         } else {
           const curMin = parseInt(localStorage.getItem(TIMER_DRIFT_KEY) || '240', 10);
           const v = prompt('4시간 대기 조절 (분 단위, 10분씩 조절 권장):', curMin);
