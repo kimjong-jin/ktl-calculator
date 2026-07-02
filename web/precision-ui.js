@@ -427,6 +427,9 @@ function applyAccessMode() {
       ? '주 사용자 활성 — 쓰기·저장·10초 자동저장. 다시 누르면 해제(읽기 전용).'
       : '읽기 전용 상태. 눌러서 주 사용자 활성화(쓰기·저장).';
   }
+  // 타이머 줄 조작 가능/불가 상태 즉시 반영 (SS 탭이고 form-area 밖이라 disabled 영향 안 받음)
+  const tRow = document.getElementById('pv-timer-row');
+  if (tRow) tRow.classList.toggle('is-viewonly', !primary);
 }
 
 async function pollTokenMetadata() {
@@ -2329,7 +2332,9 @@ function renderTimerRow(code, seqStr) {
     for (const st of steps) { const e = st0[st.key]; if (e && e <= Date.now()) _alarmedKeys.add(tabKey + st.key); } }
   const drawChips = () => {
     const state = loadTimerState()[tabKey] || {};
-    row.innerHTML = `<div class="pv-timer-title">⏱️ 측정 타이머 <span class="pv-timer-hint">(선택 · 필요한 스텝만 눌러 시작 · 값과 무관)</span></div>
+    row.classList.toggle('is-viewonly', !isPrimaryUser);   // 확인용: 흐리게(조작 불가 표시), 진행/완료는 보임
+    const hint = isPrimaryUser ? '선택 · 필요한 스텝만 눌러 시작 · 값과 무관' : '👁 확인용 — 주사용자 전환 시 조작 가능';
+    row.innerHTML = `<div class="pv-timer-title">⏱️ 측정 타이머 <span class="pv-timer-hint">(${hint})</span></div>
       <div class="pv-timer-chips">` + steps.map(st => {
       const end = state[st.key];
       const running = end && end > Date.now();
@@ -2346,6 +2351,7 @@ function renderTimerRow(code, seqStr) {
     row.querySelectorAll('.pv-timer-chip').forEach(chip => {
       chip.addEventListener('click', (e) => {
         if (e.target.closest('.pv-timer-adj')) return;
+        if (!isPrimaryUser) { setSaveStatus('⏱️ 타이머는 주사용자 전환 후 사용할 수 있습니다.', 'warn'); return; }  // 확인용은 조작 불가(보기만)
         unlockAudio();   // 사용자 클릭 제스처에서 오디오 깨움 → 나중에 setInterval 알람 소리 재생 가능(모바일 정책)
         const key = chip.dataset.key;
         const st = steps.find(s => s.key === key);
@@ -2372,6 +2378,7 @@ function renderTimerRow(code, seqStr) {
     row.querySelectorAll('.pv-timer-adj').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!isPrimaryUser) { setSaveStatus('⏱️ 타이머는 주사용자 전환 후 조절할 수 있습니다.', 'warn'); return; }  // 확인용 조작 불가
         const kind = btn.dataset.kind;
         if (kind === 'mmm') {
           const cur = parseInt(localStorage.getItem(TIMER_MMM_KEY) || '30', 10);
