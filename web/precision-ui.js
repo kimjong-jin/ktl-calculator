@@ -2500,7 +2500,7 @@ function renderTimerRow(code, seqStr) {
         _alarmedKeys.delete(tabKey + key);
         t[key] = Date.now() + st.min * 60000; all[tabKey] = t; saveTimerState(all);
         saveTimerLabel(tabKey, key, st.label);   // 알람에 스텝명(ZZ/SS/ZS…) 표시용
-        console.log('[타이머시작]', tabKey, key, '| min=', st.min, '| 종료=', new Date(t[key]).toLocaleTimeString(), '| primary=', isPrimaryUser);   // DEBUG
+        refreshWakeLock();   // 타이머 시작 즉시 화면 켜짐 유지
         drawChips();
       });
     });
@@ -2547,10 +2547,34 @@ function renderTimerRow(code, seqStr) {
 // ── 전역 타이머 감시 (탭 무관, 주사용자일 때만 알람) ──────────────
 // 모든 항목(탭)의 타이머를 1초마다 감시. 어느 항목이든 0되면 항목명 붙여 알람 카드(백그라운드여도 뜸).
 // 주사용자가 아니면 알람 안 울림(시간·초록완료 표시만). tabKey = 'CODE::tabId'.
+// ── 화면 켜짐 유지 (Wake Lock): 진행중 타이머가 있으면 화면 안 꺼지게 ──
+let _wakeLock = null;
+async function refreshWakeLock() {
+  try {
+    const state = loadTimerState();
+    let anyRunning = false;
+    for (const tk of Object.keys(state)) for (const sk of Object.keys(state[tk] || {})) {
+      const v = state[tk][sk]; if (typeof v === 'number' && v > Date.now()) { anyRunning = true; break; }
+    }
+    if (anyRunning) {
+      if (!_wakeLock && navigator.wakeLock) {
+        _wakeLock = await navigator.wakeLock.request('screen');
+        _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+      }
+    } else if (_wakeLock) {
+      try { await _wakeLock.release(); } catch {}
+      _wakeLock = null;
+    }
+  } catch {}
+}
+// 화면 다시 켜지면(가시성 복귀) 진행중 타이머 있으면 wake lock 재획득 (브라우저가 해제했을 수 있음)
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshWakeLock(); });
+}
+
 let _globalWatch = null;
 function startGlobalTimerWatch() {
   if (_globalWatch) return;
-  console.log('[타이머감시] 전역 감시 시작됨');   // DEBUG
   // 시작 시점에 이미 지난 타이머·수기완료는 알람 완료로 표시(재알람 방지)
   const st0 = loadTimerState();
   for (const tk of Object.keys(st0)) for (const sk of Object.keys(st0[tk] || {})) {
@@ -2558,6 +2582,7 @@ function startGlobalTimerWatch() {
     if (v === 'done' || (typeof v === 'number' && v <= Date.now())) _alarmedKeys.add(tk + sk);
   }
   _globalWatch = setInterval(() => {
+    refreshWakeLock();   // 진행중 타이머 있으면 화면 켜짐 유지
     const primary = (typeof isPrimaryUser !== 'undefined') ? isPrimaryUser : false;
     const state = loadTimerState();
     for (const tk of Object.keys(state)) {
@@ -2566,16 +2591,12 @@ function startGlobalTimerWatch() {
         const end = state[tk][sk];
         if (!end || typeof end !== 'number') continue;   // 수기완료('done')는 알람 대상 아님
         if (end <= Date.now() && !_alarmedKeys.has(tk + sk)) {
-          console.log('[타이머감시] 만료 감지:', tk, sk, '| primary=', primary, '| alarmed=', _alarmedKeys.has(tk + sk));   // DEBUG
           _alarmedKeys.add(tk + sk);
           if (primary) {
             const t = tabs.find(x => x.id === tabId);
             const itemLabel = t ? (t.label || code) : code;
             const stepLabel = loadTimerLabels()[tk + '|' + sk] || '';   // 완료된 스텝(ZZ/SS/ZS…)
-            console.log('[타이머감시] 알람 발사:', itemLabel, stepLabel);   // DEBUG
             fireAlarm(itemLabel, tabId, stepLabel);   // 항목명 + 스텝 + 이동대상 탭
-          } else {
-            console.log('[타이머감시] ⚠️ 주사용자 아니라 알람 억제됨');   // DEBUG
           }
         }
       }
