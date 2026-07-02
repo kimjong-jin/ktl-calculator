@@ -2244,6 +2244,8 @@ function fireAlarm(label) {
 function renderTimerRow(code, seqStr) {
   const row = document.getElementById('pv-timer-row');
   if (!row) return;
+  // 측정 타이머는 SS(센서 타입)만 대상 — 다른 항목엔 표시 안 함
+  if (String(code).toUpperCase() !== 'SS') { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
   const steps = parseTimerSteps(code, seqStr);
   if (!steps.length) { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
 
