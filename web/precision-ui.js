@@ -2266,9 +2266,10 @@ function beepOnce() {
   try { const a = buildAlarmAudio(); a.muted = false; if (a.paused) { a.currentTime = 0; a.play().catch(() => {}); } } catch {}
   if (navigator.vibrate) { try { navigator.vibrate([250, 150, 250]); } catch {} }
 }
-function fireAlarm(label) {
+function fireAlarm(label, tabId) {
   // 소리는 1개(겹침 없음), 완료 알림 카드는 스텝마다 1개씩 쌓임. OFF 하나로 전체 정지.
-  if (label && !_alarmLabels.includes(label)) { _alarmLabels.push(label); addAlarmCard(label); }
+  const key = label + '::' + (tabId || '');
+  if (!_alarmLabels.includes(key)) { _alarmLabels.push(key); addAlarmCard(label, tabId); }
   beepOnce();
   if (!_alarmLoop) { _alarmLoop = setInterval(beepOnce, 1500); }
 }
@@ -2282,12 +2283,17 @@ function ensureAlarmStack() {
   }
   return stack;
 }
-function addAlarmCard(label) {
+function addAlarmCard(label, tabId) {
   const stack = ensureAlarmStack();
   const card = document.createElement('div');
   card.className = 'pv-alarm-card';
-  card.style.cssText = 'background:#16a34a;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;animation:pvAlarmPulse 1s infinite';
-  card.textContent = `🔔 ${label} 측정 완료`;
+  card.style.cssText = 'background:#16a34a;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;cursor:pointer;animation:pvAlarmPulse 1s infinite';
+  card.innerHTML = `🔔 <b>${label}</b> 측정 완료 <span style="font-weight:600;opacity:.85;font-size:12px">· 눌러서 이동</span>`;
+  if (tabId) card.onclick = () => {   // 카드 클릭 → 해당 항목 탭으로 이동
+    try { if (tabs.find(x => x.id === tabId)) { activeId = tabId; switchTab(tabId); } } catch {}
+    card.remove();
+    if (!stack.querySelector('.pv-alarm-card')) stopAlarm();   // 마지막 카드였으면 알람 정지
+  };
   stack.appendChild(card);
   ensureAlarmStopBtn();
 }
@@ -2381,18 +2387,44 @@ function renderTimerRow(code, seqStr) {
   };
   drawChips();
 
+  // 화면 표시(카운트다운) 전용 — 알람은 전역 감시(startGlobalTimerWatch)가 담당. 여기선 그리기만.
   if (timerTick) clearInterval(timerTick);
   timerTick = setInterval(() => {
     const state = loadTimerState()[tabKey] || {};
-    let anyRunning = false, needRedraw = false;
-    for (const st of steps) {
-      const end = state[st.key];
-      if (!end) continue;
-      if (end > Date.now()) { anyRunning = true; }
-      else if (!_alarmedKeys.has(tabKey + st.key)) { _alarmedKeys.add(tabKey + st.key); fireAlarm(st.label); needRedraw = true; }
+    if (steps.some(st => state[st.key])) drawChips();
+  }, 1000);
+  startGlobalTimerWatch();
+}
+
+// ── 전역 타이머 감시 (탭 무관, 주사용자일 때만 알람) ──────────────
+// 모든 항목(탭)의 타이머를 1초마다 감시. 어느 항목이든 0되면 항목명 붙여 알람 카드(백그라운드여도 뜸).
+// 주사용자가 아니면 알람 안 울림(시간·초록완료 표시만). tabKey = 'CODE::tabId'.
+let _globalWatch = null;
+function startGlobalTimerWatch() {
+  if (_globalWatch) return;
+  // 시작 시점에 이미 지난 타이머는 알람 완료로 표시(재알람 방지)
+  const st0 = loadTimerState();
+  for (const tk of Object.keys(st0)) for (const sk of Object.keys(st0[tk] || {})) {
+    if (st0[tk][sk] <= Date.now()) _alarmedKeys.add(tk + sk);
+  }
+  _globalWatch = setInterval(() => {
+    const primary = (typeof isPrimaryUser !== 'undefined') ? isPrimaryUser : false;
+    const state = loadTimerState();
+    for (const tk of Object.keys(state)) {
+      const [code, tabId] = tk.split('::');
+      for (const sk of Object.keys(state[tk] || {})) {
+        const end = state[tk][sk];
+        if (!end) continue;
+        if (end <= Date.now() && !_alarmedKeys.has(tk + sk)) {
+          _alarmedKeys.add(tk + sk);
+          if (primary) {
+            const t = tabs.find(x => x.id === tabId);
+            const itemLabel = t ? (t.label || code) : code;
+            fireAlarm(itemLabel, tabId);   // 항목명 + 이동대상 탭
+          }
+        }
+      }
     }
-    // 진행중이면 남은시간 갱신
-    if (anyRunning || needRedraw) drawChips();
   }, 1000);
 }
 
