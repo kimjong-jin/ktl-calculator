@@ -2547,16 +2547,20 @@ function renderTimerRow(code, seqStr) {
 // ── 전역 타이머 감시 (탭 무관, 주사용자일 때만 알람) ──────────────
 // 모든 항목(탭)의 타이머를 1초마다 감시. 어느 항목이든 0되면 항목명 붙여 알람 카드(백그라운드여도 뜸).
 // 주사용자가 아니면 알람 안 울림(시간·초록완료 표시만). tabKey = 'CODE::tabId'.
-// ── 화면 켜짐 유지 (Wake Lock): 진행중 타이머가 있으면 화면 안 꺼지게 ──
+// ── 화면 켜짐 유지 (Wake Lock): 배터리 절약 위해 알람 임박(60초 이내)일 때만 화면 켬 ──
+// 긴 대기(20분·2시간)엔 화면 끄고, 알람 직전에만 켜서 소리 보장. (근본 해결은 Web Push)
+const WAKE_LEAD_MS = 60000;   // 종료 60초 전부터 화면 켬
 let _wakeLock = null;
 async function refreshWakeLock() {
   try {
     const state = loadTimerState();
-    let anyRunning = false;
+    let soon = false;   // 60초 이내 종료 예정 타이머가 있나
+    const now = Date.now();
     for (const tk of Object.keys(state)) for (const sk of Object.keys(state[tk] || {})) {
-      const v = state[tk][sk]; if (typeof v === 'number' && v > Date.now()) { anyRunning = true; break; }
+      const v = state[tk][sk];
+      if (typeof v === 'number' && v > now && v - now <= WAKE_LEAD_MS) { soon = true; break; }
     }
-    if (anyRunning) {
+    if (soon) {
       if (!_wakeLock && navigator.wakeLock) {
         _wakeLock = await navigator.wakeLock.request('screen');
         _wakeLock.addEventListener('release', () => { _wakeLock = null; });
