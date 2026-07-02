@@ -2168,6 +2168,164 @@ function sortSeriesBySequence(code, seriesIds) {
   return orderedIds;
 }
 
+// ── 진행순서 기반 측정 타이머 (SS 등 센서형) ──────────────────
+// 진행순서를 연속 동일글자 묶음으로 파싱 → 각 묶음 타이머 칩 + 초기↔후기 드리프트 사이 4시간 기준선.
+// 값은 안 건드림(끝나면 ✓ 완료 표시만). wall-clock(화면 꺼도 시각 기준). 각 칩 눌러서 시작.
+const TIMER_STATE_KEY = 'ktl-timers';           // { [tabKey]: { [stepKey]: endMs } }  진행중 타이머 종료시각
+const TIMER_MMM_KEY   = 'ktl-timer-mmm-min';    // MMM 기본 분(마지막 쓴 값)
+const TIMER_DRIFT_KEY = 'ktl-timer-drift-min';  // 4시간 기준선 분(마지막 쓴 값)
+let timerTick = null;
+
+function loadTimerState() { try { return JSON.parse(localStorage.getItem(TIMER_STATE_KEY) || '{}'); } catch { return {}; } }
+function saveTimerState(s) { try { localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(s)); } catch {} }
+
+// 진행순서 → 묶음 스텝 배열. 각 스텝: {key, label, min, kind}
+// kind: 'step'(측정) | 'drift'(4시간 기준선, 초기 드리프트 뒤 1회 삽입)
+function parseTimerSteps(code, seqStr) {
+  const raw = String(seqStr || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (!raw) return [];
+  // 연속 동일글자 묶기
+  const groups = [];
+  for (const ch of raw) {
+    const last = groups[groups.length - 1];
+    if (last && last.ch === ch) last.n++;
+    else groups.push({ ch, n: 1 });
+  }
+  const mmmMin = parseInt(localStorage.getItem(TIMER_MMM_KEY) || '30', 10) || 30;
+  const steps = [];
+  let driftCount = 0;   // ZZ/SS 드리프트 묶음 등장 횟수(초기 세트 끝 판정용)
+  let insertedDrift = false;
+  groups.forEach((g, i) => {
+    const gid = `${g.ch}${g.n}_${i}`;
+    if (g.ch === 'M') {
+      steps.push({ key: gid, label: g.ch.repeat(g.n), min: mmmMin, kind: 'step', adjustable: 'mmm' });
+    } else if (g.ch === 'Z' || g.ch === 'S') {
+      const isPair = g.n >= 2;                 // ZZ/SS = 묶음 40분, Z/S 단독 = 10분
+      steps.push({ key: gid, label: g.ch.repeat(g.n), min: isPair ? 40 : 10, kind: 'step' });
+    } else {
+      steps.push({ key: gid, label: g.ch.repeat(g.n), min: 10, kind: 'step' });
+    }
+  });
+  // 초기 드리프트(첫 ZZ 와 첫 SS 가 다 지난 지점) 뒤에 4시간 기준선 1회 삽입
+  const firstZZ = steps.findIndex(s => s.label === 'ZZ');
+  const firstSS = steps.findIndex(s => s.label === 'SS');
+  if (firstZZ >= 0 && firstSS >= 0) {
+    const afterInitial = Math.max(firstZZ, firstSS);   // 초기 드리프트 세트 끝
+    // 그 뒤에 또 ZZ 또는 SS(후기 드리프트)가 있어야 기준선 의미 있음
+    const hasLater = steps.slice(afterInitial + 1).some(s => s.label === 'ZZ' || s.label === 'SS');
+    if (hasLater) {
+      const driftMin = parseInt(localStorage.getItem(TIMER_DRIFT_KEY) || '240', 10) || 240;
+      steps.splice(afterInitial + 1, 0, { key: `drift_${afterInitial}`, label: '⏳4시간(선택)', min: driftMin, kind: 'drift', adjustable: 'drift' });
+    }
+  }
+  return steps;
+}
+
+function fmtRemain(ms) {
+  if (ms <= 0) return '완료';
+  const s = Math.ceil(ms / 1000);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}` : `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+let _alarmedKeys = new Set();
+function fireAlarm(label) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.25, 0.5].forEach(t => { const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination); o.frequency.value = 880; o.type = 'sine';
+      g.gain.setValueAtTime(0.001, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.2); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.22); });
+  } catch {}
+  if (navigator.vibrate) { try { navigator.vibrate([200, 100, 200]); } catch {} }
+  setSaveStatus(`🔔 [${label}] 측정 시간 완료!`, 'ok');
+}
+
+function renderTimerRow(code, seqStr) {
+  const row = document.getElementById('pv-timer-row');
+  if (!row) return;
+  const steps = parseTimerSteps(code, seqStr);
+  if (!steps.length) { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
+
+  const tabKey = code + '::' + (activeId || '');
+  // 페이지 닫혀있는 동안 이미 끝난 타이머는 '알람 완료'로 미리 표시 → 다음날 와서 재알람 안 울림.
+  // (4시간처럼 오래 지난 것도 조용히 ✓완료만. 화면 보는 중 0되는 것만 알람)
+  { const st0 = loadTimerState()[tabKey] || {};
+    for (const st of steps) { const e = st0[st.key]; if (e && e <= Date.now()) _alarmedKeys.add(tabKey + st.key); } }
+  const drawChips = () => {
+    const state = loadTimerState()[tabKey] || {};
+    row.innerHTML = `<div class="pv-timer-title">⏱️ 측정 타이머 <span class="pv-timer-hint">(선택 · 필요한 스텝만 눌러 시작 · 값과 무관)</span></div>
+      <div class="pv-timer-chips">` + steps.map(st => {
+      const end = state[st.key];
+      const running = end && end > Date.now();
+      const done = end && end <= Date.now();
+      const cls = st.kind === 'drift' ? 'is-drift' : '';
+      const status = running ? `<span class="pv-timer-remain">${fmtRemain(end - Date.now())}</span>`
+                   : done ? `<span class="pv-timer-done">✓ 완료</span>`
+                   : `<span class="pv-timer-min">${st.min >= 60 ? (st.min/60)+'h' : st.min+'분'}</span>`;
+      const adj = (st.adjustable && !running) ? `<button class="pv-timer-adj" data-adj="${st.key}" data-kind="${st.adjustable}" title="시간 조절">±</button>` : '';
+      return `<div class="pv-timer-chip ${cls} ${running?'is-running':''} ${done?'is-done':''}" data-key="${st.key}">
+        <span class="pv-timer-lbl">${st.label}</span>${status}${adj}</div>`;
+    }).join('') + `</div>`;
+
+    row.querySelectorAll('.pv-timer-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        if (e.target.closest('.pv-timer-adj')) return;
+        const key = chip.dataset.key;
+        const st = steps.find(s => s.key === key);
+        const all = loadTimerState(); const t = all[tabKey] || {};
+        if (t[key] && t[key] > Date.now()) {   // 진행중 → 취소 확인
+          if (confirm(`[${st.label}] 타이머를 취소할까요?`)) { delete t[key]; all[tabKey] = t; saveTimerState(all); drawChips(); }
+          return;
+        }
+        // 후기 드리프트인데 4시간 기준선 아직이면 경고(막진 않음)
+        if (st.kind === 'step' && (st.label === 'ZZ' || st.label === 'SS')) {
+          const drift = steps.find(s => s.kind === 'drift');
+          const di = steps.indexOf(st), dpos = steps.indexOf(drift);
+          if (drift && di > dpos) {
+            const de = (loadTimerState()[tabKey] || {})[drift.key];
+            if (!de || de > Date.now()) {
+              if (!confirm('⚠️ 아직 4시간 대기가 끝나지 않았습니다. 그래도 후기 드리프트를 시작할까요?')) return;
+            }
+          }
+        }
+        _alarmedKeys.delete(tabKey + key);
+        t[key] = Date.now() + st.min * 60000; all[tabKey] = t; saveTimerState(all); drawChips();
+      });
+    });
+    row.querySelectorAll('.pv-timer-adj').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const kind = btn.dataset.kind;
+        if (kind === 'mmm') {
+          const cur = parseInt(localStorage.getItem(TIMER_MMM_KEY) || '30', 10);
+          const v = prompt('MMM 측정 시간(분, 20~30):', cur);
+          if (v !== null) { const n = Math.max(1, parseInt(v, 10) || cur); localStorage.setItem(TIMER_MMM_KEY, String(n)); renderTimerRow(code, seqStr); }
+        } else {
+          const curMin = parseInt(localStorage.getItem(TIMER_DRIFT_KEY) || '240', 10);
+          const v = prompt('4시간 대기 조절 (분 단위, 10분씩 조절 권장):', curMin);
+          if (v !== null) { const n = Math.max(10, parseInt(v, 10) || curMin); localStorage.setItem(TIMER_DRIFT_KEY, String(n)); renderTimerRow(code, seqStr); }
+        }
+      });
+    });
+  };
+  drawChips();
+
+  if (timerTick) clearInterval(timerTick);
+  timerTick = setInterval(() => {
+    const state = loadTimerState()[tabKey] || {};
+    let anyRunning = false, needRedraw = false;
+    for (const st of steps) {
+      const end = state[st.key];
+      if (!end) continue;
+      if (end > Date.now()) { anyRunning = true; }
+      else if (!_alarmedKeys.has(tabKey + st.key)) { _alarmedKeys.add(tabKey + st.key); fireAlarm(st.label); needRedraw = true; }
+    }
+    // 진행중이면 남은시간 갱신
+    if (anyRunning || needRedraw) drawChips();
+  }, 1000);
+}
+
 function updatePipeline(code) {
   const track = document.getElementById('pv-pipeline-track');
   if (!track) return;
@@ -2670,11 +2828,13 @@ function setupPipelineAndGraph(tab) {
         </div>
       </div>
       <div class="pv-pipeline-track" id="pv-pipeline-track"></div>
+      <div class="pv-timer-row" id="pv-timer-row"></div>
     </div>
   `;
   formCard.insertAdjacentHTML('afterbegin', pipelineHTML);
 
   updatePipeline(tab.code);
+  renderTimerRow(tab.code, seqVal);
 
   const openGraphBtn = document.getElementById('pv-open-graph-btn');
   if (openGraphBtn) {
@@ -2703,6 +2863,7 @@ function setupPipelineAndGraph(tab) {
 
       saveData(tab.id);
       updatePipeline(tab.code);
+      renderTimerRow(tab.code, seqInput.value);   // 진행순서 바뀌면 타이머 줄 재생성
       const modal = document.getElementById('pv-graph-modal');
       if (modal && modal.classList.contains('is-open')) {
         renderGraphsInModal(tab.code);
