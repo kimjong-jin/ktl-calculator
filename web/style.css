@@ -2242,6 +2242,8 @@ select.field__control {
 .pv-timer-adj { border: none; background: rgba(255,255,255,.12); color: inherit; border-radius: 5px; width: 18px; height: 18px; cursor: pointer; font-size: 12px; line-height: 1; padding: 0; }
 .pv-timer-adj:hover { background: rgba(255,255,255,.25); }
 @keyframes pvAlarmPulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.08); } }
+/* 카드/버튼은 스택 안(중앙정렬 컨테이너)에 있으므로 translateX 금지 — scale만. (안 그러면 왼쪽으로 밀려 잘림) */
+@keyframes pvCardPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
 .pv-timer-row.is-viewonly .pv-timer-chip { opacity: .6; cursor: not-allowed; }
 .pv-timer-row.is-viewonly .pv-timer-adj { display: none; }
 /* 측정 단계 그룹 구분선 (드/반/직/온도/현장/응답 경계) */
