@@ -2175,9 +2175,12 @@ function sortSeriesBySequence(code, seriesIds) {
 // 진행순서를 연속 동일글자 묶음으로 파싱 → 각 묶음 타이머 칩 + 초기↔후기 드리프트 사이 4시간 기준선.
 // 값은 안 건드림(끝나면 ✓ 완료 표시만). wall-clock(화면 꺼도 시각 기준). 각 칩 눌러서 시작.
 const TIMER_STATE_KEY = 'ktl-timers';           // { [tabKey]: { [stepKey]: endMs } }  진행중 타이머 종료시각
+const TIMER_LABEL_KEY = 'ktl-timer-labels';     // { [tabKey|stepKey]: 스텝라벨 }  알람에 스텝명 표시용
 const TIMER_MMM_KEY   = 'ktl-timer-mmm-min';    // MMM 기본 분(마지막 쓴 값)
 const TIMER_DRIFT_KEY = 'ktl-timer-drift-min';  // 4시간 기준선 분(마지막 쓴 값)
 let timerTick = null;
+function loadTimerLabels() { try { return JSON.parse(localStorage.getItem(TIMER_LABEL_KEY) || '{}'); } catch { return {}; } }
+function saveTimerLabel(tabKey, stepKey, label) { try { const m = loadTimerLabels(); m[tabKey + '|' + stepKey] = label; localStorage.setItem(TIMER_LABEL_KEY, JSON.stringify(m)); } catch {} }
 
 function loadTimerState() { try { return JSON.parse(localStorage.getItem(TIMER_STATE_KEY) || '{}'); } catch { return {}; } }
 function saveTimerState(s) { try { localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(s)); } catch {} }
@@ -2269,10 +2272,10 @@ function beepOnce() {
   try { const a = buildAlarmAudio(); a.muted = false; if (a.paused) { a.currentTime = 0; a.play().catch(() => {}); } } catch {}
   if (navigator.vibrate) { try { navigator.vibrate([250, 150, 250]); } catch {} }
 }
-function fireAlarm(label, tabId) {
+function fireAlarm(label, tabId, stepLabel) {
   // 소리는 1개(겹침 없음), 완료 알림 카드는 스텝마다 1개씩 쌓임. OFF 하나로 전체 정지.
-  const key = label + '::' + (tabId || '');
-  if (!_alarmLabels.includes(key)) { _alarmLabels.push(key); addAlarmCard(label, tabId); }
+  const key = label + '::' + (tabId || '') + '::' + (stepLabel || '');
+  if (!_alarmLabels.includes(key)) { _alarmLabels.push(key); addAlarmCard(label, tabId, stepLabel); }
   beepOnce();
   if (!_alarmLoop) { _alarmLoop = setInterval(beepOnce, 1500); }
 }
@@ -2286,12 +2289,15 @@ function ensureAlarmStack() {
   }
   return stack;
 }
-function addAlarmCard(label, tabId) {
+function addAlarmCard(label, tabId, stepLabel) {
   const stack = ensureAlarmStack();
   const card = document.createElement('div');
   card.className = 'pv-alarm-card';
   card.style.cssText = 'background:#16a34a;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;cursor:pointer;animation:pvAlarmPulse 1s infinite';
-  card.innerHTML = `🔔 <b>${label}</b> 측정 완료 <span style="font-weight:600;opacity:.85;font-size:12px">· 눌러서 이동</span>`;
+  // 항목(SS-4) 배지 + 완료 스텝(ZZ/SS/ZS…) 명확히 표시
+  const badge = `<span style="background:rgba(0,0,0,.28);border-radius:6px;padding:2px 8px;font-size:13px">${label}</span>`;
+  const step = stepLabel ? ` <b style="font-family:monospace">${stepLabel}</b>` : '';
+  card.innerHTML = `🔔 ${badge}${step} 측정 완료 <span style="font-weight:600;opacity:.85;font-size:12px">· 눌러서 이동</span>`;
   if (tabId) card.onclick = () => {   // 카드 클릭 → 해당 항목 탭으로 이동
     try { if (tabs.find(x => x.id === tabId)) { activeId = tabId; switchTab(tabId); } } catch {}
     card.remove();
@@ -2372,7 +2378,9 @@ function renderTimerRow(code, seqStr) {
           }
         }
         _alarmedKeys.delete(tabKey + key);
-        t[key] = Date.now() + st.min * 60000; all[tabKey] = t; saveTimerState(all); drawChips();
+        t[key] = Date.now() + st.min * 60000; all[tabKey] = t; saveTimerState(all);
+        saveTimerLabel(tabKey, key, st.label);   // 알람에 스텝명(ZZ/SS/ZS…) 표시용
+        drawChips();
       });
     });
     row.querySelectorAll('.pv-timer-adj').forEach(btn => {
@@ -2427,7 +2435,8 @@ function startGlobalTimerWatch() {
           if (primary) {
             const t = tabs.find(x => x.id === tabId);
             const itemLabel = t ? (t.label || code) : code;
-            fireAlarm(itemLabel, tabId);   // 항목명 + 이동대상 탭
+            const stepLabel = loadTimerLabels()[tk + '|' + sk] || '';   // 완료된 스텝(ZZ/SS/ZS…)
+            fireAlarm(itemLabel, tabId, stepLabel);   // 항목명 + 스텝 + 이동대상 탭
           }
         }
       }
