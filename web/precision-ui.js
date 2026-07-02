@@ -2385,33 +2385,54 @@ function renderTimerRow(code, seqStr) {
     row.classList.toggle('is-viewonly', !isPrimaryUser);   // 확인용: 흐리게(조작 불가 표시), 진행/완료는 보임
     const hint = isPrimaryUser ? '선택 · 필요한 스텝만 눌러 시작 · 값과 무관' : '👁 확인용 — 주사용자 전환 시 조작 가능';
     let prevGroup = null;
+    let firstChip = true;
     row.innerHTML = `<div class="pv-timer-title">⏱️ 측정 타이머 <span class="pv-timer-hint">(${hint})</span></div>
       <div class="pv-timer-chips">` + steps.map(st => {
       const end = state[st.key];
-      const running = end && end > Date.now();
-      const done = end && end <= Date.now();
+      const running = typeof end === 'number' && end > Date.now();
+      const done = end === 'done' || (typeof end === 'number' && end <= Date.now());   // 'done'=수기완료, 숫자과거=타이머완료
       const cls = st.kind === 'drift' ? 'is-drift' : '';
       const status = running ? `<span class="pv-timer-remain">${fmtRemain(end - Date.now())}</span>`
                    : done ? `<span class="pv-timer-done">✓ 완료</span>`
                    : `<span class="pv-timer-min">${st.min >= 60 ? (st.min/60)+'h' : st.min+'분'}</span>`;
-      const adj = (st.adjustable && !running) ? `<button class="pv-timer-adj" data-adj="${st.key}" data-kind="${st.adjustable}" title="시간 조절">±</button>` : '';
-      // 그룹(반복성/직선성/드리프트…) 바뀌면 구분선 + 그룹명 — 진행순서 파이프라인처럼
+      const adj = (st.adjustable && !running && !done) ? `<button class="pv-timer-adj" data-adj="${st.key}" data-kind="${st.adjustable}" title="시간 조절">±</button>` : '';
+      // 수기 완료 버튼(✓): 타이머 안 돌리고 바로 완료 처리. 미완료 상태에서만.
+      const chk = (!running && !done) ? `<button class="pv-timer-chk" data-chk="${st.key}" title="타이머 없이 수기 완료">✓</button>` : '';
+      // 그룹 구분선 (파이프라인처럼)
       const g = st.group || '';
       const sep = (g && g !== prevGroup && prevGroup !== null) ? `<div class="pv-timer-sep" title="${g}"></div>` : '';
       prevGroup = g;
-      return sep + `<div class="pv-timer-chip ${cls} ${running?'is-running':''} ${done?'is-done':''}" data-key="${st.key}">
-        <span class="pv-timer-lbl">${st.label}</span>${status}${adj}</div>`;
+      // 진행 화살표: 첫 칩 빼고 앞에 → (완료된 칩 다음이면 진하게)
+      const arrow = firstChip ? '' : `<span class="pv-timer-arrow${done ? ' is-on' : ''}">→</span>`;
+      firstChip = false;
+      return sep + arrow + `<div class="pv-timer-chip ${cls} ${running?'is-running':''} ${done?'is-done':''}" data-key="${st.key}">
+        <span class="pv-timer-lbl">${st.label}</span>${status}${chk}${adj}</div>`;
     }).join('') + `</div>`;
 
+    // 수기 완료(✓): 타이머 없이 바로 완료 처리 ('done' 마커 — 알람 안 울림)
+    row.querySelectorAll('.pv-timer-chk').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!isPrimaryUser) { setSaveStatus('⏱️ 주사용자 전환 후 사용할 수 있습니다.', 'warn'); return; }
+        const key = btn.dataset.chk;
+        const all = loadTimerState(); const t = all[tabKey] || {};
+        _alarmedKeys.add(tabKey + key);   // 수기완료는 알람 대상 아님
+        t[key] = 'done'; all[tabKey] = t; saveTimerState(all); drawChips();
+      });
+    });
     row.querySelectorAll('.pv-timer-chip').forEach(chip => {
       chip.addEventListener('click', (e) => {
-        if (e.target.closest('.pv-timer-adj')) return;
+        if (e.target.closest('.pv-timer-adj') || e.target.closest('.pv-timer-chk')) return;
         if (!isPrimaryUser) { setSaveStatus('⏱️ 타이머는 주사용자 전환 후 사용할 수 있습니다.', 'warn'); return; }  // 확인용은 조작 불가(보기만)
         unlockAudio();   // 사용자 클릭 제스처에서 오디오 깨움 → 나중에 setInterval 알람 소리 재생 가능(모바일 정책)
         const key = chip.dataset.key;
         const st = steps.find(s => s.key === key);
         const all = loadTimerState(); const t = all[tabKey] || {};
-        if (t[key] && t[key] > Date.now()) {   // 진행중 → 취소 확인
+        if (t[key] === 'done' || (typeof t[key] === 'number' && t[key] <= Date.now())) {   // 완료 → 되돌리기
+          if (confirm(`[${st.label}] 완료를 취소(미완료)할까요?`)) { delete t[key]; all[tabKey] = t; saveTimerState(all); _alarmedKeys.delete(tabKey + key); drawChips(); }
+          return;
+        }
+        if (typeof t[key] === 'number' && t[key] > Date.now()) {   // 진행중 → 취소 확인
           if (confirm(`[${st.label}] 타이머를 취소할까요?`)) { delete t[key]; all[tabKey] = t; saveTimerState(all); drawChips(); }
           return;
         }
@@ -2470,10 +2491,11 @@ function renderTimerRow(code, seqStr) {
 let _globalWatch = null;
 function startGlobalTimerWatch() {
   if (_globalWatch) return;
-  // 시작 시점에 이미 지난 타이머는 알람 완료로 표시(재알람 방지)
+  // 시작 시점에 이미 지난 타이머·수기완료는 알람 완료로 표시(재알람 방지)
   const st0 = loadTimerState();
   for (const tk of Object.keys(st0)) for (const sk of Object.keys(st0[tk] || {})) {
-    if (st0[tk][sk] <= Date.now()) _alarmedKeys.add(tk + sk);
+    const v = st0[tk][sk];
+    if (v === 'done' || (typeof v === 'number' && v <= Date.now())) _alarmedKeys.add(tk + sk);
   }
   _globalWatch = setInterval(() => {
     const primary = (typeof isPrimaryUser !== 'undefined') ? isPrimaryUser : false;
@@ -2482,7 +2504,7 @@ function startGlobalTimerWatch() {
       const [code, tabId] = tk.split('::');
       for (const sk of Object.keys(state[tk] || {})) {
         const end = state[tk][sk];
-        if (!end) continue;
+        if (!end || typeof end !== 'number') continue;   // 수기완료('done')는 알람 대상 아님
         if (end <= Date.now() && !_alarmedKeys.has(tk + sk)) {
           _alarmedKeys.add(tk + sk);
           if (primary) {
