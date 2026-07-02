@@ -100,12 +100,16 @@ let viewerTimer    = null;    // 확인용: 10초 자동 불러오기
 try { isPrimaryUser = isAdmin() ? false : (localStorage.getItem('ktl-calc-primary') === '1'); } catch {}
 
 let adminEdits = [];   // 관리자 담당자 변경 이력(번들 메타) — 로드시 채워지고 저장시 보존
+let _subNoHW = 0;      // 순번 high-water: 접수번호별 한 번 쓴 최대 subNo(영구 증가, 재사용 금지)
+// 탭의 subNo: 값 없으면 label 끝번호(CODE-N)에서 파싱
+function subNoOf(t) { return (t && t.subNo) || parseInt(String((t && t.label) || '').split('-').pop(), 10) || 0; }
 
 function bundleState() {
   if (activeId) saveData(activeId);
   const fields = {};
   tabs.forEach(t => { fields[t.id] = loadData(t.id); });
-  const b = { tabs: tabs.map(({id,code,label,pass}) => ({id,code,label,pass})), activeId, fields };
+  const b = { tabs: tabs.map(({id,code,label,pass,subNo}) => ({id,code,label,pass,subNo})), activeId, fields };
+  b.maxSubNo = _subNoHW;   // 한 번 쓴 순번은 영구 보존(다른 기기·삭제 후에도 재사용 금지)
   if (Array.isArray(adminEdits) && adminEdits.length) b._adminEdits = adminEdits;   // 메타 보존(고객 저장에도 유지)
   return b;
 }
@@ -123,6 +127,9 @@ function restoreBundle(bundle) {
     tabs.forEach(t => { try { localStorage.removeItem(`ktl-pv-${t.id}`); } catch {} });
   }
   tabs = (bundle.tabs || []);
+  tabs.forEach(t => { if (!t.subNo) t.subNo = subNoOf(t); });   // subNo 없으면 label에서 복원(인덱스 재계산 금지)
+  // high-water 갱신: 저장된 maxSubNo·현재 탭 subNo 중 최대 → 이후 신규 탭이 이 위에서 증가
+  _subNoHW = Math.max(_subNoHW, bundle.maxSubNo || 0, ...tabs.map(subNoOf), 0);
   const keep = prevLabel ? tabs.find(t => t.label === prevLabel) : null;
   activeId = keep ? keep.id : (bundle.activeId || (tabs.length ? tabs[0].id : null));
   Object.entries(bundle.fields || {}).forEach(([id, f]) => {
@@ -480,16 +487,20 @@ function loadMeta() {
   }
   try { const r = localStorage.getItem('ktl-tabs'); if (r) tabs = JSON.parse(r); } catch {}
   try { activeId = localStorage.getItem('ktl-tab-active') || null; } catch {}
-  // 구버전 탭(subNo 없음) 마이그레이션
+  // subNo 없으면 label 끝번호에서 복원(인덱스 재계산 금지 — 번호 리셋 방지). 그래도 없을 때만 index.
   tabs.forEach((t, i) => {
-    if (!t.subNo) t.subNo = i + 1;
+    if (!t.subNo) t.subNo = subNoOf(t) || (i + 1);
     if (!t.label || !t.label.includes('-')) t.label = makeLabel(t.code, t.subNo);
   });
+  _subNoHW = Math.max(_subNoHW, ...tabs.map(subNoOf), 0);   // high-water 초기화
 }
 
-// 다음 subNo 계산 (전체 탭 통틀어 순번)
+// 다음 subNo — 현재 탭 최대 + high-water(영구) 중 큰 값 +1. 한 번 쓴 번호는 절대 재사용 안 함.
 function nextSubNo() {
-  return tabs.length === 0 ? 1 : Math.max(...tabs.map(t => t.subNo || 0)) + 1;
+  const cur = tabs.length ? Math.max(...tabs.map(subNoOf)) : 0;
+  const n = Math.max(cur, _subNoHW) + 1;
+  _subNoHW = n;   // high-water 갱신
+  return n;
 }
 // 성적서/탭 툴팁용 접수번호 — 접수번호 + 탭 순번 (예: 25-000000-01-2).
 // 한 접수번호 아래 여러 항목(TOC-1, TN-2…)을 구분하려 성적서엔 순번을 붙임.
