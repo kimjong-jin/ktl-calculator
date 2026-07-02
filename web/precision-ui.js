@@ -2284,7 +2284,7 @@ function ensureAlarmStack() {
   if (!stack) {
     stack = document.createElement('div');
     stack.id = 'pv-alarm-stack';
-    stack.style.cssText = 'position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom, 0px) + 20px);transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:8px;align-items:stretch;width:min(90vw,360px);max-height:70vh;overflow-y:auto';
+    stack.style.cssText = 'position:fixed;left:50%;bottom:80px;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:8px;align-items:stretch;width:min(90vw,360px)';
     document.body.appendChild(stack);
   }
   return stack;
