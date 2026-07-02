@@ -2229,16 +2229,39 @@ function fmtRemain(ms) {
 }
 
 let _alarmedKeys = new Set();
-function fireAlarm(label) {
+let _alarmCtx = null, _alarmLoop = null, _alarmLabels = [];
+// 완료 알람: OFF 누를 때까지 삐-삐 반복 + 진동 반복. (앱/탭 열려있는 동안 유효 — 웹은 앱이 완전히 멈추면 못 울림)
+function beepOnce() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    [0, 0.25, 0.5].forEach(t => { const o = ctx.createOscillator(), g = ctx.createGain();
+    if (!_alarmCtx) _alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_alarmCtx.state === 'suspended') _alarmCtx.resume();
+    const ctx = _alarmCtx;
+    [0, 0.25].forEach(t => { const o = ctx.createOscillator(), g = ctx.createGain();
       o.connect(g); g.connect(ctx.destination); o.frequency.value = 880; o.type = 'sine';
-      g.gain.setValueAtTime(0.001, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + t + 0.02);
+      g.gain.setValueAtTime(0.001, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t + 0.02);
       g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.2); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.22); });
   } catch {}
-  if (navigator.vibrate) { try { navigator.vibrate([200, 100, 200]); } catch {} }
-  setSaveStatus(`🔔 [${label}] 측정 시간 완료!`, 'ok');
+  if (navigator.vibrate) { try { navigator.vibrate([250, 150, 250]); } catch {} }
+}
+function fireAlarm(label) {
+  if (label && !_alarmLabels.includes(label)) _alarmLabels.push(label);
+  setSaveStatus(`🔔 [${_alarmLabels.join(', ')}] 측정 완료 — 하단 [🔕 알람 끄기]를 누르세요`, 'ok');
+  beepOnce();
+  if (!_alarmLoop) { _alarmLoop = setInterval(beepOnce, 1500); showAlarmStopBtn(); }
+}
+function stopAlarm() {
+  if (_alarmLoop) { clearInterval(_alarmLoop); _alarmLoop = null; }
+  _alarmLabels = [];
+  if (navigator.vibrate) { try { navigator.vibrate(0); } catch {} }
+  const b = document.getElementById('pv-alarm-stop'); if (b) b.remove();
+}
+function showAlarmStopBtn() {
+  if (document.getElementById('pv-alarm-stop')) return;
+  const b = document.createElement('button');
+  b.id = 'pv-alarm-stop'; b.type = 'button'; b.textContent = '🔕 알람 끄기';
+  b.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;background:#dc2626;color:#fff;border:none;border-radius:999px;padding:14px 28px;font-size:16px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4);cursor:pointer;animation:pvAlarmPulse 1s infinite';
+  b.onclick = stopAlarm;
+  document.body.appendChild(b);
 }
 
 function renderTimerRow(code, seqStr) {
