@@ -2293,11 +2293,12 @@ function addAlarmCard(label, tabId, stepLabel) {
   const stack = ensureAlarmStack();
   const card = document.createElement('div');
   card.className = 'pv-alarm-card';
-  card.style.cssText = 'background:#16a34a;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;cursor:pointer;animation:pvAlarmPulse 1s infinite';
-  // 항목(SS-4) 배지 + 완료 스텝(ZZ/SS/ZS…) 명확히 표시
-  const badge = `<span style="background:rgba(0,0,0,.28);border-radius:6px;padding:2px 8px;font-size:13px">${label}</span>`;
-  const step = stepLabel ? ` <b style="font-family:monospace">${stepLabel}</b>` : '';
-  card.innerHTML = `🔔 ${badge}${step} 측정 완료 <span style="font-weight:600;opacity:.85;font-size:12px">· 눌러서 이동</span>`;
+  card.style.cssText = 'background:#16a34a;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;flex-direction:column;gap:3px;cursor:pointer;animation:pvAlarmPulse 1s infinite;width:100%;box-sizing:border-box';
+  // 2줄 구조: 위=항목(SS-4) 배지 + 완료 스텝(ZZ/SS/ZS) 크게 / 아래=안내. 폭 좁아도 안 잘림.
+  const badge = `<span style="background:rgba(0,0,0,.30);border-radius:6px;padding:2px 8px;font-size:14px">${label}</span>`;
+  const step = stepLabel ? `<b style="font-family:monospace;font-size:16px">${stepLabel}</b>` : '';
+  card.innerHTML = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">🔔 ${badge} ${step} <span style="font-size:14px">완료</span></div>`
+    + `<div style="font-weight:600;opacity:.9;font-size:12px">눌러서 해당 항목으로 이동</div>`;
   if (tabId) card.onclick = () => {   // 카드 클릭 → 해당 항목 탭으로 이동
     try { if (tabs.find(x => x.id === tabId)) { activeId = tabId; switchTab(tabId); } } catch {}
     card.remove();
