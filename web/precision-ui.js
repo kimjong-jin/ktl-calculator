@@ -3171,7 +3171,13 @@ function renderTabs() {
   bar.querySelectorAll('.pv-item-tab').forEach(b =>
     b.addEventListener('click', () => switchTab(b.dataset.id)));
   bar.querySelectorAll('.pv-tab-del').forEach(b =>
-    b.addEventListener('click', e => { e.stopPropagation(); removeTab(b.dataset.id); }));
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      const tab = tabs.find(t => t.id === b.dataset.id);
+      const name = tab ? (tab.label || tab.code || '이 항목') : '이 항목';
+      if (!confirm(`"${name}" 항목을 삭제하시겠습니까?\n입력한 측정값·진행순서가 모두 지워집니다.`)) return;
+      removeTab(b.dataset.id);
+    }));
 }
 
 function renderEmpty() {
