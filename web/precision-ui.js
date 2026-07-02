@@ -2394,7 +2394,7 @@ function renderTimerRow(code, seqStr) {
   const drawChips = () => {
     const state = loadTimerState()[tabKey] || {};
     row.classList.toggle('is-viewonly', !isPrimaryUser);   // 확인용: 흐리게(조작 불가 표시), 진행/완료는 보임
-    const hint = isPrimaryUser ? '선택 · 필요한 스텝만 눌러 시작 · 값과 무관' : '👁 확인용 — 주사용자 전환 시 조작 가능';
+    const hint = isPrimaryUser ? '탭=타이머 시작 · 길게(5초)=수기 완료 · 값과 무관' : '👁 확인용 — 주사용자 전환 시 조작 가능';
     let prevGroup = null;
     let firstChip = true;
     const warnHtml = phWarn ? `<div class="pv-timer-warn">${phWarn}</div>` : '';
@@ -2408,8 +2408,8 @@ function renderTimerRow(code, seqStr) {
                    : done ? `<span class="pv-timer-done">✓ 완료</span>`
                    : `<span class="pv-timer-min">${st.min >= 60 ? (st.min/60)+'h' : st.min+'분'}</span>`;
       const adj = (st.adjustable && !running && !done) ? `<button class="pv-timer-adj" data-adj="${st.key}" data-kind="${st.adjustable}" title="시간 조절">±</button>` : '';
-      // 수기 완료 버튼(✓): 타이머 안 돌리고 바로 완료 처리. 미완료 상태에서만.
-      const chk = (!running && !done) ? `<button class="pv-timer-chk" data-chk="${st.key}" title="타이머 없이 수기 완료">✓</button>` : '';
+      // 수기 완료는 칩을 길게(5초) 눌러서 — 작은 버튼 대신(손가락 큰 오터치 방지)
+      const chk = '';
       // 그룹 구분선 (파이프라인처럼)
       const g = st.group || '';
       const sep = (g && g !== prevGroup && prevGroup !== null) ? `<div class="pv-timer-sep" title="${g}"></div>` : '';
@@ -2421,20 +2421,37 @@ function renderTimerRow(code, seqStr) {
         <span class="pv-timer-lbl">${st.label}</span>${status}${chk}${adj}</div>`;
     }).join('') + `</div>`;
 
-    // 수기 완료(✓): 타이머 없이 바로 완료 처리 ('done' 마커 — 알람 안 울림)
-    row.querySelectorAll('.pv-timer-chk').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (!isPrimaryUser) { setSaveStatus('⏱️ 주사용자 전환 후 사용할 수 있습니다.', 'warn'); return; }
-        const key = btn.dataset.chk;
-        const all = loadTimerState(); const t = all[tabKey] || {};
-        _alarmedKeys.add(tabKey + key);   // 수기완료는 알람 대상 아님
-        t[key] = 'done'; all[tabKey] = t; saveTimerState(all); drawChips();
-      });
+    // 수기 완료: 칩을 길게(5초) 누르면 완료 처리 ('done' 마커 — 알람 안 울림). 작은 버튼 없앰(오터치 방지).
+    row.querySelectorAll('.pv-timer-chip').forEach(chip => {
+      let lpTimer = null, lpFired = false;
+      const startLP = () => {
+        lpFired = false;
+        lpTimer = setTimeout(() => {
+          lpFired = true;
+          if (!isPrimaryUser) { setSaveStatus('⏱️ 주사용자 전환 후 사용할 수 있습니다.', 'warn'); return; }
+          const key = chip.dataset.key;
+          const st = steps.find(s => s.key === key);
+          const all = loadTimerState(); const t = all[tabKey] || {};
+          _alarmedKeys.add(tabKey + key);
+          t[key] = 'done'; all[tabKey] = t; saveTimerState(all);
+          if (navigator.vibrate) { try { navigator.vibrate(60); } catch {} }   // 완료 피드백
+          setSaveStatus(`✓ [${st ? st.label : ''}] 수기 완료 처리됨`, 'ok');
+          drawChips();
+        }, 5000);
+      };
+      const cancelLP = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } };
+      chip.addEventListener('mousedown', startLP);
+      chip.addEventListener('touchstart', startLP, { passive: true });
+      chip.addEventListener('mouseup', cancelLP);
+      chip.addEventListener('mouseleave', cancelLP);
+      chip.addEventListener('touchend', cancelLP);
+      chip.addEventListener('touchcancel', cancelLP);
+      chip._lpFired = () => lpFired;
     });
     row.querySelectorAll('.pv-timer-chip').forEach(chip => {
       chip.addEventListener('click', (e) => {
         if (e.target.closest('.pv-timer-adj') || e.target.closest('.pv-timer-chk')) return;
+        if (chip._lpFired && chip._lpFired()) return;   // 길게눌러 수기완료된 경우 click 무시
         if (!isPrimaryUser) { setSaveStatus('⏱️ 타이머는 주사용자 전환 후 사용할 수 있습니다.', 'warn'); return; }  // 확인용은 조작 불가(보기만)
         unlockAudio();   // 사용자 클릭 제스처에서 오디오 깨움 → 나중에 setInterval 알람 소리 재생 가능(모바일 정책)
         const key = chip.dataset.key;
