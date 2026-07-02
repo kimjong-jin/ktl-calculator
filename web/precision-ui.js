@@ -2267,25 +2267,45 @@ function beepOnce() {
   if (navigator.vibrate) { try { navigator.vibrate([250, 150, 250]); } catch {} }
 }
 function fireAlarm(label) {
-  if (label && !_alarmLabels.includes(label)) _alarmLabels.push(label);
-  setSaveStatus(`🔔 [${_alarmLabels.join(', ')}] 측정 완료 — 하단 [🔕 알람 끄기]를 누르세요`, 'ok');
+  // 소리는 1개(겹침 없음), 완료 알림 카드는 스텝마다 1개씩 쌓임. OFF 하나로 전체 정지.
+  if (label && !_alarmLabels.includes(label)) { _alarmLabels.push(label); addAlarmCard(label); }
   beepOnce();
-  if (!_alarmLoop) { _alarmLoop = setInterval(beepOnce, 1500); showAlarmStopBtn(); }
+  if (!_alarmLoop) { _alarmLoop = setInterval(beepOnce, 1500); }
+}
+function ensureAlarmStack() {
+  let stack = document.getElementById('pv-alarm-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.id = 'pv-alarm-stack';
+    stack.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:8px;align-items:stretch;width:min(90vw,360px)';
+    document.body.appendChild(stack);
+  }
+  return stack;
+}
+function addAlarmCard(label) {
+  const stack = ensureAlarmStack();
+  const card = document.createElement('div');
+  card.className = 'pv-alarm-card';
+  card.style.cssText = 'background:#16a34a;color:#fff;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;animation:pvAlarmPulse 1s infinite';
+  card.textContent = `🔔 ${label} 측정 완료`;
+  stack.appendChild(card);
+  ensureAlarmStopBtn();
+}
+function ensureAlarmStopBtn() {
+  const stack = ensureAlarmStack();
+  if (document.getElementById('pv-alarm-stop')) return;
+  const b = document.createElement('button');
+  b.id = 'pv-alarm-stop'; b.type = 'button'; b.textContent = '🔕 알람 끄기 (전체)';
+  b.style.cssText = 'background:#dc2626;color:#fff;border:none;border-radius:999px;padding:14px 28px;font-size:16px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4);cursor:pointer;margin-top:2px';
+  b.onclick = stopAlarm;
+  stack.appendChild(b);
 }
 function stopAlarm() {
   if (_alarmLoop) { clearInterval(_alarmLoop); _alarmLoop = null; }
   _alarmLabels = [];
   if (_alarmAudio) { try { _alarmAudio.pause(); _alarmAudio.currentTime = 0; } catch {} }
   if (navigator.vibrate) { try { navigator.vibrate(0); } catch {} }
-  const b = document.getElementById('pv-alarm-stop'); if (b) b.remove();
-}
-function showAlarmStopBtn() {
-  if (document.getElementById('pv-alarm-stop')) return;
-  const b = document.createElement('button');
-  b.id = 'pv-alarm-stop'; b.type = 'button'; b.textContent = '🔕 알람 끄기';
-  b.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;background:#dc2626;color:#fff;border:none;border-radius:999px;padding:14px 28px;font-size:16px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4);cursor:pointer;animation:pvAlarmPulse 1s infinite';
-  b.onclick = stopAlarm;
-  document.body.appendChild(b);
+  const stack = document.getElementById('pv-alarm-stack'); if (stack) stack.remove();
 }
 
 function renderTimerRow(code, seqStr) {
