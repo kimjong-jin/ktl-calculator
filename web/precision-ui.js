@@ -3227,6 +3227,10 @@ function setupPipelineAndGraph(tab) {
   const existingPipeline = formCard.querySelector('.pv-pipeline-section');
   if (existingPipeline) existingPipeline.remove();
 
+  // Cl·TU(먹는물)는 진행순서 고정 — 비어있으면 자동 세팅(파이프라인·타이머 함께 사용)
+  if (IS_WATER(tab.code) && (!stored['seq'] || !stored['seq'].trim())) {
+    stored['seq'] = WATER_FIXED_SEQ; saveData(tab.id);
+  }
   const seqVal = stored['seq'] || '';
 
   // 항목별 다른 placeholder 예시
@@ -3244,11 +3248,14 @@ function setupPipelineAndGraph(tab) {
       <div class="pv-pipeline-header">
         <span class="pv-pipeline-title">📊 입력 진행도 파이프라인</span>
         <div class="pv-pipeline-controls">
-          <div class="pv-pipeline-seq-wrap">
+          ${IS_WATER(tab.code)
+            ? `<div class="pv-pipeline-seq-wrap"><span style="color:var(--text-dim)">🔄 진행 순서: <b style="color:#38bdf8">먹는물 고정 순서(자동)</b></span>
+                 <input type="hidden" id="pv-pipeline-seq" value="${seqVal}" /></div>`
+            : `<div class="pv-pipeline-seq-wrap">
             <span>🔄 진행 순서:</span>
             <input type="text" class="pv-pipeline-seq-input" id="pv-pipeline-seq" placeholder="${seqPlaceholder}" value="${seqVal}" />
             <button type="button" class="pv-graph-btn" id="pv-seq-import-btn" title="첫 탭(-1, 예: TOC-1)의 진행 순서를 그대로 가져옵니다">📥 -1에서 가져오기</button>
-          </div>
+          </div>`}
           <button type="button" class="pv-graph-btn" id="pv-open-graph-btn">📈 그래프</button>
         </div>
       </div>
