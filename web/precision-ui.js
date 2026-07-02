@@ -2185,9 +2185,52 @@ function saveTimerLabel(tabKey, stepKey, label) { try { const m = loadTimerLabel
 function loadTimerState() { try { return JSON.parse(localStorage.getItem(TIMER_STATE_KEY) || '{}'); } catch { return {}; } }
 function saveTimerState(s) { try { localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(s)); } catch {} }
 
+const TIMER_PHDRIFT_KEY = 'ktl-timer-phdrift-min';  // pH 드리프트 대기(기본 2시간=120분)
+
+// pH 진행순서(4·7·10 숫자) → 타이머 스텝. 연속 같은 숫자=묶음 20분(직선성·드리프트),
+// 7·4 교대=반복성 각 10분. 직선성(뒤에 10)과 드리프트(10 없음×2회) 구분, 드리프트 1↔2차 사이 2시간 대기.
+// 온도보상(444777 뒤 4×5)은 타이머 없음.
+function parsePhTimerSteps(seqStr) {
+  const raw = String(seqStr || '').replace(/[^0-9]/g, '');
+  const toks = [];
+  for (let i = 0; i < raw.length;) {
+    if (raw[i] === '1' && raw[i + 1] === '0') { toks.push(10); i += 2; }
+    else if (raw[i] === '4' || raw[i] === '7') { toks.push(+raw[i]); i++; }
+    else i++;
+  }
+  if (!toks.length) return [];
+  const eq = (i, pat) => pat.every((p, k) => toks[i + k] === p);
+  const LIN  = [4,4,4,7,7,7,10,10,10];   // 직선성: 444(20)/777(20)/10·10·10(20)
+  const TEMP = [4,4,4,4,4];              // 온도보상: 타이머 없음
+  const REPa = [7,4,7,4,7,4];            // 반복성: 각 10분
+  const REPb = [4,7,4,7,4,7];
+  const DRIFT= [4,4,4,7,7,7];            // 드리프트: 444(20)/777(20), 1↔2차 사이 2시간
+  const steps = [], mk = (label, min, kind, adj) => ({ key: `ph_${label}_${min}_${steps.length}`, label, min, kind, ...(adj ? { adjustable: adj } : {}) });
+  let i = 0, driftN = 0, driftFirstEndIdx = -1;
+  while (i < toks.length) {
+    if (eq(i, LIN)) {
+      steps.push(mk('4', 20, 'step'), mk('7', 20, 'step'), mk('10', 20, 'step')); i += 9;
+    } else if (eq(i, TEMP)) {
+      i += 5;   // 온도보상 = 타이머 없음(스텝 안 만듦)
+    } else if (eq(i, REPa) || eq(i, REPb)) {
+      for (let k = 0; k < 6; k++) steps.push(mk(String(toks[i + k]), 10, 'step')); i += 6;
+    } else if (eq(i, DRIFT)) {
+      steps.push(mk('4', 20, 'step'), mk('7', 20, 'step'));
+      driftN++; if (driftN === 1) driftFirstEndIdx = steps.length; i += 6;
+    } else { i++; }
+  }
+  // 드리프트가 2번 나오면 1↔2차 사이 2시간 대기 삽입
+  if (driftN >= 2 && driftFirstEndIdx >= 0) {
+    const phDriftMin = parseInt(localStorage.getItem(TIMER_PHDRIFT_KEY) || '120', 10) || 120;
+    steps.splice(driftFirstEndIdx, 0, { key: 'phdrift', label: '⏳2시간(선택)', min: phDriftMin, kind: 'drift', adjustable: 'phdrift' });
+  }
+  return steps;
+}
+
 // 진행순서 → 묶음 스텝 배열. 각 스텝: {key, label, min, kind}
 // kind: 'step'(측정) | 'drift'(4시간 기준선, 초기 드리프트 뒤 1회 삽입)
 function parseTimerSteps(code, seqStr) {
+  if (String(code).toUpperCase() === 'PH') return parsePhTimerSteps(seqStr);
   const raw = String(seqStr || '').toUpperCase().replace(/[^A-Z]/g, '');
   if (!raw) return [];
   // 연속 동일글자 묶기
@@ -2327,8 +2370,9 @@ function stopAlarm() {
 function renderTimerRow(code, seqStr) {
   const row = document.getElementById('pv-timer-row');
   if (!row) return;
-  // 측정 타이머는 SS(센서 타입)만 대상 — 다른 항목엔 표시 안 함
-  if (String(code).toUpperCase() !== 'SS') { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
+  // 측정 타이머는 센서 타입(SS·pH)만 대상 — 다른 항목엔 표시 안 함
+  const CODE = String(code).toUpperCase();
+  if (CODE !== 'SS' && CODE !== 'PH') { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
   const steps = parseTimerSteps(code, seqStr);
   if (!steps.length) { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
 
@@ -2393,6 +2437,10 @@ function renderTimerRow(code, seqStr) {
           const cur = parseInt(localStorage.getItem(TIMER_MMM_KEY) || '30', 10);
           const v = prompt('MMM 측정 시간(분, 20~30):', cur);
           if (v !== null) { const n = Math.max(1, parseInt(v, 10) || cur); localStorage.setItem(TIMER_MMM_KEY, String(n)); renderTimerRow(code, seqStr); }
+        } else if (kind === 'phdrift') {
+          const curMin = parseInt(localStorage.getItem(TIMER_PHDRIFT_KEY) || '120', 10);
+          const v = prompt('pH 드리프트 대기 조절 (분 단위, 기본 120=2시간, 10분씩 권장):', curMin);
+          if (v !== null) { const n = Math.max(10, parseInt(v, 10) || curMin); localStorage.setItem(TIMER_PHDRIFT_KEY, String(n)); renderTimerRow(code, seqStr); }
         } else {
           const curMin = parseInt(localStorage.getItem(TIMER_DRIFT_KEY) || '240', 10);
           const v = prompt('4시간 대기 조절 (분 단위, 10분씩 조절 권장):', curMin);
