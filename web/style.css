@@ -2262,6 +2262,8 @@ select.field__control {
 .pv-timer-chk { border: none; background: rgba(34,197,94,.18); color: #4ade80; border-radius: 5px; width: 18px; height: 18px; cursor: pointer; font-size: 12px; font-weight: 900; line-height: 1; padding: 0; }
 .pv-timer-chk:hover { background: rgba(34,197,94,.4); color: #fff; }
 .pv-timer-row.is-viewonly .pv-timer-chk { display: none; }
+/* pH 진행순서 누락 경고 */
+.pv-timer-warn { background: rgba(220,38,38,.15); border: 1px solid #dc2626; color: #fca5a5; border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 700; margin: 4px 0 6px; }
 /* 측정 단계 그룹 구분선 (드/반/직/온도/현장/응답 경계) */
 .pv-pipeline-sep {
   flex: 0 0 auto;

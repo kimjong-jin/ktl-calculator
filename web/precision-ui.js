@@ -2373,7 +2373,18 @@ function renderTimerRow(code, seqStr) {
   const CODE = String(code).toUpperCase();
   if (CODE !== 'SS' && CODE !== 'PH') { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
   const steps = parseTimerSteps(code, seqStr);
-  if (!steps.length) { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
+  // pH 진행순서 필수 블록 검증: 반복성·드리프트초기·드리프트후기·직선성·온도보상 다 있어야 함
+  let phWarn = '';
+  if (CODE === 'PH' && seqStr && seqStr.trim()) {
+    const gset = new Set(steps.map(s => s.group));
+    const need = [['반복성', '반복성(747474)'], ['직선성', '직선성(444777·10·10·10)'], ['드리프트 초기', '드리프트 1차(444777)'], ['드리프트 후기', '드리프트 2차(444777)']];
+    const miss = need.filter(([g]) => !gset.has(g)).map(([, n]) => n);
+    // 온도보상(44444)은 타이머엔 안 잡히니 진행순서 원문에서 5연속 4 확인
+    const hasTemp = /4{5}/.test(seqStr.replace(/[^0-9]/g, '').replace(/10/g, ''));
+    if (!hasTemp) miss.push('온도보상(44444)');
+    if (miss.length) phWarn = `⚠️ 진행순서 누락: ${miss.join(', ')} — 확인하세요`;
+  }
+  if (!steps.length && !phWarn) { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
 
   const tabKey = code + '::' + (activeId || '');
   // 페이지 닫혀있는 동안 이미 끝난 타이머는 '알람 완료'로 미리 표시 → 다음날 와서 재알람 안 울림.
@@ -2386,7 +2397,8 @@ function renderTimerRow(code, seqStr) {
     const hint = isPrimaryUser ? '선택 · 필요한 스텝만 눌러 시작 · 값과 무관' : '👁 확인용 — 주사용자 전환 시 조작 가능';
     let prevGroup = null;
     let firstChip = true;
-    row.innerHTML = `<div class="pv-timer-title">⏱️ 측정 타이머 <span class="pv-timer-hint">(${hint})</span></div>
+    const warnHtml = phWarn ? `<div class="pv-timer-warn">${phWarn}</div>` : '';
+    row.innerHTML = `<div class="pv-timer-title">⏱️ 측정 타이머 <span class="pv-timer-hint">(${hint})</span></div>${warnHtml}
       <div class="pv-timer-chips">` + steps.map(st => {
       const end = state[st.key];
       const running = typeof end === 'number' && end > Date.now();
