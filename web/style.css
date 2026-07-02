@@ -2228,9 +2228,9 @@ select.field__control {
 .pv-timer-chip {
   display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none;
   padding: 5px 9px; border-radius: 8px; font-size: 12px; font-weight: 700;
-  background: #1e293b; color: #cbd5e1; border: 1px solid #334155; transition: all .12s;
+  background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); transition: all .12s;
 }
-.pv-timer-chip:hover { border-color: #64748b; }
+.pv-timer-chip:hover { border-color: var(--border-strong); }
 .pv-timer-chip.is-drift { background: #422006; color: #fcd34d; border-color: #a16207; }
 .pv-timer-chip.is-running { background: #0c4a6e; color: #7dd3fc; border-color: #0284c7; box-shadow: 0 0 0 2px rgba(2,132,199,.25); }
 .pv-timer-chip.is-done { background: #052e16; color: #4ade80; border-color: #16a34a; }
