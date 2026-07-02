@@ -2190,39 +2190,38 @@ const TIMER_PHDRIFT_KEY = 'ktl-timer-phdrift-min';  // pH 드리프트 대기(�
 // pH 진행순서(4·7·10 숫자) → 타이머 스텝. 연속 같은 숫자=묶음 20분(직선성·드리프트),
 // 7·4 교대=반복성 각 10분. 직선성(뒤에 10)과 드리프트(10 없음×2회) 구분, 드리프트 1↔2차 사이 2시간 대기.
 // 온도보상(444777 뒤 4×5)은 타이머 없음.
-function parsePhTimerSteps(seqStr) {
-  const raw = String(seqStr || '').replace(/[^0-9]/g, '');
-  const toks = [];
-  for (let i = 0; i < raw.length;) {
-    if (raw[i] === '1' && raw[i + 1] === '0') { toks.push(10); i += 2; }
-    else if (raw[i] === '4' || raw[i] === '7') { toks.push(+raw[i]); i++; }
-    else i++;
+// 파이프라인과 100% 동일한 파서(parsePhDigitSeq) 결과를 그대로 써서 타이머 생성 → 진행순서와 항상 일치.
+// 필드 id로 분류: 반복성(각10분·개별) / 직선성·드리프트(버퍼묶음 20분) / 온도(타이머없음). 드리프트 초기↔후기 사이 2시간.
+function parsePhTimerSteps(code, seqStr) {
+  const fields = parsePhDigitSeq(code, seqStr);   // 파이프라인이 쓰는 바로 그 파스
+  if (!fields || !fields.length) return [];
+  const catOf = (id) => {
+    if (/^ph[47][a-c]$/.test(id))          return { cat: '반복성',      buf: id.charAt(2), min: 10, indiv: true };
+    if (/^phm(10|4|7)[a-c]$/.test(id))     return { cat: '직선성',      buf: id.match(/^phm(10|4|7)/)[1], min: 20 };
+    if (/^phsi/.test(id))                  return { cat: '드리프트 초기', buf: '4', min: 20 };
+    if (/^phzi/.test(id))                  return { cat: '드리프트 초기', buf: '7', min: 20 };
+    if (/^phsf/.test(id))                  return { cat: '드리프트 후기', buf: '4', min: 20 };
+    if (/^phzf/.test(id))                  return { cat: '드리프트 후기', buf: '7', min: 20 };
+    return null;   // 온도(pht)·현장·응답 = 타이머 없음
+  };
+  const steps = [];
+  for (const f of fields) {
+    const c = catOf(f.id);
+    if (!c) continue;
+    if (c.indiv) {   // 반복성: 각 10분 개별
+      steps.push({ key: `ph_${f.id}`, label: c.buf, min: c.min, kind: 'step', group: c.cat });
+    } else {         // 직선성·드리프트: 같은 (카테고리+버퍼) 연속 3회 → 20분 1개로 묶기
+      const last = steps[steps.length - 1];
+      if (last && last._cat === c.cat && last._buf === c.buf) continue;
+      steps.push({ key: `ph_${f.id}`, label: c.buf, min: c.min, kind: 'step', group: c.cat, _cat: c.cat, _buf: c.buf });
+    }
   }
-  if (!toks.length) return [];
-  const eq = (i, pat) => pat.every((p, k) => toks[i + k] === p);
-  const LIN  = [4,4,4,7,7,7,10,10,10];   // 직선성: 444(20)/777(20)/10·10·10(20)
-  const TEMP = [4,4,4,4,4];              // 온도보상: 타이머 없음
-  const REPa = [7,4,7,4,7,4];            // 반복성: 각 10분
-  const REPb = [4,7,4,7,4,7];
-  const DRIFT= [4,4,4,7,7,7];            // 드리프트: 444(20)/777(20), 1↔2차 사이 2시간
-  const steps = [], mk = (label, min, kind, adj) => ({ key: `ph_${label}_${min}_${steps.length}`, label, min, kind, ...(adj ? { adjustable: adj } : {}) });
-  let i = 0, driftN = 0, driftFirstEndIdx = -1;
-  while (i < toks.length) {
-    if (eq(i, LIN)) {
-      steps.push(mk('4', 20, 'step'), mk('7', 20, 'step'), mk('10', 20, 'step')); i += 9;
-    } else if (eq(i, TEMP)) {
-      i += 5;   // 온도보상 = 타이머 없음(스텝 안 만듦)
-    } else if (eq(i, REPa) || eq(i, REPb)) {
-      for (let k = 0; k < 6; k++) steps.push(mk(String(toks[i + k]), 10, 'step')); i += 6;
-    } else if (eq(i, DRIFT)) {
-      steps.push(mk('4', 20, 'step'), mk('7', 20, 'step'));
-      driftN++; if (driftN === 1) driftFirstEndIdx = steps.length; i += 6;
-    } else { i++; }
-  }
-  // 드리프트가 2번 나오면 1↔2차 사이 2시간 대기 삽입
-  if (driftN >= 2 && driftFirstEndIdx >= 0) {
+  // 드리프트 초기 끝 ↔ 후기 시작 사이 2시간 대기 삽입
+  const initIdxs = steps.map((s, i) => s.group === '드리프트 초기' ? i : -1).filter(i => i >= 0);
+  const firstLate = steps.findIndex(s => s.group === '드리프트 후기');
+  if (initIdxs.length && firstLate > initIdxs[initIdxs.length - 1]) {
     const phDriftMin = parseInt(localStorage.getItem(TIMER_PHDRIFT_KEY) || '120', 10) || 120;
-    steps.splice(driftFirstEndIdx, 0, { key: 'phdrift', label: '⏳2시간(선택)', min: phDriftMin, kind: 'drift', adjustable: 'phdrift' });
+    steps.splice(initIdxs[initIdxs.length - 1] + 1, 0, { key: 'phdrift', label: '⏳2시간(선택)', min: phDriftMin, kind: 'drift', adjustable: 'phdrift', group: '대기' });
   }
   return steps;
 }
@@ -2230,7 +2229,7 @@ function parsePhTimerSteps(seqStr) {
 // 진행순서 → 묶음 스텝 배열. 각 스텝: {key, label, min, kind}
 // kind: 'step'(측정) | 'drift'(4시간 기준선, 초기 드리프트 뒤 1회 삽입)
 function parseTimerSteps(code, seqStr) {
-  if (String(code).toUpperCase() === 'PH') return parsePhTimerSteps(seqStr);
+  if (String(code).toUpperCase() === 'PH') return parsePhTimerSteps(code, seqStr);
   const raw = String(seqStr || '').toUpperCase().replace(/[^A-Z]/g, '');
   if (!raw) return [];
   // 연속 동일글자 묶기
@@ -2247,12 +2246,12 @@ function parseTimerSteps(code, seqStr) {
   groups.forEach((g, i) => {
     const gid = `${g.ch}${g.n}_${i}`;
     if (g.ch === 'M') {
-      steps.push({ key: gid, label: g.ch.repeat(g.n), min: mmmMin, kind: 'step', adjustable: 'mmm' });
+      steps.push({ key: gid, label: g.ch.repeat(g.n), min: mmmMin, kind: 'step', adjustable: 'mmm', group: '직선성' });
     } else if (g.ch === 'Z' || g.ch === 'S') {
-      const isPair = g.n >= 2;                 // ZZ/SS = 묶음 40분, Z/S 단독 = 10분
-      steps.push({ key: gid, label: g.ch.repeat(g.n), min: isPair ? 40 : 10, kind: 'step' });
+      const isPair = g.n >= 2;                 // ZZ/SS = 묶음 40분(드리프트), Z/S 단독 = 10분(반복성)
+      steps.push({ key: gid, label: g.ch.repeat(g.n), min: isPair ? 40 : 10, kind: 'step', group: isPair ? '드리프트' : '반복성' });
     } else {
-      steps.push({ key: gid, label: g.ch.repeat(g.n), min: 10, kind: 'step' });
+      steps.push({ key: gid, label: g.ch.repeat(g.n), min: 10, kind: 'step', group: '기타' });
     }
   });
   // 초기 드리프트(첫 ZZ 와 첫 SS 가 다 지난 지점) 뒤에 4시간 기준선 1회 삽입
@@ -2264,7 +2263,7 @@ function parseTimerSteps(code, seqStr) {
     const hasLater = steps.slice(afterInitial + 1).some(s => s.label === 'ZZ' || s.label === 'SS');
     if (hasLater) {
       const driftMin = parseInt(localStorage.getItem(TIMER_DRIFT_KEY) || '240', 10) || 240;
-      steps.splice(afterInitial + 1, 0, { key: `drift_${afterInitial}`, label: '⏳4시간(선택)', min: driftMin, kind: 'drift', adjustable: 'drift' });
+      steps.splice(afterInitial + 1, 0, { key: `drift_${afterInitial}`, label: '⏳4시간(선택)', min: driftMin, kind: 'drift', adjustable: 'drift', group: '대기' });
     }
   }
   return steps;
@@ -2385,6 +2384,7 @@ function renderTimerRow(code, seqStr) {
     const state = loadTimerState()[tabKey] || {};
     row.classList.toggle('is-viewonly', !isPrimaryUser);   // 확인용: 흐리게(조작 불가 표시), 진행/완료는 보임
     const hint = isPrimaryUser ? '선택 · 필요한 스텝만 눌러 시작 · 값과 무관' : '👁 확인용 — 주사용자 전환 시 조작 가능';
+    let prevGroup = null;
     row.innerHTML = `<div class="pv-timer-title">⏱️ 측정 타이머 <span class="pv-timer-hint">(${hint})</span></div>
       <div class="pv-timer-chips">` + steps.map(st => {
       const end = state[st.key];
@@ -2395,7 +2395,11 @@ function renderTimerRow(code, seqStr) {
                    : done ? `<span class="pv-timer-done">✓ 완료</span>`
                    : `<span class="pv-timer-min">${st.min >= 60 ? (st.min/60)+'h' : st.min+'분'}</span>`;
       const adj = (st.adjustable && !running) ? `<button class="pv-timer-adj" data-adj="${st.key}" data-kind="${st.adjustable}" title="시간 조절">±</button>` : '';
-      return `<div class="pv-timer-chip ${cls} ${running?'is-running':''} ${done?'is-done':''}" data-key="${st.key}">
+      // 그룹(반복성/직선성/드리프트…) 바뀌면 구분선 + 그룹명 — 진행순서 파이프라인처럼
+      const g = st.group || '';
+      const sep = (g && g !== prevGroup) ? `<div class="pv-timer-sep"><span>${g}</span></div>` : '';
+      prevGroup = g;
+      return sep + `<div class="pv-timer-chip ${cls} ${running?'is-running':''} ${done?'is-done':''}" data-key="${st.key}">
         <span class="pv-timer-lbl">${st.label}</span>${status}${adj}</div>`;
     }).join('') + `</div>`;
 
