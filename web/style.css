@@ -2246,10 +2246,10 @@ select.field__control {
 @keyframes pvCardPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
 .pv-timer-row.is-viewonly .pv-timer-chip { opacity: .6; cursor: not-allowed; }
 .pv-timer-row.is-viewonly .pv-timer-adj { display: none; }
-/* 그룹 구분선 — 폭 100%라 줄바꿈되며 그룹명 표시(진행순서 파이프라인처럼) */
-.pv-timer-sep { flex-basis: 100%; height: 0; display: flex; align-items: center; gap: 6px; margin: 4px 0 1px; }
-.pv-timer-sep span { font-size: 10px; font-weight: 700; color: var(--text-dim, #94a3b8); white-space: nowrap; }
-.pv-timer-sep::after { content: ''; flex: 1; height: 1px; background: var(--border, #334155); }
+/* 그룹 구분선 — 파이프라인처럼 옆으로 얇은 세로 막대(줄바꿈 안 함). 그룹명은 title(hover)로만. */
+.pv-timer-sep { flex: 0 0 auto; align-self: stretch; width: 3px; min-height: 24px; margin: 0 4px; border-radius: 2px;
+  background: repeating-linear-gradient(45deg, var(--border, #3a424f), var(--border, #3a424f) 3px, transparent 3px, transparent 6px); }
+.pv-timer-sep span { display: none; }
 /* 측정 단계 그룹 구분선 (드/반/직/온도/현장/응답 경계) */
 .pv-pipeline-sep {
   flex: 0 0 auto;

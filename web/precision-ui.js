@@ -2397,7 +2397,7 @@ function renderTimerRow(code, seqStr) {
       const adj = (st.adjustable && !running) ? `<button class="pv-timer-adj" data-adj="${st.key}" data-kind="${st.adjustable}" title="시간 조절">±</button>` : '';
       // 그룹(반복성/직선성/드리프트…) 바뀌면 구분선 + 그룹명 — 진행순서 파이프라인처럼
       const g = st.group || '';
-      const sep = (g && g !== prevGroup) ? `<div class="pv-timer-sep"><span>${g}</span></div>` : '';
+      const sep = (g && g !== prevGroup && prevGroup !== null) ? `<div class="pv-timer-sep" title="${g}"></div>` : '';
       prevGroup = g;
       return sep + `<div class="pv-timer-chip ${cls} ${running?'is-running':''} ${done?'is-done':''}" data-key="${st.key}">
         <span class="pv-timer-lbl">${st.label}</span>${status}${adj}</div>`;
