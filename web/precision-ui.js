@@ -2244,6 +2244,43 @@ async function cancelPush(id) {
 const TIMER_PHDRIFT_KEY = 'ktl-timer-phdrift-min';  // pH 드리프트 대기(기본 2시간=120분)
 const TIMER_PHREP_KEY   = 'ktl-timer-phrep-min';    // pH 반복성 측정(기본 10분, 조절가능)
 const TIMER_PHMEAS_KEY  = 'ktl-timer-phmeas-min';   // pH 직선성·드리프트 측정(기본 20분, 조절가능)
+const TIMER_DOMEAS_KEY  = 'ktl-timer-domeas-min';   // DO 측정(반복성·드리프트·온도보상 기본 20분, 조절가능)
+const TIMER_DODRIFT_KEY = 'ktl-timer-dodrift-min';  // DO 드리프트 대기(기본 2시간=120분)
+
+// DO 진행순서(S/Z/20/30/O) → 타이머 스텝. 파이프라인 파서(parseDoSeq) 결과 그대로 사용 → 항상 일치.
+// 필드 id로 분류: 반복성(dos1~3)·제로드리프트(dozi/dozf)·스팬드리프트(dosi/dosf)·온도보상(dot20/dot30) = 각 묶음 20분.
+// 드리프트 초기(i)↔2h(f) 사이 2시간 대기. 응답(resp)은 타이머 없음.
+function parseDoTimerSteps(code, seqStr) {
+  const fields = parseDoSeq(code, seqStr);
+  if (!fields || !fields.length) return [];
+  const measMin = parseInt(localStorage.getItem(TIMER_DOMEAS_KEY) || '20', 10) || 20;
+  const catOf = (id) => {
+    if (/^dos[123]$/.test(id))   return { cat: '반복성',        lbl: 'S',  min: measMin };
+    if (/^dozi/.test(id))        return { cat: '제로드리프트 초기', lbl: 'Z',  min: measMin };
+    if (/^dozf/.test(id))        return { cat: '제로드리프트 2h',  lbl: 'Z',  min: measMin };
+    if (/^dosi/.test(id))        return { cat: '스팬드리프트 초기', lbl: 'S',  min: measMin };
+    if (/^dosf/.test(id))        return { cat: '스팬드리프트 2h',  lbl: 'S',  min: measMin };
+    if (/^dot20/.test(id))       return { cat: '온도보상 20℃',   lbl: '20', min: measMin };
+    if (/^dot30/.test(id))       return { cat: '온도보상 30℃',   lbl: '30', min: measMin };
+    return null;   // resp(응답)·resp_limit = 타이머 없음
+  };
+  const steps = [];
+  for (const f of fields) {
+    const c = catOf(f.id);
+    if (!c) continue;
+    const last = steps[steps.length - 1];
+    if (last && last._cat === c.cat) continue;   // 같은 카테고리 3회 연속 → 20분 1개로 묶기
+    steps.push({ key: `do_${f.id}`, label: c.lbl, min: c.min, kind: 'step', group: c.cat, adjustable: 'domeas', _cat: c.cat });
+  }
+  // 드리프트 초기(마지막) ↔ 2h(첫) 사이 2시간 대기
+  const initIdxs = steps.map((s, i) => /초기$/.test(s.group) ? i : -1).filter(i => i >= 0);
+  const firstF = steps.findIndex(s => /2h$/.test(s.group));
+  if (initIdxs.length && firstF > initIdxs[initIdxs.length - 1]) {
+    const dMin = parseInt(localStorage.getItem(TIMER_DODRIFT_KEY) || '120', 10) || 120;
+    steps.splice(initIdxs[initIdxs.length - 1] + 1, 0, { key: 'dodrift', label: '⏳2시간(선택)', min: dMin, kind: 'drift', adjustable: 'dodrift', group: '대기' });
+  }
+  return steps;
+}
 
 // pH 진행순서(4·7·10 숫자) → 타이머 스텝. 연속 같은 숫자=묶음 20분(직선성·드리프트),
 // 7·4 교대=반복성 각 10분. 직선성(뒤에 10)과 드리프트(10 없음×2회) 구분, 드리프트 1↔2차 사이 2시간 대기.
@@ -2290,6 +2327,7 @@ function parsePhTimerSteps(code, seqStr) {
 // kind: 'step'(측정) | 'drift'(4시간 기준선, 초기 드리프트 뒤 1회 삽입)
 function parseTimerSteps(code, seqStr) {
   if (String(code).toUpperCase() === 'PH') return parsePhTimerSteps(code, seqStr);
+  if (String(code).toUpperCase() === 'DO') return parseDoTimerSteps(code, seqStr);
   const raw = String(seqStr || '').toUpperCase().replace(/[^A-Z]/g, '');
   if (!raw) return [];
   // 연속 동일글자 묶기
@@ -2431,7 +2469,7 @@ function renderTimerRow(code, seqStr) {
   if (!row) return;
   // 측정 타이머는 센서 타입(SS·pH)만 대상 — 다른 항목엔 표시 안 함
   const CODE = String(code).toUpperCase();
-  if (CODE !== 'SS' && CODE !== 'PH') { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
+  if (CODE !== 'SS' && CODE !== 'PH' && CODE !== 'DO') { row.innerHTML = ''; if (timerTick) { clearInterval(timerTick); timerTick = null; } return; }
   const steps = parseTimerSteps(code, seqStr);
   // pH 진행순서 필수 블록 검증: 반복성·드리프트초기·드리프트후기·직선성·온도보상 다 있어야 함
   let phWarn = '';
@@ -2573,6 +2611,14 @@ function renderTimerRow(code, seqStr) {
           const cur = parseInt(localStorage.getItem(TIMER_PHMEAS_KEY) || '20', 10);
           const v = prompt('pH 직선성·드리프트 측정 시간(분, 기본 20):', cur);
           if (v !== null) { const n = Math.max(1, parseInt(v, 10) || cur); localStorage.setItem(TIMER_PHMEAS_KEY, String(n)); renderTimerRow(code, seqStr); }
+        } else if (kind === 'domeas') {
+          const cur = parseInt(localStorage.getItem(TIMER_DOMEAS_KEY) || '20', 10);
+          const v = prompt('DO 측정 시간(분, 기본 20 — 반복성·드리프트·온도보상 공통):', cur);
+          if (v !== null) { const n = Math.max(1, parseInt(v, 10) || cur); localStorage.setItem(TIMER_DOMEAS_KEY, String(n)); renderTimerRow(code, seqStr); }
+        } else if (kind === 'dodrift') {
+          const curMin = parseInt(localStorage.getItem(TIMER_DODRIFT_KEY) || '120', 10);
+          const v = prompt('DO 드리프트 대기 조절 (분 단위, 기본 120=2시간, 10분씩 권장):', curMin);
+          if (v !== null) { const n = Math.max(10, parseInt(v, 10) || curMin); localStorage.setItem(TIMER_DODRIFT_KEY, String(n)); renderTimerRow(code, seqStr); }
         } else {
           const curMin = parseInt(localStorage.getItem(TIMER_DRIFT_KEY) || '240', 10);
           const v = prompt('4시간 대기 조절 (분 단위, 10분씩 조절 권장):', curMin);
