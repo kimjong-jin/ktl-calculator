@@ -73,27 +73,48 @@ const SYSTEM = `당신은 KTL(한국산업기술시험원, Korea Testing Laborat
 
 function getOC() { return process.env.LAW_OC || "kbisss_2026"; }
 
+// law.go.kr lawSearch.do는 '법령명' 검색이라 주제어("정도검사 수수료")론 0건.
+// → 질문을 KTL 도메인 관련 '법령명'으로 변환해 실제로 조회되게 함.
+const DOMAIN_LAWS = [
+  { re: /(정도검사|형식승인|성능시험|측정기기|간이측정기|정도관리|검사기관|과태료|벌칙|의무|근거|조항|조문)/, name: "환경분야 시험ㆍ검사 등에 관한 법률" },
+  { re: /(수수료|별표|서식|절차|신청|기준|시행규칙)/, name: "환경분야 시험ㆍ검사 등에 관한 법률 시행규칙" },
+  { re: /(수질|tms|배출|폐수|하수|측정망|부착|오염물질)/i, name: "물환경보전법" },
+  { re: /(먹는물)/, name: "먹는물관리법" },
+];
+function resolveLawNames(message) {
+  const names = [];
+  for (const d of DOMAIN_LAWS) if (d.re.test(message)) names.push(d.name);
+  return names.length ? [...new Set(names)] : [message]; // 매칭 없으면 원문(법령명 직접 입력 대비)
+}
+
 async function searchLaws(query) {
   try {
     const params = new URLSearchParams({ OC: getOC(), type: "XML", query });
     const res = await fetch(`${LAW_BASE}/lawSearch.do?${params}`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return [];
     const xml = await res.text();
-    const names = [...xml.matchAll(/<법령명><!\[CDATA\[([^\]]+)\]\]><\/법령명>/g)].map(m => m[1]);
-    const msts = [...xml.matchAll(/<법령일련번호>(\d+)<\/법령일련번호>/g)].map(m => m[1]);
+    // 실제 응답 태그는 <법령명한글> (구 코드의 <법령명>은 매칭 0 → 실시간 조회가 죽어있었음)
+    const names = [...xml.matchAll(/<법령명한글><!\[CDATA\[([^\]]+)\]\]><\/법령명한글>/g)].map(m => m[1]);
+    const msts  = [...xml.matchAll(/<법령일련번호>(\d+)<\/법령일련번호>/g)].map(m => m[1]);
     return names.slice(0, 2).map((name, i) => ({ name, mst: msts[i] })).filter(x => x.mst);
   } catch { return []; }
 }
 
-async function getLawText(mst, query = "") {
+async function getLawText(mst, query = "", maxLen = 4000) {
   try {
     const params = new URLSearchParams({ OC: getOC(), type: "XML", target: "law", MST: mst });
     const res = await fetch(`${LAW_BASE}/lawService.do?${params}`, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return "";
     const xml = await res.text();
-    // CDATA 전체 캡처(non-greedy) — 조문에 ']' 있어도 잘리지 않게
-    const texts = [...xml.matchAll(/<조문내용><!\[CDATA\[([\s\S]*?)\]\]><\/조문내용>/g)]
-      .map(m => m[1].trim()).filter(Boolean);
+    // <조문단위> 블록 단위로 분리 → 항·호 포함 전체 조문 텍스트.
+    // (조문내용 CDATA는 태그 사이에 개행·탭이 껴 있어 단순 매칭이 다 실패했음)
+    const units = [...xml.matchAll(/<조문단위[^>]*>([\s\S]*?)<\/조문단위>/g)].map(m => m[1]);
+    let texts = units
+      .map(b => [...b.matchAll(/<!\[CDATA\[([\s\S]*?)\]\]>/g)].map(m => m[1].trim()).filter(Boolean).join(" ").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    if (!texts.length) { // 폴백: 조문내용만(공백 허용)
+      texts = [...xml.matchAll(/<조문내용>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/조문내용>/g)].map(m => m[1].trim()).filter(Boolean);
+    }
     if (!texts.length) return "";
     // 쿼리-어웨어: 질문 키워드가 든 조문 우선 선별(예: '수수료'→별표/제30조). 없으면 앞 3개.
     const qTerms = query.toLowerCase().replace(/[?？]/g, "").split(/\s+/).filter(t => t.length > 1);
@@ -105,14 +126,14 @@ async function getLawText(mst, query = "") {
     });
     const matched = scored.filter(x => x.s > 0).sort((a, b) => b.s - a.s || a.i - b.i);
     const chosen = (matched.length ? matched : scored.slice(0, 3)).map(x => x.t);
-    // 넉넉히 4000자까지 (조문 경계는 유지하며 누적)
+    // maxLen까지 (조문 경계는 유지하며 누적)
     let out = "", n = 0;
     for (const t of chosen) {
-      if (n + t.length > 4000 && out) break;
+      if (n + t.length > maxLen && out) break;
       out += (out ? "\n" : "") + t;
       n += t.length + 1;
     }
-    return out.slice(0, 4000);
+    return out.slice(0, maxLen);
   } catch { return ""; }
 }
 
@@ -223,16 +244,27 @@ export default async function handler(req, res) {
     }
   } catch { /* 지식 베이스 오류는 무시하고 진행 */ }
 
-  // 2. 법령 실시간 조회 (law.go.kr)
+  // 2. 법령 실시간 조회 (law.go.kr) — 질문을 도메인 법령명으로 변환 → 다건(법률+시행규칙 등)
+  //    병렬 조회 → 각 법령마다 질문 키워드가 든 조문만 필터해 병합. 근거는 넓게, 조문 밀도는 유지.
   let lawConnected = false;
-  const laws = await searchLaws(message);
+  const lawNames = resolveLawNames(message);
+  const foundArr = await Promise.all(lawNames.map(nm => searchLaws(nm)));
+  const seen = new Set();
+  const picked = [];
+  for (const law of foundArr.flat()) {
+    if (seen.has(law.mst)) continue;
+    seen.add(law.mst);
+    picked.push(law);
+  }
+  const topLaws = picked.slice(0, 3);
   let lawCtx = "", lawRef = null;
-  if (laws.length > 0) {
-    const text = await getLawText(laws[0].mst, message);
-    if (text) {
+  if (topLaws.length > 0) {
+    const texts = await Promise.all(topLaws.map(l => getLawText(l.mst, message, 1900)));
+    const parts = topLaws.map((l, i) => texts[i] ? `[참고 법령: ${l.name}]\n${texts[i]}` : "").filter(Boolean);
+    if (parts.length) {
       lawConnected = true;
-      lawRef = laws[0].name;
-      lawCtx = `\n\n[참고 법령: ${laws[0].name}]\n${text}`;
+      lawRef = topLaws.filter((_, i) => texts[i]).map(l => l.name).join(", ");
+      lawCtx = "\n\n" + parts.join("\n\n---\n\n");
     }
   }
 

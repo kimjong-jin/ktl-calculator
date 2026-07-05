@@ -206,6 +206,12 @@ const ITEM_SYNONYMS = {
   '수수료': ['비용', '금액', '요금'],
 };
 
+// 법적 근거를 묻는 질문(근거·조항·별표·고시·의무 등) → 법령 정본 노드를 상위로 끌어올림.
+// 요약 노드가 정본 별표/조문을 눌러 "법적 근거"가 컨텍스트에서 빠지는 것 방지.
+const LEGAL_INTENT = /(근거|조항|조문|법적|법률|법령|별표|고시|시행규칙|시행령|의무|위반|과태료|벌칙|제\s?\d+\s?조)/;
+const isLegalNode = (f) => /^법령[-\s]/.test(f) || /별표/.test(f);
+const LEGAL_BOOST = 1.6;
+
 export function searchKnowledge(query, topK = 3, maxLinked = 5) {
   const nodes = loadNodes();
   if (!nodes.length) return [];
@@ -234,7 +240,13 @@ export function searchKnowledge(query, topK = 3, maxLinked = 5) {
     .filter((t, i, a) => t.length > 1 && a.indexOf(t) === i);
 
   const nodeMap  = new Map(nodes.map(n => [n.file.toLowerCase().replace(/[\s-]/g, ''), n]));
-  const scoreMap = new Map(nodes.map(n => [n.file, hybridScore(n, terms, qVec, idx?.docs)]));
+  const legalIntent = LEGAL_INTENT.test(query);
+  const scoreMap = new Map(nodes.map(n => {
+    let s = hybridScore(n, terms, qVec, idx?.docs);
+    // 법적 근거 질문이면, 이미 매칭된 법령 정본 노드(별표/조문)를 부스트 → 요약과 함께 상위 노출
+    if (legalIntent && s > 0 && isLegalNode(n.file)) s *= LEGAL_BOOST;
+    return [n.file, s];
+  }));
 
   const scored = nodes
     .map(n => ({ ...n, score: scoreMap.get(n.file) }))
