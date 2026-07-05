@@ -89,7 +89,7 @@ function resolveLawNames(message) {
 
 async function searchLaws(query) {
   try {
-    const params = new URLSearchParams({ OC: getOC(), type: "XML", query });
+    const params = new URLSearchParams({ OC: getOC(), type: "XML", target: "law", query });
     const res = await fetch(`${LAW_BASE}/lawSearch.do?${params}`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return [];
     const xml = await res.text();
