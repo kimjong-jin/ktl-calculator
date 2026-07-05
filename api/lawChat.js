@@ -85,14 +85,34 @@ async function searchLaws(query) {
   } catch { return []; }
 }
 
-async function getLawText(mst) {
+async function getLawText(mst, query = "") {
   try {
     const params = new URLSearchParams({ OC: getOC(), type: "XML", target: "law", MST: mst });
     const res = await fetch(`${LAW_BASE}/lawService.do?${params}`, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return "";
     const xml = await res.text();
-    const texts = [...xml.matchAll(/<조문내용><!\[CDATA\[([^\]]+)\]\]><\/조문내용>/g)].map(m => m[1]);
-    return texts.slice(0, 3).join("\n").slice(0, 800);
+    // CDATA 전체 캡처(non-greedy) — 조문에 ']' 있어도 잘리지 않게
+    const texts = [...xml.matchAll(/<조문내용><!\[CDATA\[([\s\S]*?)\]\]><\/조문내용>/g)]
+      .map(m => m[1].trim()).filter(Boolean);
+    if (!texts.length) return "";
+    // 쿼리-어웨어: 질문 키워드가 든 조문 우선 선별(예: '수수료'→별표/제30조). 없으면 앞 3개.
+    const qTerms = query.toLowerCase().replace(/[?？]/g, "").split(/\s+/).filter(t => t.length > 1);
+    const scored = texts.map((t, i) => {
+      const tl = t.toLowerCase();
+      let s = 0;
+      for (const q of qTerms) if (tl.includes(q)) s++;
+      return { t, i, s };
+    });
+    const matched = scored.filter(x => x.s > 0).sort((a, b) => b.s - a.s || a.i - b.i);
+    const chosen = (matched.length ? matched : scored.slice(0, 3)).map(x => x.t);
+    // 넉넉히 4000자까지 (조문 경계는 유지하며 누적)
+    let out = "", n = 0;
+    for (const t of chosen) {
+      if (n + t.length > 4000 && out) break;
+      out += (out ? "\n" : "") + t;
+      n += t.length + 1;
+    }
+    return out.slice(0, 4000);
   } catch { return ""; }
 }
 
@@ -208,7 +228,7 @@ export default async function handler(req, res) {
   const laws = await searchLaws(message);
   let lawCtx = "", lawRef = null;
   if (laws.length > 0) {
-    const text = await getLawText(laws[0].mst);
+    const text = await getLawText(laws[0].mst, message);
     if (text) {
       lawConnected = true;
       lawRef = laws[0].name;

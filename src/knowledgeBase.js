@@ -110,9 +110,43 @@ function loadNodes() {
   return _nodeCache;
 }
 
-// 노드 → AI 전달용 텍스트 (앞부분 위주)
-function excerpt(node, maxLen = 3000) {
-  return node.content.replace(/^---[\s\S]*?---\n/m, '').slice(0, maxLen);
+function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+// 노드 → AI 전달용 발췌.
+// 짧으면 통째로. 길면(대형 공정시험기준·법령 전체조문 등) "상단 소개글 + 질문 키워드가
+// 몰린 단락들(문서 순서 유지)"을 동적 구성 → 답이 문서 중·후반에 있어도 잘리지 않게.
+function excerpt(node, maxLen = 3000, terms = null) {
+  const body = node.content.replace(/^---[\s\S]*?---\n/m, '');
+  if (body.length <= maxLen) return body;
+  if (!terms || !terms.length) return body.slice(0, maxLen); // 쿼리 없으면 기존처럼 앞부분
+
+  // 단락 분리: 헤딩(#~######) 또는 빈 줄 기준
+  const paras = body.split(/\n(?=#{1,6}\s)|\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const termRes = [...new Set(terms.map(t => t.toLowerCase()).filter(t => t.length > 1))]
+    .map(t => new RegExp(escapeRe(t), 'g'));
+  const scoredParas = paras.map((p, idx) => {
+    const pl = p.toLowerCase();
+    let s = 0;
+    for (const re of termRes) { const m = pl.match(re); if (m) s += m.length; }
+    return { p, idx, s };
+  });
+
+  const hits = scoredParas.filter(x => x.s > 0).sort((a, b) => b.s - a.s || a.idx - b.idx);
+  if (!hits.length) return body.slice(0, maxLen); // 매칭 없으면 앞부분 폴백
+
+  const intro = body.slice(0, Math.min(600, Math.floor(maxLen * 0.2))).trim();
+  const budget = maxLen - intro.length - 24;
+  const chosen = [];
+  let used = 0;
+  for (const h of hits) {
+    if (used + h.p.length > budget && chosen.length) break;
+    chosen.push(h);
+    used += h.p.length + 4;
+    if (used >= budget) break;
+  }
+  chosen.sort((a, b) => a.idx - b.idx); // 문서 원래 순서로 복원
+  const parts = chosen.map(x => x.p).join('\n\n[…]\n\n');
+  return `${intro}\n\n[…]\n\n${parts}`.slice(0, maxLen);
 }
 
 // 키워드 점수 — 태그·제목·파일명·본문 매칭 (하이브리드의 40%)
@@ -256,7 +290,7 @@ export function searchKnowledge(query, topK = 3, maxLinked = 5) {
     links,
     via:   via   ?? null,
     edgeW: edgeW ?? null,
-    excerpt: excerpt(nodes.find(n => n.file === file) ?? { content: '' }, i < topK ? 3000 : 1500),
+    excerpt: excerpt(nodes.find(n => n.file === file) ?? { content: '' }, i < topK ? 3000 : 1500, terms),
     score: Math.round(s * 100) / 100,
   }));
 }
