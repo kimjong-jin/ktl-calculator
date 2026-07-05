@@ -302,7 +302,7 @@ export function searchKnowledge(query, topK = 3, maxLinked = 5) {
     links,
     via:   via   ?? null,
     edgeW: edgeW ?? null,
-    excerpt: excerpt(nodes.find(n => n.file === file) ?? { content: '' }, i < topK ? 3000 : 1500, terms),
+    excerpt: excerpt(nodes.find(n => n.file === file) ?? { content: '' }, i < topK ? 6000 : 2500, terms),
     score: Math.round(s * 100) / 100,
   }));
 }
