@@ -71,7 +71,10 @@ export function computeVerdict(code, d = {}) {
     if (phResp != null) add('응답시간 ≤ 30초', phResp, respPass);
     requiredPasses = [rep.pass, dr.zero.pass, dr.span.pass, lin.pass, tc.pass, respPass];
     const fci1 = gd('phci1'), fci2 = gd('phci2'), fai1 = gd('phai1'), fai2 = gd('phai2'), fai3 = gd('phai3'), fai4 = gd('phai4');
-    if (fci1 != null || fci2 != null || fai1 != null || fai2 != null || fai3 != null || fai4 != null) {
+    // 현장적용계수는 수분석값(Ai)+현장값(Ci) 둘 다 있어야 계산 (ci만 있으면 엉터리 → 안 함)
+    const _phHasAi = fai1 != null || fai2 != null || fai3 != null || fai4 != null;
+    const _phHasCi = fci1 != null || fci2 != null;
+    if (_phHasAi && _phHasCi) {
       field = fieldApplication('PH', [fai1, fai2, fai3, fai4], [fci1, fci2]);
       add('pH 현장적용계수 |Ai-Ci| ≤ 0.20', field.fi, field.pass);
     }
@@ -109,7 +112,11 @@ export function computeVerdict(code, d = {}) {
 
     // 현장적용계수 (종합 pass엔 미포함 — optionalPasses)
     const ci1 = gd('ci1'), ci2 = gd('ci2'), ai1 = gd('ai1'), ai2 = gd('ai2'), ai3 = gd('ai3'), ai4 = gd('ai4');
-    if (ci1 || ci2 || ai1 || ai2 || ai3 || ai4) {
+    // 현장적용계수 = |수분석값(Ai) − 현장값(Ci)| → 둘 다 있어야 의미. ai 없이 ci만 있으면 계산 안 함
+    // (P2/P5 계산하기는 수분석 lab 전이라 ci만 있음 → 엉터리 fi 방지. 현장계수 수분석은 카톡 후 ai 채워져 정상 계산)
+    const _hasAi = ai1 != null || ai2 != null || ai3 != null || ai4 != null;
+    const _hasCi = ci1 != null || ci2 != null;
+    if (_hasAi && _hasCi) {
       field = fieldApplication(code, [ai1, ai2, ai3, ai4], [ci1, ci2], { discharge: gd('fdis'), highVariability: gb('highvar') });
       add(`${code} 현장적용계수`, field.fi, field.pass);
     }
@@ -136,6 +143,10 @@ export function computeVerdict(code, d = {}) {
       if (!rs.skipped && rs.pass !== null) add(`응답시간 ≤ ${rs.limit}초`, rs.sec, rs.pass);
       const allMeasured = ['z1', 'z2', 'z3', 'z4', 'z5', 'z6', 'z7', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 'm1'].map(gd).filter(v => v != null);
       const rangeExceeded = range != null && allMeasured.some(v => v > range);
+      if (range != null) {
+        const maxMeasured = allMeasured.length > 0 ? Math.max(...allMeasured) : null;
+        add(`측정범위(${range}) 초과 없음`, maxMeasured, rangeExceeded ? false : true);
+      }
       requiredPasses.push(rangeExceeded ? false : true);
       if (!respSkip) requiredPasses.push(rs.pass);
     }
