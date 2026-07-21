@@ -16,11 +16,13 @@ const IS_COD   = c => c === 'COD';
 const IS_WATER = c => ['TU', 'CL'].includes(c); // 먹는물
 
 // precision-ui.js pickRepVals(785-801) 복제
+// ⚠️ gd()는 빈값을 null 로 반환 → isNaN(null)===false 라 빈 z6/z7을 '값 있음'으로 오판하던 버그.
+//    Number.isFinite 로 판정해야 null/NaN 둘 다 빈값으로 처리됨(반복성 RSD가 0으로 나오던 원인).
 function pickRepVals(z5, z6, z7, initVals, finVals) {
-  if (isNaN(z5)) return [];
-  const z6ok = !isNaN(z6), z7ok = !isNaN(z7);
+  if (!Number.isFinite(z5)) return [];
+  const z6ok = Number.isFinite(z6), z7ok = Number.isFinite(z7);
   if (z6ok && z7ok) return [z5, z6, z7];
-  const iv = initVals.filter(v => !isNaN(v)), fv = finVals.filter(v => !isNaN(v));
+  const iv = initVals.filter(v => Number.isFinite(v)), fv = finVals.filter(v => Number.isFinite(v));
   if (!iv.length || !fv.length) return [z5];
   let best = { s: -1, a: null, b: null };
   for (const a of iv) for (const b of fv) {
