@@ -9,6 +9,8 @@ import {
   doRepeatability, doDrift, doTemperatureComp,
   PRECISION_CRITERIA,
 } from './precision.js';
+// rule_id 부착용(계산–규범 추적성). 조회 전용 — 계산·판정에 관여하지 않음.
+import { findRule } from './ruleRegistry.js';
 
 const IS_PH    = c => c === 'PH';
 const IS_DO    = c => c === 'DO';
@@ -51,7 +53,11 @@ export function computeVerdict(code, d = {}) {
   const gd = f => { const v = parseFloat(d[f]); return Number.isFinite(v) ? v : null; };
   const gb = f => d[f] === true || d[f] === 'true'; // 체크박스
   const checks = [];
-  const add = (label, value, pass) => checks.push({ label, value, pass });
+  // testCode(REP/ZDR/SDR/LIN/RESP/TEMP/GLU/FIELD)가 있으면 rule_id 부착. 계산값/pass는 불변.
+  const add = (label, value, pass, testCode) => {
+    const rule = testCode ? findRule(code, testCode) : null;
+    checks.push({ label, value, pass, rule_id: rule ? rule.rule_id : null });
+  };
   let requiredPasses = [];
   let field = null;
 
@@ -65,12 +71,12 @@ export function computeVerdict(code, d = {}) {
     const tc = phTemperatureComp({ t10: gd('pht10'), t15: gd('pht15'), t20: gd('pht20'), t25: gd('pht25'), t30: gd('pht30') });
     const phResp = gd('resp');
     const respPass = phResp != null ? (phResp >= 0 && phResp <= 30) : null;
-    add(`반복성 표준편차 ≤ ${rep.limit}`, rep.std, rep.pass);
-    add(`제로드리프트 |차| ≤ ${dr.limit}`, dr.zero.val, dr.zero.pass);
-    add(`스팬드리프트 |차| ≤ ${dr.limit}`, dr.span.val, dr.span.pass);
-    add(`직선성 |편차| ≤ ${lin.limit}`, lin.dev, lin.pass);
-    if (tc.pass !== null) add(`온도보상 |편차| ≤ ${tc.limit}`, tc.dev, tc.pass);
-    if (phResp != null) add('응답시간 ≤ 30초', phResp, respPass);
+    add(`반복성 표준편차 ≤ ${rep.limit}`, rep.std, rep.pass, 'REP');
+    add(`제로드리프트 |차| ≤ ${dr.limit}`, dr.zero.val, dr.zero.pass, 'ZDR');
+    add(`스팬드리프트 |차| ≤ ${dr.limit}`, dr.span.val, dr.span.pass, 'SDR');
+    add(`직선성 |편차| ≤ ${lin.limit}`, lin.dev, lin.pass, 'LIN');
+    if (tc.pass !== null) add(`온도보상 |편차| ≤ ${tc.limit}`, tc.dev, tc.pass, 'TEMP');
+    if (phResp != null) add('응답시간 ≤ 30초', phResp, respPass, 'RESP');
     requiredPasses = [rep.pass, dr.zero.pass, dr.span.pass, lin.pass, tc.pass, respPass];
     const fci1 = gd('phci1'), fci2 = gd('phci2'), fai1 = gd('phai1'), fai2 = gd('phai2'), fai3 = gd('phai3'), fai4 = gd('phai4');
     // 현장적용계수는 수분석값(Ai)+현장값(Ci) 둘 다 있어야 계산 (ci만 있으면 엉터리 → 안 함)
@@ -78,7 +84,7 @@ export function computeVerdict(code, d = {}) {
     const _phHasCi = fci1 != null || fci2 != null;
     if (_phHasAi && _phHasCi) {
       field = fieldApplication('PH', [fai1, fai2, fai3, fai4], [fci1, fci2]);
-      add('pH 현장적용계수 |Ai-Ci| ≤ 0.20', field.fi, field.pass);
+      add('pH 현장적용계수 |Ai-Ci| ≤ 0.20', field.fi, field.pass, 'FIELD');
     }
   } else if (IS_DO(code)) {
     const rep = doRepeatability([gd('dos1'), gd('dos2'), gd('dos3')]);
@@ -89,11 +95,11 @@ export function computeVerdict(code, d = {}) {
     const tc = (t20.some(v => v != null) || t30.some(v => v != null)) ? doTemperatureComp(t20, t30) : { pass: null };
     const dResp = gd('resp');
     const respPass = dResp != null ? (dResp <= 120) : null;
-    add(`DO 반복성 표준편차 ≤ ${rep.limit}`, rep.std, rep.pass);
-    add(`제로드리프트 |차| ≤ ${dr.zeroLimit}`, dr.zero.val, dr.zero.pass);
-    add(`스팬드리프트 |차| ≤ ${dr.spanLimit}`, dr.span.val, dr.span.pass);
-    if (tc.pass !== null) add(`DO 온도보상 |편차| ≤ ${tc.limit} mg/L`, tc.maxDev, tc.pass);
-    if (dResp != null) add('응답시간 ≤ 120초', dResp, respPass);
+    add(`DO 반복성 표준편차 ≤ ${rep.limit}`, rep.std, rep.pass, 'REP');
+    add(`제로드리프트 |차| ≤ ${dr.zeroLimit}`, dr.zero.val, dr.zero.pass, 'ZDR');
+    add(`스팬드리프트 |차| ≤ ${dr.spanLimit}`, dr.span.val, dr.span.pass, 'SDR');
+    if (tc.pass !== null) add(`DO 온도보상 |편차| ≤ ${tc.limit} mg/L`, tc.maxDev, tc.pass, 'TEMP');
+    if (dResp != null) add('응답시간 ≤ 120초', dResp, respPass, 'RESP');
     requiredPasses = [rep.pass, dr.zero.pass, dr.span.pass, tc.pass, respPass];
   } else {
     // 기본형(TOC/TN/TP/SS/COD) + 먹는물(TU/CL)
@@ -105,11 +111,11 @@ export function computeVerdict(code, d = {}) {
     const linRef = isWater && gd('s1') > 0 ? gd('s1') / 2 : undefined;
     const lin = linearity(range, isWater ? [gd('m1')] : [gd('m1'), gd('m2'), gd('m3')], linRef);
     const driftLim = isWater ? 3 : PRECISION_CRITERIA.zeroDrift;
-    add(`저농도 반복성 RSD ≤ ${rep.limit}%`, rep.zero.rsd, rep.zero.pass);
-    add(`고농도 반복성 RSD ≤ ${rep.limit}%`, rep.span.rsd, rep.span.pass);
-    add(`제로드리프트 ≤ ${driftLim}%`, dr.zeroDrift, dr.zeroPass);
-    add(`스팬드리프트 ≤ ${driftLim}%`, dr.spanDrift, dr.spanPass);
-    add(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.error, lin.pass);
+    add(`저농도 반복성 RSD ≤ ${rep.limit}%`, rep.zero.rsd, rep.zero.pass, 'REP');
+    add(`고농도 반복성 RSD ≤ ${rep.limit}%`, rep.span.rsd, rep.span.pass, 'REP');
+    add(`제로드리프트 ≤ ${driftLim}%`, dr.zeroDrift, dr.zeroPass, 'ZDR');
+    add(`스팬드리프트 ≤ ${driftLim}%`, dr.spanDrift, dr.spanPass, 'SDR');
+    add(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`, lin.error, lin.pass, 'LIN');
     requiredPasses = [rep.zero.pass, rep.span.pass, dr.zeroPass, dr.spanPass, lin.pass];
 
     // 현장적용계수 (종합 pass엔 미포함 — optionalPasses)
@@ -120,7 +126,7 @@ export function computeVerdict(code, d = {}) {
     const _hasCi = ci1 != null || ci2 != null;
     if (_hasAi && _hasCi) {
       field = fieldApplication(code, [ai1, ai2, ai3, ai4], [ci1, ci2], { discharge: gd('fdis'), highVariability: gb('highvar') });
-      add(`${code} 현장적용계수`, field.fi, field.pass);
+      add(`${code} 현장적용계수`, field.fi, field.pass, 'FIELD');
     }
 
     if (IS_COD(code)) {
@@ -129,7 +135,7 @@ export function computeVerdict(code, d = {}) {
       if (codmax != null || codmin != null) {
         const gRes = codGlucoseVariability(codmax, codmin, range);
         glucPass = gRes.pass;
-        add(`포도당변동성 ≤ ${PRECISION_CRITERIA.codGlucose}%`, gRes.error, gRes.pass);
+        add(`포도당변동성 ≤ ${PRECISION_CRITERIA.codGlucose}%`, gRes.error, gRes.pass, 'GLU');
       }
       requiredPasses.push(glucPass);
     }
@@ -137,12 +143,12 @@ export function computeVerdict(code, d = {}) {
     if (code === 'TOC') {
       const resp = gd('resp');
       const respPass = resp != null ? (resp <= 15) : null;
-      if (resp != null) add('응답시간 ≤ 15분', resp, respPass);
+      if (resp != null) add('응답시간 ≤ 15분', resp, respPass, 'RESP');
       requiredPasses.push(respPass);
     } else if (isWater) {
       const respSkip = gb('resp_skip');
       const rs = waterResponse(gd('resp'), gd('resp_sec'), code === 'TU', respSkip);
-      if (!rs.skipped && rs.pass !== null) add(`응답시간 ≤ ${rs.limit}초`, rs.sec, rs.pass);
+      if (!rs.skipped && rs.pass !== null) add(`응답시간 ≤ ${rs.limit}초`, rs.sec, rs.pass, 'RESP');
       const allMeasured = ['z1', 'z2', 'z3', 'z4', 'z5', 'z6', 'z7', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 'm1'].map(gd).filter(v => v != null);
       const rangeExceeded = range != null && allMeasured.some(v => v > range);
       if (range != null) {

@@ -20,6 +20,8 @@ import {
   waterResponse,
   fieldApplication,
 } from '../src/precision.js';
+// 판정근거 버튼(계산–규범 추적성). rule_id → 별표1의1 조문 조회 전용. LLM 없음 = 토큰 0.
+import { findRule, getRule } from '../src/ruleRegistry.js';
 
 const fmt = (n, d = 2) => (Number.isFinite(n) ? Number(n).toFixed(d) : '–');
 
@@ -3860,18 +3862,59 @@ const FIELD_LABELS = {
   dot20a:'온도보상 20℃-1',dot20b:'20℃-2',dot20c:'20℃-3',dot30a:'온도보상 30℃-1',dot30b:'30℃-2',dot30c:'30℃-3',
 };
 
-function certRow(l,v,p) {
+function certRow(l,v,p,rule) {
   const color = p===null?'#888':p?'#1a7f37':'#cf222e';
   const verdict = p===null?'—':p?'적합':'부적합';
+  // 📖근거 버튼은 관리자 모드에서만 노출(고객 화면엔 비활성). rule_id → 별표1의1 조문 조회.
+  const btn = (rule && isAdmin()) ? ` <button type="button" class="pv-rule-btn" data-rule="${rule.rule_id}" title="법령 근거 보기 (${rule.rule_id})" style="border:none;background:#eef2ff;color:#4f46e5;border-radius:4px;padding:1px 6px;font-size:11px;cursor:pointer;vertical-align:middle">📖 근거</button>` : '';
   return `<tr>
-    <td style="padding:6px 10px;border:1px solid #ccc">${l}</td>
+    <td style="padding:6px 10px;border:1px solid #ccc">${l}${btn}</td>
     <td style="padding:6px 10px;border:1px solid #ccc">${v}</td>
     <td style="padding:6px 10px;border:1px solid #ccc;font-weight:600;color:${color}">${verdict}</td></tr>`;
 }
 
+// ── 판정근거 팝업(계산–규범 추적성) ─────────────────────────────
+// 계산 결과의 rule_id → getRule()로 별표1의1 조문·기준값·시행버전을 결정론적으로 표시.
+// LLM/외부검색 호출 0 → 토큰 0. RAG→계산 역방향 없음(단방향, 읽기전용).
+function pvRuleRow(k, v) {
+  return `<tr><td style="padding:5px 8px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:600;white-space:nowrap;color:#475569">${k}</td><td style="padding:5px 8px;border:1px solid #e2e8f0;color:#1e293b">${v || '—'}</td></tr>`;
+}
+function showRuleModal(ruleId) {
+  const r = getRule(ruleId);
+  if (!r) return;
+  document.getElementById('pv-rule-modal')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'pv-rule-modal';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<div style="background:#fff;max-width:520px;width:100%;border-radius:12px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.3);font-size:14px;line-height:1.55">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:700;font-size:15px;color:#1e293b">📖 판정 근거 <span style="font-family:monospace;font-size:12px;color:#6366f1">${r.rule_id}</span></div>
+      <button type="button" id="pv-rule-close" style="border:none;background:#f1f5f9;border-radius:6px;padding:4px 10px;cursor:pointer">✕</button>
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      ${pvRuleRow('측정항목', r.code + ' · ' + r.test_kr)}
+      ${pvRuleRow('계산식', r.formula)}
+      ${pvRuleRow('기준값', r.criterion)}
+      ${pvRuleRow('법령 근거', r.legal_reference)}
+      ${pvRuleRow('시행 버전', r.regulation + ' (시행 ' + r.regulation_version + ')')}
+      ${pvRuleRow('정도검사 방법', r.method_ref + ' · 점검표 ' + r.checklist_ref)}
+      ${pvRuleRow('계산 정합성', '엑셀 ' + r.excel_ref + ' = precision.js ' + r.calc_ref)}
+    </table>
+    <div style="margin-top:12px;font-size:11px;color:#94a3b8">rule_id로 조회한 결정론적 근거 — LLM/외부검색 없음(토큰 0).</div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.querySelector('#pv-rule-close').onclick = close;
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest && e.target.closest('.pv-rule-btn');
+  if (btn) { e.preventDefault(); showRuleModal(btn.getAttribute('data-rule')); }
+});
+
 function buildCertResultRows(tab) {
   let rows = ''; let allPass = true;
-  const addRow = (l,v,p) => { rows += certRow(l,v,p); if(p===false) allPass=false; };
+  const addRow = (l,v,p,tc) => { rows += certRow(l,v,p, tc ? findRule(tab.code, tc) : null); if(p===false) allPass=false; };
   const d = loadData(tab.id);
   const gd = f => { const v = parseFloat(d[f]); return Number.isFinite(v) ? v : null; };
   if (IS_PH(tab.code)) {
@@ -3881,36 +3924,36 @@ function buildCertResultRows(tab) {
       [gd('phsi1'),gd('phsi2'),gd('phsi3')],[gd('phsf1'),gd('phsf2'),gd('phsf3')]);
     const lin = phLinearity(
       [gd('phm4a'),gd('phm4b'),gd('phm4c')],[gd('phm7a'),gd('phm7b'),gd('phm7c')],[gd('phm10a'),gd('phm10b'),gd('phm10c')]);
-    addRow(`반복성 표준편차 ≤ ${rep.limit}`,`${fmt(rep.std,3)}`,rep.pass);
-    addRow(`제로드리프트 |차| ≤ ${dr.limit}`,`${fmt(dr.zero.val,3)}`,dr.zero.pass);
-    addRow(`스팬드리프트 |차| ≤ ${dr.limit}`,`${fmt(dr.span.val,3)}`,dr.span.pass);
-    addRow(`직선성 |편차| ≤ ${lin.limit}`,`${fmt(lin.dev,3)}`,lin.pass);
+    addRow(`반복성 표준편차 ≤ ${rep.limit}`,`${fmt(rep.std,3)}`,rep.pass,'REP');
+    addRow(`제로드리프트 |차| ≤ ${dr.limit}`,`${fmt(dr.zero.val,3)}`,dr.zero.pass,'ZDR');
+    addRow(`스팬드리프트 |차| ≤ ${dr.limit}`,`${fmt(dr.span.val,3)}`,dr.span.pass,'SDR');
+    addRow(`직선성 |편차| ≤ ${lin.limit}`,`${fmt(lin.dev,3)}`,lin.pass,'LIN');
     const tc = phTemperatureComp({t10:gd('pht10'),t15:gd('pht15'),t20:gd('pht20'),t25:gd('pht25'),t30:gd('pht30')});
-    if(tc.pass!==null) addRow(`온도보상 |편차| ≤ ${tc.limit}`,fmt(tc.dev,3),tc.pass);
+    if(tc.pass!==null) addRow(`온도보상 |편차| ≤ ${tc.limit}`,fmt(tc.dev,3),tc.pass,'TEMP');
     const phResp=gd('resp');
-    if(phResp!=null) addRow('응답시간 ≤ 30초',`${fmt(phResp,0)}초`,phResp>=0&&phResp<=30);
+    if(phResp!=null) addRow('응답시간 ≤ 30초',`${fmt(phResp,0)}초`,phResp>=0&&phResp<=30,'RESP');
     // pH 현장적용계수: |Ai평균-Ci| ≤ 0.20 (계산기와 동일)
     const fci1=gd('phci1'),fci2=gd('phci2'),fai1=gd('phai1'),fai2=gd('phai2'),fai3=gd('phai3'),fai4=gd('phai4');
     if(fci1!=null||fci2!=null||fai1!=null||fai2!=null||fai3!=null||fai4!=null){
       const fRes=fieldApplication('PH',[fai1,fai2,fai3,fai4],[fci1,fci2]);
-      addRow('pH 현장적용계수 |Ai-Ci| ≤ 0.20',`${fmt(fRes.fi,2)}`,fRes.pass);
+      addRow('pH 현장적용계수 |Ai-Ci| ≤ 0.20',`${fmt(fRes.fi,2)}`,fRes.pass,'FIELD');
     }
   } else if (IS_DO(tab.code)) {
     const rep = doRepeatability([gd('dos1'),gd('dos2'),gd('dos3')]);
     const dr = doDrift(
       [gd('dozi1'),gd('dozi2'),gd('dozi3')],[gd('dozf1'),gd('dozf2'),gd('dozf3')],
       [gd('dosi1'),gd('dosi2'),gd('dosi3')],[gd('dosf1'),gd('dosf2'),gd('dosf3')]);
-    addRow(`DO 반복성 표준편차 ≤ ${rep.limit}`,`${fmt(rep.std,3)}`,rep.pass);
-    addRow(`제로드리프트 |차| ≤ ${dr.zeroLimit}`,`${fmt(dr.zero.val,3)}`,dr.zero.pass);
-    addRow(`스팬드리프트 |차| ≤ ${dr.spanLimit}`,`${fmt(dr.span.val,3)}`,dr.span.pass);
+    addRow(`DO 반복성 표준편차 ≤ ${rep.limit}`,`${fmt(rep.std,3)}`,rep.pass,'REP');
+    addRow(`제로드리프트 |차| ≤ ${dr.zeroLimit}`,`${fmt(dr.zero.val,3)}`,dr.zero.pass,'ZDR');
+    addRow(`스팬드리프트 |차| ≤ ${dr.spanLimit}`,`${fmt(dr.span.val,3)}`,dr.span.pass,'SDR');
     const t20=[gd('dot20a'),gd('dot20b'),gd('dot20c')], t30=[gd('dot30a'),gd('dot30b'),gd('dot30c')];
     if(t20.some(v=>v!=null)||t30.some(v=>v!=null)){
       const tc = doTemperatureComp(t20,t30);
-      if(tc.pass!==null) addRow(`DO 온도보상 |편차| ≤ ${tc.limit} mg/L`,`${fmt(tc.maxDev,2)} mg/L`,tc.pass);
+      if(tc.pass!==null) addRow(`DO 온도보상 |편차| ≤ ${tc.limit} mg/L`,`${fmt(tc.maxDev,2)} mg/L`,tc.pass,'TEMP');
     }
     // DO 응답시간: 고정 120초 (계산기와 동일)
     const dResp=gd('resp');
-    if(dResp!=null) addRow('응답시간 ≤ 120초',`${fmt(dResp,0)}초`,dResp<=120);
+    if(dResp!=null) addRow('응답시간 ≤ 120초',`${fmt(dResp,0)}초`,dResp<=120,'RESP');
   } else {
     const range=gd('range'),isWater=IS_WATER(tab.code);
     const zRepVals=pickRepVals(gd('z5'),gd('z6'),gd('z7'),[gd('z1'),gd('z2')],[gd('z3'),gd('z4')]);
@@ -3920,11 +3963,11 @@ function buildCertResultRows(tab) {
     const linRef=isWater&&gd('s1')>0?gd('s1')/2:undefined;
     const lin=linearity(range,isWater?[gd('m1')]:[gd('m1'),gd('m2'),gd('m3')],linRef);
     const driftLim=isWater?3:PRECISION_CRITERIA.zeroDrift;
-    addRow(`저농도 반복성 RSD ≤ ${rep.limit}%`,rep.zero.pass===null?'—':`${fmt(rep.zero.rsd)}%`,rep.zero.pass);
-    addRow(`고농도 반복성 RSD ≤ ${rep.limit}%`,rep.span.pass===null?'—':`${fmt(rep.span.rsd)}%`,rep.span.pass);
-    addRow(`제로드리프트 ≤ ${driftLim}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroPass);
-    addRow(`스팬드리프트 ≤ ${driftLim}%`,`${fmt(dr.spanDrift)}%`,dr.spanPass);
-    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error, 1)}%`,lin.pass);
+    addRow(`저농도 반복성 RSD ≤ ${rep.limit}%`,rep.zero.pass===null?'—':`${fmt(rep.zero.rsd)}%`,rep.zero.pass,'REP');
+    addRow(`고농도 반복성 RSD ≤ ${rep.limit}%`,rep.span.pass===null?'—':`${fmt(rep.span.rsd)}%`,rep.span.pass,'REP');
+    addRow(`제로드리프트 ≤ ${driftLim}%`,`${fmt(dr.zeroDrift)}%`,dr.zeroPass,'ZDR');
+    addRow(`스팬드리프트 ≤ ${driftLim}%`,`${fmt(dr.spanDrift)}%`,dr.spanPass,'SDR');
+    addRow(`직선성 ≤ ${PRECISION_CRITERIA.linearity}%`,`${fmt(lin.error, 1)}%`,lin.pass,'LIN');
     const ci1=gd('ci1'),ci2=gd('ci2'),ai1=gd('ai1'),ai2=gd('ai2'),ai3=gd('ai3'),ai4=gd('ai4');
     if(ci1||ci2||ai1||ai2||ai3||ai4){
       const fRes=fieldApplication(tab.code,[ai1,ai2,ai3,ai4],[ci1,ci2],{discharge:gd('fdis'), highVariability: d['highvar'] === true});
@@ -3934,21 +3977,21 @@ function buildCertResultRows(tab) {
           ?`Fi/배출기준 ${fmt(fRes.dischargeRate,1)}% (기준 ≤15%)`
           :fRes.useRate?`오차율 ${fmt(fRes.meanRate,1)}% (기준 ≤${fRes.limit}%)`
           :`절대오차 ${fmt(fRes.meanFi,3)} mg/L (기준 ≤${fRes.limit} mg/L)`;
-      addRow(`${tab.code} 현장적용계수`,fv,fRes.pass);
+      addRow(`${tab.code} 현장적용계수`,fv,fRes.pass,'FIELD');
     }
     if(IS_COD(tab.code)&&(gd('codmax')||gd('codmin'))){
       const gRes=codGlucoseVariability(gd('codmax'),gd('codmin'),range);
-      addRow(`포도당변동성 ≤ ${PRECISION_CRITERIA.codGlucose}%`,`${fmt(gRes.error)}%`,gRes.pass);
+      addRow(`포도당변동성 ≤ ${PRECISION_CRITERIA.codGlucose}%`,`${fmt(gRes.error)}%`,gRes.pass,'GLU');
     }
     if(tab.code==='TOC'){
       // TOC 응답시간: 고정 15분 기준 (계산기와 동일)
       const resp=gd('resp');
-      if(resp) addRow('응답시간 ≤ 15분',`${fmt(resp,1)}분`,resp<=15);
+      if(resp) addRow('응답시간 ≤ 15분',`${fmt(resp,1)}분`,resp<=15,'RESP');
     } else if(isWater){
       // TU/Cl 응답: mm×6=초 또는 초 직접, 탁도 ≤600 / 잔류염소 ≤120 (data.xlsx Sheet4)
       const rs = waterResponse(gd('resp'), gd('resp_sec'), tab.code==='TU', d['resp_skip']===true);
       if(!rs.skipped && rs.pass!==null)
-        addRow(`응답시간 ≤ ${rs.limit}초`,`${fmt(rs.sec,0)}초`,rs.pass);
+        addRow(`응답시간 ≤ ${rs.limit}초`,`${fmt(rs.sec,0)}초`,rs.pass,'RESP');
     }
   }
   return { rows, allPass };
