@@ -2,7 +2,7 @@
  * POST /api/changePassword — Mac Studio 비밀번호 변경 프록시
  * { name, currentPassword, newPassword } → { ok } | { error }
  */
-const MAC = process.env.PHOTO_STORAGE_URL || process.env.MAC_STUDIO_URL || 'http://59.20.58.2:3333';
+const MAC = process.env.PHOTO_STORAGE_URL || process.env.MAC_STUDIO_URL || 'https://studio.gool.uk';
 
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;

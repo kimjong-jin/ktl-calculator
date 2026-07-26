@@ -148,7 +148,7 @@ async function readBody(req) {
 
 // 관리자 스킬을 Mac Studio(영구 저장)에서 서버사이드로 읽어 적용 — 모든 사용자 챗에 반영.
 // 매 요청 호출을 피하려고 60초 메모리 캐시. 실패 시 마지막 캐시 유지(챗은 계속 동작).
-const _MAC = process.env.PHOTO_STORAGE_URL || process.env.MAC_STUDIO_URL || "http://59.20.58.2:3333";
+const _MAC = process.env.PHOTO_STORAGE_URL || process.env.MAC_STUDIO_URL || "https://studio.gool.uk";
 const _MAC_KEY = process.env.MAC_ADMIN_KEY || "";
 let _skillCache = { at: 0, text: "" };
 async function fetchMacStudioSkills() {

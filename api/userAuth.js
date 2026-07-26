@@ -7,7 +7,7 @@
  */
 import { sign } from '../src/authService.js';
 
-const MAC = process.env.PHOTO_STORAGE_URL || process.env.MAC_STUDIO_URL || 'http://59.20.58.2:3333';
+const MAC = process.env.PHOTO_STORAGE_URL || process.env.MAC_STUDIO_URL || 'https://studio.gool.uk';
 const DAY_MS = 86_400_000;
 
 async function readBody(req) {

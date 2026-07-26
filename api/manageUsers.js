@@ -7,7 +7,7 @@
  */
 import { verifyToken } from '../src/authService.js';
 
-const MAC = process.env.PHOTO_STORAGE_URL || process.env.MAC_STUDIO_URL || 'http://59.20.58.2:3333';
+const MAC = process.env.PHOTO_STORAGE_URL || process.env.MAC_STUDIO_URL || 'https://studio.gool.uk';
 const KEY = process.env.MAC_ADMIN_KEY || '';   // 하드코딩 폴백 제거 — env 필수
 
 // Authorization: Bearer <admin-token> 검증 (admin 역할만 허용)
