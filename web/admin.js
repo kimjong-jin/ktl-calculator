@@ -98,12 +98,19 @@ async function loadCalcDataList(token) {
       btn.addEventListener('click', async () => {
         const no = btn.dataset.no, user = btn.dataset.user;
         if (!confirm(`[${no}] ${user} 데이터를 삭제하시겠습니까?`)) return;
+        btn.textContent = '삭제 중…'; btn.disabled = true;
         const r = await fetch(
-          `/api/calcData?receiptNo=${encodeURIComponent(no)}&userName=${encodeURIComponent(user)}&token=${encodeURIComponent(token)}`,
+          `/api/calcData?receiptNo=${encodeURIComponent(no)}&token=${encodeURIComponent(token)}`,
           { method: 'DELETE' }
         );
-        if (r.ok) btn.closest('div[style]').remove();
-        else alert('삭제 실패');
+        if (r.ok) {
+          // 삭제 성공 → 해당 행 제거 후 목록 새로고침
+          btn.closest('.calc-data-row')?.remove();
+          loadCalcDataList(token);
+        } else {
+          btn.textContent = '삭제'; btn.disabled = false;
+          alert('삭제 실패 — 서버 연결을 확인하세요');
+        }
       });
     });
     // 담당자 인라인 수정
