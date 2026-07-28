@@ -4446,7 +4446,7 @@ function renderAdminReceiptsQuick() {
     <div class="pv-quick-chips-grid">
       ${list.map(t => `
         <button type="button" class="btn btn--mini btn--ghost pv-quick-chip" data-load-receipt="${t.receiptNo}" data-load-user="${esc(t.applicantName)}" title="${nameOf(t)} - ${t.siteName || ''}">
-          <span class="pv-quick-chip-key">${icon}</span><span class="pv-quick-chip-no">${t.receiptNo}</span>${nameOf(t) ? `<span class="pv-quick-chip-name">(${nameOf(t)})</span>` : ''}
+          <span class="pv-quick-chip-key">${icon}</span><span class="pv-quick-chip-no">${t.receiptNo}</span>${nameOf(t) ? `<span class="pv-quick-chip-name">(${nameOf(t)})</span>` : ''}${(!admin && !t.seen) ? `<span class="pv-chip-new" style="margin-left:5px;font-size:9px;font-weight:800;color:#fff;background:#ef4444;border-radius:6px;padding:1px 5px;vertical-align:middle;">New</span>` : ''}
         </button>
       `).join('')}
     </div>
@@ -4462,6 +4462,10 @@ function renderAdminReceiptsQuick() {
         try {
           localStorage.setItem('ktl-calc-receipt', receiptNo);
           if (userName) localStorage.setItem('ktl-calc-username', userName);
+          const mine = JSON.parse(localStorage.getItem('ktl-my-receipts') || '[]');   // 열람하면 New 배지 해제
+          const mi = mine.findIndex(r => r.receiptNo === receiptNo);
+          if (mi >= 0 && !mine[mi].seen) { mine[mi].seen = true; localStorage.setItem('ktl-my-receipts', JSON.stringify(mine)); }
+          btn.querySelector('.pv-chip-new')?.remove();
         } catch {}
       }
       const receiptEl = document.getElementById('pv-receipt-no');

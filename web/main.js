@@ -18,9 +18,9 @@ function addMyReceipt(receiptNo, name, siteName, exp) {
     const list = JSON.parse(localStorage.getItem('ktl-my-receipts') || '[]');
     const i = list.findIndex((r) => r.receiptNo === receiptNo);
     // exp = 코드 만료 epoch초(10일). 고객 목록은 이걸로 만료분 제외.
-    const entry = { receiptNo, applicantName: name || '', siteName: siteName || '', exp: exp || 0, ts: Date.now() };
-    if (i >= 0) list[i] = { ...list[i], ...entry };
-    else list.push(entry);
+    const base = { receiptNo, applicantName: name || '', siteName: siteName || '', exp: exp || 0, ts: Date.now() };
+    if (i >= 0) list[i] = { ...list[i], ...base };        // 기존 건은 seen 상태 유지
+    else list.push({ ...base, seen: false });             // 신규 발행 = New 표시
     localStorage.setItem('ktl-my-receipts', JSON.stringify(list));
   } catch { /* 무시 */ }
 }
