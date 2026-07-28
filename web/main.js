@@ -12,15 +12,32 @@ import { initAdmin } from './admin.js';
 const $ = (id) => document.getElementById(id);
 
 // 고객이 연 '자기' 접수번호를 이 브라우저에 누적 (자기 것만 — 관리자 발행목록 ktl-issued-tokens 와 별개라 남 것 안 섞임)
+// 특정 접수번호의 폰 로컬 데이터(항목·입력값·오프라인 임시저장) 청소
+function clearReceiptLocal(receiptNo) {
+  try {
+    try {
+      const t = JSON.parse(localStorage.getItem(`ktl-tabs::${receiptNo}`) || '[]');
+      t.forEach((x) => { if (x && x.id) localStorage.removeItem(`ktl-pv-${x.id}`); });
+    } catch {}
+    localStorage.removeItem(`ktl-tabs::${receiptNo}`);
+    localStorage.removeItem(`ktl-tab-active::${receiptNo}`);
+    Object.keys(localStorage).forEach((k) => {
+      if (k.startsWith(`ktl-calc-offline-${receiptNo}-`)) localStorage.removeItem(k);
+    });
+  } catch { /* 무시 */ }
+}
 function addMyReceipt(receiptNo, name, siteName, exp) {
   if (!receiptNo) return;
   try {
     const list = JSON.parse(localStorage.getItem('ktl-my-receipts') || '[]');
     const i = list.findIndex((r) => r.receiptNo === receiptNo);
-    // exp = 코드 만료 epoch초(10일). 고객 목록은 이걸로 만료분 제외.
+    // exp = 코드 만료 epoch초(10일). 목록 만료분 제외에 씀.
+    // ★ 재발행 감지: 같은 접수번호인데 만료일(exp)이 더 늦음 = 관리자가 지우고 새 코드 발행한 것
+    //   → 그 건의 폰 로컬(옛 항목·입력값·오프라인)을 청소해 깨끗한 새 시작.
+    if (i >= 0 && exp && list[i].exp && exp > list[i].exp) clearReceiptLocal(receiptNo);
     const base = { receiptNo, applicantName: name || '', siteName: siteName || '', exp: exp || 0, ts: Date.now() };
-    if (i >= 0) list[i] = { ...list[i], ...base };        // 기존 건은 seen 상태 유지
-    else list.push({ ...base, seen: false });             // 신규 발행 = New 표시
+    if (i >= 0) list[i] = { ...list[i], ...base, seen: false };   // 재발행분도 New로 다시 표시
+    else list.push({ ...base, seen: false });                     // 신규 발행 = New
     localStorage.setItem('ktl-my-receipts', JSON.stringify(list));
   } catch { /* 무시 */ }
 }

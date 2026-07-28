@@ -4171,6 +4171,7 @@ function init() {
   calcSiteName  = isAdm ? '' : (localStorage.getItem('ktl-site-name') || '');
 
   // 접수번호별로 항목(탭) 로드 — calcReceiptNo 확정 후 호출해야 그 건의 탭이 뜬다(건끼리 안 섞임).
+  try { localStorage.removeItem('ktl-tabs'); localStorage.removeItem('ktl-tab-active'); } catch {}  // 옛 전역 키 잔재 정리(마이그레이션)
   loadMeta();
   if (!activeId || !tabs.find(t => t.id === activeId)) {
     activeId = tabs.length ? tabs[0].id : null;
