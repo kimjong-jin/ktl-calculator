@@ -9,7 +9,7 @@
  * DELETE /api/calcData?receiptNo=xxx&userName=yyy&token → 삭제 (관리자)
  */
 import { verifyToken } from '../src/authService.js';
-import { syncReceiptInfo, revokeTokenByReceiptNo } from '../src/tokenStore.js';
+import { syncReceiptInfo, revokeTokenByReceiptNo, getPwByReceiptNo } from '../src/tokenStore.js';
 
 const BASE          = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || '').replace(/\/$/, '');
 const STUDIO_SECRET = process.env.STUDIO_SECRET || '';
@@ -86,7 +86,10 @@ export default async function handler(req, res) {
       if (!receiptNo || !userName)
         return res.status(400).json({ error: 'receiptNo, userName 필수' });
       url = `${BASE}/api/calc`;
-      options.body = JSON.stringify(req.body);
+      // 발행 코드(pw)를 계산데이터와 함께 저장 — 토큰 만료·삭제 후에도 "어느 코드로 만든 데이터"인지 추적
+      let pw = '';
+      try { pw = await getPwByReceiptNo(receiptNo); } catch {}
+      options.body = JSON.stringify({ ...req.body, pw });
 
       // Auth token verification for client mapping sync
       const authHeader = req.headers.authorization || '';

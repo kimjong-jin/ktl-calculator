@@ -94,6 +94,21 @@ export async function findTokenByPw(pw) {
   return null;
 }
 
+/** 접수번호로 발행 코드(pw) 조회 — 유효한 것 우선, 없으면 만료분이라도 반환. 계산데이터에 코드 저장용. */
+export async function getPwByReceiptNo(receiptNo) {
+  if (!receiptNo) return '';
+  const map = await readCodes();
+  const now = Math.floor(Date.now() / 1000);
+  let fallback = '';
+  for (const entry of Object.values(map)) {
+    if (entry && entry.receiptNo === receiptNo && entry.pw) {
+      if (entry.exp > now) return entry.pw;
+      fallback = entry.pw;
+    }
+  }
+  return fallback;
+}
+
 /** 토큰 ID가 유효한지 확인 (Blob에 존재 + 만료 안 됨) */
 export async function isTokenValid(tokenId) {
   if (!tokenId) return false;
