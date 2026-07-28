@@ -5,6 +5,7 @@
  * Response: { ok, revoked }
  */
 import { revokeTokenByReceiptNo } from '../src/tokenStore.js';
+import { deleteCalcData } from '../src/calcDataClient.js';
 
 function requireMcpKey(req) {
   const key = process.env.MCP_KEY;
@@ -36,7 +37,8 @@ export default async function handler(req, res) {
     if (!receiptNo) return res.status(400).json({ error: 'receiptNo 필수' });
 
     const revoked = await revokeTokenByReceiptNo(receiptNo);
-    return res.status(200).json({ ok: true, revoked, receiptNo });
+    const dataDeleted = await deleteCalcData(receiptNo);   // 계산데이터도 접수번호 연동 삭제
+    return res.status(200).json({ ok: true, revoked, dataDeleted, receiptNo });
   } catch (e) {
     return res.status(500).json({ error: e instanceof Error ? e.message : '무효화 실패' });
   }

@@ -10,6 +10,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { verifyToken, generateInviteToken } from '../src/authService.js';
 import { registerToken, revokeToken, listTokens, clearAllTokens, clearTokensByIssuer, clearExpiredTokens, tokenIssuerOf } from '../src/tokenStore.js';
+import { deleteCalcData } from '../src/calcDataClient.js';
 import { listTestItems, getSheetNames, getDataFileName } from '../src/excelClient.js';
 import { getLimits, setLimit, getUsage, resetUsage } from '../src/chatRateLimit.js';
 const _dbOk = existsSync(join(process.cwd(), 'Version11_(2026).xlsx'))
@@ -87,14 +88,14 @@ export default async function handler(req, res) {
       if (!tokenId) return res.status(400).json({ error: 'tokenId 필수' });
       try {
         const id = adminIdentity(req)?.id || '';
-        if (!isSuperAdmin(id)) {
-          const all = await listTokens();
-          const entry = all[tokenId];
-          if (entry && tokenIssuerOf(entry) !== id) {
-            return res.status(403).json({ error: '본인이 발급한 코드만 삭제할 수 있습니다.' });
-          }
+        const all = await listTokens();
+        const entry = all[tokenId];
+        if (!isSuperAdmin(id) && entry && tokenIssuerOf(entry) !== id) {
+          return res.status(403).json({ error: '본인이 발급한 코드만 삭제할 수 있습니다.' });
         }
         const ok = await revokeToken(tokenId);
+        const rcpt = entry && (entry.receiptNo || entry.receipt_no);
+        if (rcpt) deleteCalcData(rcpt).catch(() => {});   // 계산데이터도 접수번호 연동 삭제
         return res.status(200).json({ ok, tokenId });
       } catch (e) {
         return res.status(500).json({ error: e instanceof Error ? e.message : '실패' });
