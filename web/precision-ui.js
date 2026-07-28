@@ -477,18 +477,17 @@ async function pollTokenMetadata() {
 
 
 function saveMeta() {
-  if (isAdmin()) return;
-  try { localStorage.setItem('ktl-tabs', JSON.stringify(tabs.map(({id,code,label,pass,subNo})=>({id,code,label,pass,subNo})))); } catch {}
-  try { localStorage.setItem('ktl-tab-active', activeId||''); } catch {}
+  if (isAdmin() || !calcReceiptNo) return;   // 접수번호 없으면 저장 안 함(전역 오염 방지)
+  const meta = tabs.map(({id,code,label,pass,subNo})=>({id,code,label,pass,subNo}));
+  try { localStorage.setItem(`ktl-tabs::${calcReceiptNo}`, JSON.stringify(meta)); } catch {}
+  try { localStorage.setItem(`ktl-tab-active::${calcReceiptNo}`, activeId||''); } catch {}
 }
 function loadMeta() {
-  if (isAdmin()) {
-    tabs = [];
-    activeId = null;
-    return;
-  }
-  try { const r = localStorage.getItem('ktl-tabs'); if (r) tabs = JSON.parse(r); } catch {}
-  try { activeId = localStorage.getItem('ktl-tab-active') || null; } catch {}
+  tabs = [];
+  activeId = null;
+  if (isAdmin() || !calcReceiptNo) return;   // 관리자·접수번호 없음 = 빈 상태로 시작
+  try { const r = localStorage.getItem(`ktl-tabs::${calcReceiptNo}`); if (r) tabs = JSON.parse(r); } catch {}
+  try { activeId = localStorage.getItem(`ktl-tab-active::${calcReceiptNo}`) || null; } catch {}
   // subNo 없으면 label 끝번호에서 복원(인덱스 재계산 금지 — 번호 리셋 방지). 그래도 없을 때만 index.
   tabs.forEach((t, i) => {
     if (!t.subNo) t.subNo = subNoOf(t) || (i + 1);
@@ -4165,16 +4164,17 @@ function init() {
   const panel = document.getElementById('panel-precision');
   if (!panel) return;
 
-  loadMeta();
-  if (!activeId || !tabs.find(t => t.id === activeId)) {
-    activeId = tabs.length ? tabs[0].id : null;
-  }
-
   // 저장된 접수번호·사용자 이름 복원 (관리자는 복원하지 않고 빈 값으로 시작)
   const isAdm = isAdmin();
   calcReceiptNo = isAdm ? '' : (localStorage.getItem('ktl-calc-receipt') || '');
   calcUserName  = isAdm ? '' : (localStorage.getItem('ktl-calc-username') || '');
   calcSiteName  = isAdm ? '' : (localStorage.getItem('ktl-site-name') || '');
+
+  // 접수번호별로 항목(탭) 로드 — calcReceiptNo 확정 후 호출해야 그 건의 탭이 뜬다(건끼리 안 섞임).
+  loadMeta();
+  if (!activeId || !tabs.find(t => t.id === activeId)) {
+    activeId = tabs.length ? tabs[0].id : null;
+  }
 
   panel.innerHTML = `
 <div class="pv-page">
@@ -4292,8 +4292,10 @@ function init() {
       localStorage.removeItem('ktl-calc-primary');
       localStorage.removeItem('ktl-tabs');
       localStorage.removeItem('ktl-tab-active');
+      localStorage.removeItem('ktl-my-receipts');
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('ktl-pv-') || key.startsWith('ktl-calc-offline-')) {
+        if (key.startsWith('ktl-pv-') || key.startsWith('ktl-calc-offline-')
+            || key.startsWith('ktl-tabs::') || key.startsWith('ktl-tab-active::')) {
           localStorage.removeItem(key);
         }
       });
@@ -4414,29 +4416,37 @@ async function ensureCalcUserMap() {
   return true;
 }
 
+// 접수번호 빠른 칩 목록.
+// 관리자 = 발행된 전체 목록(ktl-issued-tokens). 고객 = 이 브라우저에 누적된 '내 접수번호'만(ktl-my-receipts) — 남 것 구조적 차단.
 function renderAdminReceiptsQuick() {
   const container = document.getElementById('pv-admin-receipts-quick');
   if (!container) return;
   if (typeof window !== 'undefined') window.renderAdminReceiptsQuick = renderAdminReceiptsQuick;  // admin.js 주기 동기화에서 칩 갱신 호출용
-  if (!isAdmin()) {
-    container.style.display = 'none';
-    return;
+  const admin = isAdmin();
+  let list, title, icon;
+  if (admin) {
+    list = getActiveReceipts();
+    title = '발행된 접수번호 (클릭 시 즉시 로드):';
+    icon = '🔑';
+  } else {
+    try { list = JSON.parse(localStorage.getItem('ktl-my-receipts') || '[]'); } catch { list = []; }
+    const nowSec = Date.now() / 1000;
+    list = (list || []).filter(t => t && t.receiptNo && (!t.exp || t.exp > nowSec));   // 만료(10일 경과) 제외
+    title = '내 접수번호 (클릭 시 열기):';
+    icon = '📄';
   }
-  const list = getActiveReceipts();
-  if (list.length === 0) {
-    container.style.display = 'none';
-    return;
-  }
+  if (!list.length) { container.style.display = 'none'; return; }
 
   container.style.display = 'block';
-  ensureCalcUserMap().then(refetched => { if (refetched) renderAdminReceiptsQuick(); });
-  const nameOf = (t) => calcUserMap[t.receiptNo] || t.applicantName || '';
+  if (admin) ensureCalcUserMap().then(refetched => { if (refetched) renderAdminReceiptsQuick(); });
+  const nameOf = (t) => admin ? (calcUserMap[t.receiptNo] || t.applicantName || '') : (t.applicantName || '');
+  const esc = (s) => String(s || '').replace(/"/g, '&quot;');
   container.innerHTML = `
-    <div class="pv-admin-receipts-title">발행된 접수번호 (클릭 시 즉시 로드):</div>
+    <div class="pv-admin-receipts-title">${title}</div>
     <div class="pv-quick-chips-grid">
       ${list.map(t => `
-        <button type="button" class="btn btn--mini btn--ghost pv-quick-chip" data-load-receipt="${t.receiptNo}" title="${nameOf(t)} - ${t.siteName || ''}">
-          <span class="pv-quick-chip-key">🔑</span><span class="pv-quick-chip-no">${t.receiptNo}</span>${nameOf(t) ? `<span class="pv-quick-chip-name">(${nameOf(t)})</span>` : ''}
+        <button type="button" class="btn btn--mini btn--ghost pv-quick-chip" data-load-receipt="${t.receiptNo}" data-load-user="${esc(t.applicantName)}" title="${nameOf(t)} - ${t.siteName || ''}">
+          <span class="pv-quick-chip-key">${icon}</span><span class="pv-quick-chip-no">${t.receiptNo}</span>${nameOf(t) ? `<span class="pv-quick-chip-name">(${nameOf(t)})</span>` : ''}
         </button>
       `).join('')}
     </div>
@@ -4445,17 +4455,24 @@ function renderAdminReceiptsQuick() {
   container.querySelectorAll('.pv-quick-chip').forEach(btn => {
     btn.addEventListener('click', () => {
       const receiptNo = btn.dataset.loadReceipt;
+      const userName = btn.dataset.loadUser || '';
+      calcReceiptNo = receiptNo;
+      calcUserName = admin ? '' : userName;
+      if (!admin) {
+        try {
+          localStorage.setItem('ktl-calc-receipt', receiptNo);
+          if (userName) localStorage.setItem('ktl-calc-username', userName);
+        } catch {}
+      }
       const receiptEl = document.getElementById('pv-receipt-no');
       const userEl = document.getElementById('pv-user-name');
-      if (receiptEl) {
-        receiptEl.value = receiptNo;
-        receiptEl.dispatchEvent(new Event('input'));
-      }
-      if (userEl) {
-        userEl.value = '';
-        userEl.dispatchEvent(new Event('input'));
-      }
-      loadFromServer();
+      if (receiptEl) receiptEl.value = receiptNo;
+      if (userEl) userEl.value = admin ? '' : userName;
+      loadMeta();                                    // 이 접수번호의 항목(탭) 로드 (관리자는 빈 상태)
+      if (!activeId || !tabs.find(t => t.id === activeId)) activeId = tabs.length ? tabs[0].id : null;
+      renderTabs();
+      if (activeId) switchTab(activeId); else renderEmpty();
+      loadFromServer();                              // 서버 저장분 있으면 덮어씀(없으면 클라 탭 유지)
     });
   });
 }

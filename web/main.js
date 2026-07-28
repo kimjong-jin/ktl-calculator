@@ -11,6 +11,20 @@ import { initAdmin } from './admin.js';
 
 const $ = (id) => document.getElementById(id);
 
+// 고객이 연 '자기' 접수번호를 이 브라우저에 누적 (자기 것만 — 관리자 발행목록 ktl-issued-tokens 와 별개라 남 것 안 섞임)
+function addMyReceipt(receiptNo, name, siteName, exp) {
+  if (!receiptNo) return;
+  try {
+    const list = JSON.parse(localStorage.getItem('ktl-my-receipts') || '[]');
+    const i = list.findIndex((r) => r.receiptNo === receiptNo);
+    // exp = 코드 만료 epoch초(10일). 고객 목록은 이걸로 만료분 제외.
+    const entry = { receiptNo, applicantName: name || '', siteName: siteName || '', exp: exp || 0, ts: Date.now() };
+    if (i >= 0) list[i] = { ...list[i], ...entry };
+    else list.push(entry);
+    localStorage.setItem('ktl-my-receipts', JSON.stringify(list));
+  } catch { /* 무시 */ }
+}
+
 // ── 인증 ──────────────────────────────────────────────────────────────────
 
 async function tryInviteLogin(onSuccess) {
@@ -31,6 +45,7 @@ async function tryInviteLogin(onSuccess) {
       window.history.replaceState(null, '', location.pathname);
       if (data.role !== 'admin') {
         try {
+          addMyReceipt(data.receiptNo || '', data.applicantName || '', data.siteName || '', data.exp);   // 내 접수번호 목록에 누적(만료일 포함)
           localStorage.setItem('ktl-applicant-name', data.applicantName || '');
           localStorage.setItem('ktl-receipt-no', data.receiptNo || '');
           localStorage.setItem('ktl-calc-username', data.applicantName || '');
@@ -350,6 +365,7 @@ function setupAuthGate(onSuccess) {
       storeToken(data.token);
       if (data.role !== 'admin') {
         try {
+          addMyReceipt(data.receiptNo || '', data.applicantName || '', data.siteName || '', data.exp);   // 내 접수번호 목록에 누적(만료일 포함)
           localStorage.setItem('ktl-applicant-name', data.applicantName || '');
           localStorage.setItem('ktl-receipt-no', data.receiptNo || '');
           localStorage.setItem('ktl-calc-username', data.applicantName || '');
