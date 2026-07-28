@@ -49,7 +49,7 @@ api/     → Vercel 서버리스 엔드포인트 (환경변수는 process.env.* 
 ## 저장소 (오라클 아님)
 
 - 기준값 = **엑셀 파일 읽기** (`Version11_(2026).xlsx`)
-- 계산결과·챗로그 = **SQLite** (parser-photo-server, `59.20.58.2:3333`)
+- 계산결과·챗로그 = **SQLite** (parser-photo-server, `studio.gool.uk` 터널 → :3333)
 - 지식베이스 = 마크다운 + `search-index.json` (코사인 엣지가중치·IDF). 지식 문서를 고치면 `npm run gen:index` 로 인덱스를 재생성한다.
 
 ## 명령어

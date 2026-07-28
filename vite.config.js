@@ -348,7 +348,7 @@ async function handleApi(req, res, next) {
 
     // /api/userAuth — Mac Studio 사용자 인증 프록시 (DEV 전용)
     if (req.method === 'POST' && url.pathname === '/api/userAuth') {
-      const STUDIO_BASE = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || 'http://59.20.58.2:3333').replace(/\/$/, '');
+      const STUDIO_BASE = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || 'https://studio.gool.uk').replace(/\/$/, '');
       try {
         const body = await readJsonBody(req);
         const name = String(body.name || '').trim();
@@ -381,7 +381,7 @@ async function handleApi(req, res, next) {
 
     // /api/changePassword — Mac Studio 비밀번호 변경 프록시 (DEV 전용)
     if (req.method === 'POST' && url.pathname === '/api/changePassword') {
-      const STUDIO_BASE = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || 'http://59.20.58.2:3333').replace(/\/$/, '');
+      const STUDIO_BASE = (process.env.MAC_STUDIO_URL || process.env.LOCATION_SERVER_URL || 'https://studio.gool.uk').replace(/\/$/, '');
       try {
         const body = await readJsonBody(req);
         const { name, currentPassword, newPassword } = body;
