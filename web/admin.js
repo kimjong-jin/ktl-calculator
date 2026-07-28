@@ -965,7 +965,7 @@ function bindEvents(wrap, access) {
         refreshTokenList();
       }
     }
-    if (delId && confirm('이 접속 코드를 삭제할까요?\n삭제하면 해당 고객은 즉시 접속이 차단됩니다.')) {
+    if (delId && confirm('이 접속 코드를 삭제할까요?\n삭제하면 해당 고객은 즉시 접속이 차단됩니다.\n(계산 데이터도 함께 삭제됩니다)')) {
       const entry = loadTokenList().find(t => t.id === delId);
       const delBtn = e.target;
       delBtn.textContent = '삭제 중…';
@@ -988,6 +988,13 @@ function bindEvents(wrap, access) {
         if (currentReceiptNo === entry.receiptNo && typeof window.resetCalculatorForAdmin === 'function') {
           window.resetCalculatorForAdmin();
         }
+        // calcData도 함께 삭제 — 재발행 시 이전 데이터가 복원되지 않도록
+        try {
+          await fetch(
+            `/api/calcData?receiptNo=${encodeURIComponent(entry.receiptNo)}&userName=${encodeURIComponent(entry.userName || '')}&token=${encodeURIComponent(adminToken)}`,
+            { method: 'DELETE' }
+          );
+        } catch {}
       }
       removeFromList(delId);
       refreshTokenList();
