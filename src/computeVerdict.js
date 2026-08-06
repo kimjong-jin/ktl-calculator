@@ -143,8 +143,12 @@ export function computeVerdict(code, d = {}) {
     if (code === 'TOC') {
       const resp = gd('resp');
       const respPass = resp != null ? (resp <= 15) : null;
-      if (resp != null) add('응답시간 ≤ 15분', resp, respPass, 'RESP');
-      requiredPasses.push(respPass);
+      // 응답시간은 미입력 시 종합 판정 블록하지 않음 (pH 온도보상과 동일 패턴)
+      // → 입력했을 때만 requiredPasses에 포함. 미입력이면 다른 항목 전부 적합 시 'ok' 반환
+      if (resp != null) {
+        add('응답시간 ≤ 15분', resp, respPass, 'RESP');
+        requiredPasses.push(respPass);
+      }
     } else if (isWater) {
       const respSkip = gb('resp_skip');
       const rs = waterResponse(gd('resp'), gd('resp_sec'), code === 'TU', respSkip);
